@@ -26,7 +26,7 @@ var (
 
 // Get 获取指定代币的市场数据
 func Get(symbol string) (*Data, error) {
-	var klines3m, klines4h []Kline
+	var klines3m, klines15m, klines1h, klines4h []Kline
 	var err error
 	// 标准化symbol
 	symbol = Normalize(symbol)
@@ -42,6 +42,18 @@ func Get(symbol string) (*Data, error) {
 		return nil, fmt.Errorf("%s data is stale, possible cache failure", symbol)
 	}
 
+	// 获取15分钟K线数据
+	klines15m, err = WSMonitorCli.GetCurrentKlines(symbol, "15m")
+	if err != nil {
+		return nil, fmt.Errorf("获取15分钟K线失败: %v", err)
+	}
+
+	// 获取1小时K线数据
+	klines1h, err = WSMonitorCli.GetCurrentKlines(symbol, "1h")
+	if err != nil {
+		return nil, fmt.Errorf("获取1小时K线失败: %v", err)
+	}
+
 	// 获取4小时K线数据 (最近10个)
 	klines4h, err = WSMonitorCli.GetCurrentKlines(symbol, "4h") // 多获取用于计算指标
 	if err != nil {
@@ -51,6 +63,12 @@ func Get(symbol string) (*Data, error) {
 	// 检查数据是否为空
 	if len(klines3m) == 0 {
 		return nil, fmt.Errorf("3分钟K线数据为空")
+	}
+	if len(klines15m) == 0 {
+		return nil, fmt.Errorf("15分钟K线数据为空")
+	}
+	if len(klines1h) == 0 {
+		return nil, fmt.Errorf("1小时K线数据为空")
 	}
 	if len(klines4h) == 0 {
 		return nil, fmt.Errorf("4小时K线数据为空")
@@ -97,6 +115,12 @@ func Get(symbol string) (*Data, error) {
 	// 计算长期数据
 	longerTermData := calculateLongerTermData(klines4h)
 
+	// 计算15分钟K线上下文数据
+	fifteenMinData := calculateKlineContextData(klines15m)
+
+	// 计算1小时K线上下文数据
+	oneHourData := calculateKlineContextData(klines1h)
+
 	return &Data{
 		Symbol:            symbol,
 		CurrentPrice:      currentPrice,
@@ -108,6 +132,8 @@ func Get(symbol string) (*Data, error) {
 		OpenInterest:      oiData,
 		FundingRate:       fundingRate,
 		IntradaySeries:    intradayData,
+		FifteenMinContext:  fifteenMinData,
+		OneHourContext:     oneHourData,
 		LongerTermContext: longerTermData,
 	}, nil
 }

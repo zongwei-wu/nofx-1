@@ -14,6 +14,8 @@ type Data struct {
 	OpenInterest      *OIData
 	FundingRate       float64
 	IntradaySeries    *IntradayData
+	FifteenMinContext *KlineContextData // 15分钟K线上下文数据
+	OneHourContext    *KlineContextData // 1小时K线上下文数据
 	LongerTermContext *LongerTermData
 }
 
@@ -32,6 +34,18 @@ type IntradayData struct {
 	RSI14Values []float64
 	Volume      []float64
 	ATR14       float64
+}
+
+// KlineContextData K线上下文数据
+type KlineContextData struct {
+	EMA20   float64
+	EMA50   float64
+	MACD    float64
+	RSI14   float64
+	ATR14   float64
+	Volume  float64
+	Trend   string // 趋势: uptrend, downtrend, sideways
+	Pattern string // 形态模式
 }
 
 // LongerTermData 长期数据(4小时时间框架)
