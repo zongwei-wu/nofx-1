@@ -510,6 +510,66 @@ func Format(data *Data) string {
 	return sb.String()
 }
 
+func calculateKlineContextData(klines []Kline) *KlineContextData {
+    data := &KlineContextData{}
+    data.EMA20 = calculateEMA(klines, 20)
+    data.EMA50 = calculateEMA(klines, 50)
+    data.MACD = calculateMACD(klines)
+    data.RSI14 = calculateRSI(klines, 14)
+    data.ATR14 = calculateATR(klines, 14)
+    if len(klines) > 0 {
+        data.Volume = klines[len(klines)-1].Volume
+    }
+    data.Trend = determineTrend(klines)
+    data.Pattern = determinePattern(klines)
+    return data
+}
+
+func determineTrend(klines []Kline) string {
+    if len(klines) < 20 {
+        return "sideways"
+    }
+    currentPrice := klines[len(klines)-1].Close
+    ema20 := calculateEMA(klines, 20)
+    ema50 := calculateEMA(klines, 50)
+    if currentPrice > ema20 && ema20 > ema50 {
+        return "uptrend"
+    } else if currentPrice < ema20 && ema20 < ema50 {
+        return "downtrend"
+    }
+    return "sideways"
+}
+
+func determinePattern(klines []Kline) string {
+    if len(klines) < 2 {
+        return "none"
+    }
+    last := klines[len(klines)-1]
+    prev := klines[len(klines)-2]
+    if isHammer(last) {
+        return "hammer"
+    }
+    if isEngulfing(prev, last) {
+        return "engulfing"
+    }
+    return "none"
+}
+
+func isHammer(kline Kline) bool {
+    body := math.Abs(kline.Close - kline.Open)
+    lower := math.Min(kline.Open, kline.Close) - kline.Low
+    upper := kline.High - math.Max(kline.Open, kline.Close)
+    return body < (kline.High-kline.Low)*0.3 && lower > body*2 && upper < body
+}
+
+func isEngulfing(prevKline, currentKline Kline) bool {
+    prevBody := math.Abs(prevKline.Close - prevKline.Open)
+    currBody := math.Abs(currentKline.Close - currentKline.Open)
+    return currBody > prevBody &&
+        math.Min(currentKline.Open, currentKline.Close) < math.Min(prevKline.Open, prevKline.Close) &&
+        math.Max(currentKline.Open, currentKline.Close) > math.Max(prevKline.Open, prevKline.Close)
+}
+
 // formatPriceWithDynamicPrecision 根据价格区间动态选择精度
 // 这样可以完美支持从超低价 meme coin (< 0.0001) 到 BTC/ETH 的所有币种
 func formatPriceWithDynamicPrecision(price float64) string {
