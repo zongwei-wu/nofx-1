@@ -132,8 +132,8 @@ func Get(symbol string) (*Data, error) {
 		OpenInterest:      oiData,
 		FundingRate:       fundingRate,
 		IntradaySeries:    intradayData,
-		FifteenMinContext:  fifteenMinData,
-		OneHourContext:     oneHourData,
+		FifteenMinContext: fifteenMinData,
+		OneHourContext:    oneHourData,
 		LongerTermContext: longerTermData,
 	}, nil
 }
@@ -486,6 +486,20 @@ func Format(data *Data) string {
 		sb.WriteString(fmt.Sprintf("3m ATR (14‑period): %.3f\n\n", data.IntradaySeries.ATR14))
 	}
 
+	if data.FifteenMinContext != nil {
+		sb.WriteString("15‑minute context:\n\n")
+		sb.WriteString(fmt.Sprintf("EMA20: %.3f vs. EMA50: %.3f\n\n", data.FifteenMinContext.EMA20, data.FifteenMinContext.EMA50))
+		sb.WriteString(fmt.Sprintf("MACD: %.3f | RSI14: %.3f | ATR14: %.3f\n\n", data.FifteenMinContext.MACD, data.FifteenMinContext.RSI14, data.FifteenMinContext.ATR14))
+		sb.WriteString(fmt.Sprintf("Volume: %.3f | Trend: %s | Pattern: %s\n\n", data.FifteenMinContext.Volume, data.FifteenMinContext.Trend, data.FifteenMinContext.Pattern))
+	}
+
+	if data.OneHourContext != nil {
+		sb.WriteString("1‑hour context:\n\n")
+		sb.WriteString(fmt.Sprintf("EMA20: %.3f vs. EMA50: %.3f\n\n", data.OneHourContext.EMA20, data.OneHourContext.EMA50))
+		sb.WriteString(fmt.Sprintf("MACD: %.3f | RSI14: %.3f | ATR14: %.3f\n\n", data.OneHourContext.MACD, data.OneHourContext.RSI14, data.OneHourContext.ATR14))
+		sb.WriteString(fmt.Sprintf("Volume: %.3f | Trend: %s | Pattern: %s\n\n", data.OneHourContext.Volume, data.OneHourContext.Trend, data.OneHourContext.Pattern))
+	}
+
 	if data.LongerTermContext != nil {
 		sb.WriteString("Longer‑term context (4‑hour timeframe):\n\n")
 
@@ -511,63 +525,63 @@ func Format(data *Data) string {
 }
 
 func calculateKlineContextData(klines []Kline) *KlineContextData {
-    data := &KlineContextData{}
-    data.EMA20 = calculateEMA(klines, 20)
-    data.EMA50 = calculateEMA(klines, 50)
-    data.MACD = calculateMACD(klines)
-    data.RSI14 = calculateRSI(klines, 14)
-    data.ATR14 = calculateATR(klines, 14)
-    if len(klines) > 0 {
-        data.Volume = klines[len(klines)-1].Volume
-    }
-    data.Trend = determineTrend(klines)
-    data.Pattern = determinePattern(klines)
-    return data
+	data := &KlineContextData{}
+	data.EMA20 = calculateEMA(klines, 20)
+	data.EMA50 = calculateEMA(klines, 50)
+	data.MACD = calculateMACD(klines)
+	data.RSI14 = calculateRSI(klines, 14)
+	data.ATR14 = calculateATR(klines, 14)
+	if len(klines) > 0 {
+		data.Volume = klines[len(klines)-1].Volume
+	}
+	data.Trend = determineTrend(klines)
+	data.Pattern = determinePattern(klines)
+	return data
 }
 
 func determineTrend(klines []Kline) string {
-    if len(klines) < 20 {
-        return "sideways"
-    }
-    currentPrice := klines[len(klines)-1].Close
-    ema20 := calculateEMA(klines, 20)
-    ema50 := calculateEMA(klines, 50)
-    if currentPrice > ema20 && ema20 > ema50 {
-        return "uptrend"
-    } else if currentPrice < ema20 && ema20 < ema50 {
-        return "downtrend"
-    }
-    return "sideways"
+	if len(klines) < 20 {
+		return "sideways"
+	}
+	currentPrice := klines[len(klines)-1].Close
+	ema20 := calculateEMA(klines, 20)
+	ema50 := calculateEMA(klines, 50)
+	if currentPrice > ema20 && ema20 > ema50 {
+		return "uptrend"
+	} else if currentPrice < ema20 && ema20 < ema50 {
+		return "downtrend"
+	}
+	return "sideways"
 }
 
 func determinePattern(klines []Kline) string {
-    if len(klines) < 2 {
-        return "none"
-    }
-    last := klines[len(klines)-1]
-    prev := klines[len(klines)-2]
-    if isHammer(last) {
-        return "hammer"
-    }
-    if isEngulfing(prev, last) {
-        return "engulfing"
-    }
-    return "none"
+	if len(klines) < 2 {
+		return "none"
+	}
+	last := klines[len(klines)-1]
+	prev := klines[len(klines)-2]
+	if isHammer(last) {
+		return "hammer"
+	}
+	if isEngulfing(prev, last) {
+		return "engulfing"
+	}
+	return "none"
 }
 
 func isHammer(kline Kline) bool {
-    body := math.Abs(kline.Close - kline.Open)
-    lower := math.Min(kline.Open, kline.Close) - kline.Low
-    upper := kline.High - math.Max(kline.Open, kline.Close)
-    return body < (kline.High-kline.Low)*0.3 && lower > body*2 && upper < body
+	body := math.Abs(kline.Close - kline.Open)
+	lower := math.Min(kline.Open, kline.Close) - kline.Low
+	upper := kline.High - math.Max(kline.Open, kline.Close)
+	return body < (kline.High-kline.Low)*0.3 && lower > body*2 && upper < body
 }
 
 func isEngulfing(prevKline, currentKline Kline) bool {
-    prevBody := math.Abs(prevKline.Close - prevKline.Open)
-    currBody := math.Abs(currentKline.Close - currentKline.Open)
-    return currBody > prevBody &&
-        math.Min(currentKline.Open, currentKline.Close) < math.Min(prevKline.Open, prevKline.Close) &&
-        math.Max(currentKline.Open, currentKline.Close) > math.Max(prevKline.Open, prevKline.Close)
+	prevBody := math.Abs(prevKline.Close - prevKline.Open)
+	currBody := math.Abs(currentKline.Close - currentKline.Open)
+	return currBody > prevBody &&
+		math.Min(currentKline.Open, currentKline.Close) < math.Min(prevKline.Open, prevKline.Close) &&
+		math.Max(currentKline.Open, currentKline.Close) > math.Max(prevKline.Open, prevKline.Close)
 }
 
 // formatPriceWithDynamicPrecision 根据价格区间动态选择精度
