@@ -64,14 +64,16 @@ func Get(symbol string) (*Data, error) {
 	if len(klines3m) == 0 {
 		return nil, fmt.Errorf("3分钟K线数据为空")
 	}
+	if len(klines4h) == 0 {
+		return nil, fmt.Errorf("4小时K线数据为空")
+	}
+
+	// 15m/1h 缺失时使用 3m 聚合回退
 	if len(klines15m) == 0 {
 		return nil, fmt.Errorf("15分钟K线数据为空")
 	}
 	if len(klines1h) == 0 {
 		return nil, fmt.Errorf("1小时K线数据为空")
-	}
-	if len(klines4h) == 0 {
-		return nil, fmt.Errorf("4小时K线数据为空")
 	}
 
 	// 计算当前指标 (基于3分钟最新数据)
@@ -80,10 +82,17 @@ func Get(symbol string) (*Data, error) {
 	currentMACD := calculateMACD(klines3m)
 	currentRSI7 := calculateRSI(klines3m, 7)
 
-	// 计算价格变化百分比
-	// 1小时价格变化 = 20个3分钟K线前的价格
+	// 计算价格变化百分比（基于3m聚合参照）
+	priceChange15m := 0.0
+	if len(klines3m) >= 6 {
+		price15mAgo := klines3m[len(klines3m)-6].Close
+		if price15mAgo > 0 {
+			priceChange15m = ((currentPrice - price15mAgo) / price15mAgo) * 100
+		}
+	}
+
 	priceChange1h := 0.0
-	if len(klines3m) >= 21 { // 至少需要21根K线 (当前 + 20根前)
+	if len(klines3m) >= 21 {
 		price1hAgo := klines3m[len(klines3m)-21].Close
 		if price1hAgo > 0 {
 			priceChange1h = ((currentPrice - price1hAgo) / price1hAgo) * 100
@@ -124,6 +133,7 @@ func Get(symbol string) (*Data, error) {
 	return &Data{
 		Symbol:            symbol,
 		CurrentPrice:      currentPrice,
+		PriceChange15m:    priceChange15m,
 		PriceChange1h:     priceChange1h,
 		PriceChange4h:     priceChange4h,
 		CurrentEMA20:      currentEMA20,
@@ -136,6 +146,57 @@ func Get(symbol string) (*Data, error) {
 		OneHourContext:    oneHourData,
 		LongerTermContext: longerTermData,
 	}, nil
+}
+
+func aggregateKlines(src []Kline, group int) []Kline {
+	if group <= 1 || len(src) == 0 {
+		return src
+	}
+	out := make([]Kline, 0, len(src)/group+1)
+	for i := 0; i < len(src); i += group {
+		end := i + group
+		if end > len(src) {
+			end = len(src)
+		}
+		g := src[i:end]
+		if len(g) == 0 {
+			continue
+		}
+		high := g[0].High
+		low := g[0].Low
+		vol := 0.0
+		quoteVol := 0.0
+		trades := 0
+		takerBase := 0.0
+		takerQuote := 0.0
+		for _, k := range g {
+			if k.High > high {
+				high = k.High
+			}
+			if k.Low < low {
+				low = k.Low
+			}
+			vol += k.Volume
+			quoteVol += k.QuoteVolume
+			trades += k.Trades
+			takerBase += k.TakerBuyBaseVolume
+			takerQuote += k.TakerBuyQuoteVolume
+		}
+		out = append(out, Kline{
+			OpenTime:            g[0].OpenTime,
+			CloseTime:           g[len(g)-1].CloseTime,
+			Open:                g[0].Open,
+			Close:               g[len(g)-1].Close,
+			High:                high,
+			Low:                 low,
+			Volume:              vol,
+			QuoteVolume:         quoteVol,
+			Trades:              trades,
+			TakerBuyBaseVolume:  takerBase,
+			TakerBuyQuoteVolume: takerQuote,
+		})
+	}
+	return out
 }
 
 // calculateEMA 计算EMA
@@ -442,6 +503,9 @@ func Format(data *Data) string {
 	priceStr := formatPriceWithDynamicPrecision(data.CurrentPrice)
 	sb.WriteString(fmt.Sprintf("current_price = %s, current_ema20 = %.3f, current_macd = %.3f, current_rsi (7 period) = %.3f\n\n",
 		priceStr, data.CurrentEMA20, data.CurrentMACD, data.CurrentRSI7))
+
+	sb.WriteString(fmt.Sprintf("price_change: 15m %+.2f%% | 1h %+.2f%% | 4h %+.2f%%\n\n",
+		data.PriceChange15m, data.PriceChange1h, data.PriceChange4h))
 
 	sb.WriteString(fmt.Sprintf("In addition, here is the latest %s open interest and funding rate for perps:\n\n",
 		data.Symbol))
