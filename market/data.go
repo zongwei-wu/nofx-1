@@ -130,6 +130,9 @@ func Get(symbol string) (*Data, error) {
 	// 计算1小时K线上下文数据
 	oneHourData := calculateKlineContextData(klines1h)
 
+	// 计算支撑压力位
+	supportResistance := calculateSupportResistance(klines1h, klines4h, currentPrice)
+
 	return &Data{
 		Symbol:            symbol,
 		CurrentPrice:      currentPrice,
@@ -145,6 +148,7 @@ func Get(symbol string) (*Data, error) {
 		FifteenMinContext: fifteenMinData,
 		OneHourContext:    oneHourData,
 		LongerTermContext: longerTermData,
+		SupportResistance: supportResistance,
 	}, nil
 }
 
@@ -585,6 +589,154 @@ func Format(data *Data) string {
 		}
 	}
 
+	// 输出支撑压力位
+	if data.SupportResistance != nil {
+		sb.WriteString("Support & Resistance Levels:\n\n")
+
+		// 最近的支撑和压力位（最重要）
+		if data.SupportResistance.NearestSupport != nil {
+			s := data.SupportResistance.NearestSupport
+			sb.WriteString(fmt.Sprintf("📍 Nearest Support: %s (-%.2f%%) | Strength: %.0f/100 | Touches: %d\n\n",
+				formatPriceWithDynamicPrecision(s.Price), s.Distance, s.Strength, s.TouchCount))
+		}
+
+		if data.SupportResistance.NearestResistance != nil {
+			r := data.SupportResistance.NearestResistance
+			sb.WriteString(fmt.Sprintf("📍 Nearest Resistance: %s (+%.2f%%) | Strength: %.0f/100 | Touches: %d\n\n",
+				formatPriceWithDynamicPrecision(r.Price), r.Distance, r.Strength, r.TouchCount))
+		}
+
+		// 强支撑位
+		if len(data.SupportResistance.StrongSupports) > 0 {
+			sb.WriteString("Strong Supports:\n")
+			for i, s := range data.SupportResistance.StrongSupports {
+				sb.WriteString(fmt.Sprintf("  %d. %s (-%.2f%%) | Strength: %.0f | Touches: %d\n",
+					i+1, formatPriceWithDynamicPrecision(s.Price), s.Distance, s.Strength, s.TouchCount))
+			}
+			sb.WriteString("\n")
+		}
+
+		// 强压力位
+		if len(data.SupportResistance.StrongResistances) > 0 {
+			sb.WriteString("Strong Resistances:\n")
+			for i, r := range data.SupportResistance.StrongResistances {
+				sb.WriteString(fmt.Sprintf("  %d. %s (+%.2f%%) | Strength: %.0f | Touches: %d\n",
+					i+1, formatPriceWithDynamicPrecision(r.Price), r.Distance, r.Strength, r.TouchCount))
+			}
+			sb.WriteString("\n")
+		}
+
+		// 弱支撑位（可选）
+		if len(data.SupportResistance.WeakSupports) > 0 {
+			sb.WriteString("Weak Supports: ")
+			for i, s := range data.SupportResistance.WeakSupports {
+				if i > 0 {
+					sb.WriteString(", ")
+				}
+				sb.WriteString(fmt.Sprintf("%s (-%.2f%%)",
+					formatPriceWithDynamicPrecision(s.Price), s.Distance))
+			}
+			sb.WriteString("\n\n")
+		}
+
+		// 弱压力位（可选）
+		if len(data.SupportResistance.WeakResistances) > 0 {
+			sb.WriteString("Weak Resistances: ")
+			for i, r := range data.SupportResistance.WeakResistances {
+				if i > 0 {
+					sb.WriteString(", ")
+				}
+				sb.WriteString(fmt.Sprintf("%s (+%.2f%%)",
+					formatPriceWithDynamicPrecision(r.Price), r.Distance))
+			}
+			sb.WriteString("\n\n")
+		}
+
+		// 斐波那契回撤位
+		if data.SupportResistance.FibonacciLevels != nil && len(data.SupportResistance.FibonacciLevels.Levels) > 0 {
+			fib := data.SupportResistance.FibonacciLevels
+			sb.WriteString(fmt.Sprintf("Fibonacci Retracement (%s):\n", fib.Trend))
+			sb.WriteString(fmt.Sprintf("  Swing High: %s | Swing Low: %s\n",
+				formatPriceWithDynamicPrecision(fib.SwingHigh),
+				formatPriceWithDynamicPrecision(fib.SwingLow)))
+
+			// 按标准顺序输出斐波那契位
+			fibKeys := []string{"0.236", "0.382", "0.5", "0.618", "0.786"}
+			for _, key := range fibKeys {
+				if price, ok := fib.Levels[key]; ok {
+					distance := ((price - data.CurrentPrice) / data.CurrentPrice) * 100
+					sb.WriteString(fmt.Sprintf("  %s: %s (%+.2f%%)\n", key,
+						formatPriceWithDynamicPrecision(price), distance))
+				}
+			}
+			sb.WriteString("\n")
+		}
+
+		// 布林带
+		if data.SupportResistance.BollingerBands != nil {
+			bb := data.SupportResistance.BollingerBands
+			sb.WriteString("Bollinger Bands (20, 2):\n")
+			sb.WriteString(fmt.Sprintf("  Upper: %s | Middle: %s | Lower: %s\n",
+				formatPriceWithDynamicPrecision(bb.Upper),
+				formatPriceWithDynamicPrecision(bb.Middle),
+				formatPriceWithDynamicPrecision(bb.Lower)))
+			sb.WriteString(fmt.Sprintf("  Width: %.2f%% | Position: %s", bb.Width, bb.Position))
+			if bb.Squeeze {
+				sb.WriteString(" | ⚠️ SQUEEZE (Low Volatility)")
+			}
+			sb.WriteString("\n\n")
+		}
+
+		// 成交量分布
+		if data.SupportResistance.VolumeProfile != nil {
+			vp := data.SupportResistance.VolumeProfile
+			sb.WriteString("Volume Profile:\n")
+			sb.WriteString(fmt.Sprintf("  POC (Point of Control): %s\n",
+				formatPriceWithDynamicPrecision(vp.POC)))
+			sb.WriteString(fmt.Sprintf("  Value Area: %s - %s (70%% volume)\n",
+				formatPriceWithDynamicPrecision(vp.VAL),
+				formatPriceWithDynamicPrecision(vp.VAH)))
+			if len(vp.HighVolumeZones) > 0 {
+				sb.WriteString(fmt.Sprintf("  High Volume Zones: %d areas detected\n", len(vp.HighVolumeZones)))
+			}
+			sb.WriteString("\n")
+		}
+
+		// 关键价格区域
+		if len(data.SupportResistance.KeyPriceZones) > 0 {
+			sb.WriteString("Key Price Zones:\n")
+			for i, zone := range data.SupportResistance.KeyPriceZones {
+				if i >= 3 {
+					break // 只显示前3个最重要的区域
+				}
+				sb.WriteString(fmt.Sprintf("  %d. %s: %s - %s (Strength: %.0f)\n",
+					i+1, zone.Type,
+					formatPriceWithDynamicPrecision(zone.LowPrice),
+					formatPriceWithDynamicPrecision(zone.HighPrice),
+					zone.Strength))
+			}
+			sb.WriteString("\n")
+		}
+
+		// 突破信号
+		if len(data.SupportResistance.BreakoutSignals) > 0 {
+			sb.WriteString("⚡ Breakout Signals:\n")
+			for _, signal := range data.SupportResistance.BreakoutSignals {
+				confirmStatus := ""
+				if signal.Confirmed {
+					confirmStatus = " ✓ Confirmed"
+				}
+				sb.WriteString(fmt.Sprintf("  • %s at %s | %s | Strength: %.0f%s\n",
+					signal.Type,
+					formatPriceWithDynamicPrecision(signal.Price),
+					signal.Direction,
+					signal.Strength,
+					confirmStatus))
+			}
+			sb.WriteString("\n")
+		}
+	}
+
 	return sb.String()
 }
 
@@ -755,4 +907,669 @@ func isStaleData(klines []Kline, symbol string) bool {
 	// Price frozen but has volume: might be extremely low volatility market, allow but log warning
 	log.Printf("⚠️  %s detected extreme price stability (no fluctuation for %d consecutive periods), but volume is normal", symbol, stalePriceThreshold)
 	return false
+}
+
+// calculateSupportResistance 计算支撑位和压力位
+// 综合使用多种方法：局部高低点、成交量分布、价格聚类
+func calculateSupportResistance(klines1h []Kline, klines4h []Kline, currentPrice float64) *SupportResistanceLevels {
+	if len(klines1h) < 20 || len(klines4h) < 20 {
+		return &SupportResistanceLevels{}
+	}
+
+	levels := &SupportResistanceLevels{
+		StrongSupports:    []PriceLevel{},
+		WeakSupports:      []PriceLevel{},
+		StrongResistances: []PriceLevel{},
+		WeakResistances:   []PriceLevel{},
+	}
+
+	// 1. 从1小时和4小时K线提取局部高低点
+	highPoints1h := findLocalHighs(klines1h, 3) // 3周期回看窗口
+	lowPoints1h := findLocalLows(klines1h, 3)
+	highPoints4h := findLocalHighs(klines4h, 2) // 4小时用2周期
+	lowPoints4h := findLocalLows(klines4h, 2)
+
+	// 2. 合并所有高低点
+	allHighs := append(highPoints1h, highPoints4h...)
+	allLows := append(lowPoints1h, lowPoints4h...)
+
+	// 3. 价格聚类（将相近的价格合并）
+	clusterThreshold := currentPrice * 0.005 // 0.5%的价格范围内视为同一价格位
+	resistanceClusters := clusterPrices(allHighs, clusterThreshold)
+	supportClusters := clusterPrices(allLows, clusterThreshold)
+
+	// 4. 计算每个价格位的强度
+	for _, cluster := range resistanceClusters {
+		if cluster.Price <= currentPrice {
+			continue // 压力位必须在当前价格上方
+		}
+		distance := (cluster.Price - currentPrice) / currentPrice * 100
+		if distance > 15 { // 只关注15%范围内的压力位
+			continue
+		}
+
+		level := PriceLevel{
+			Price:      cluster.Price,
+			Strength:   cluster.Strength,
+			Distance:   distance,
+			Source:     "high_cluster",
+			TouchCount: cluster.TouchCount,
+		}
+
+		// 根据强度分类
+		if cluster.Strength >= 60 {
+			levels.StrongResistances = append(levels.StrongResistances, level)
+		} else if cluster.Strength >= 30 {
+			levels.WeakResistances = append(levels.WeakResistances, level)
+		}
+	}
+
+	for _, cluster := range supportClusters {
+		if cluster.Price >= currentPrice {
+			continue // 支撑位必须在当前价格下方
+		}
+		distance := (currentPrice - cluster.Price) / currentPrice * 100
+		if distance > 15 { // 只关注15%范围内的支撑位
+			continue
+		}
+
+		level := PriceLevel{
+			Price:      cluster.Price,
+			Strength:   cluster.Strength,
+			Distance:   distance,
+			Source:     "low_cluster",
+			TouchCount: cluster.TouchCount,
+		}
+
+		// 根据强度分类
+		if cluster.Strength >= 60 {
+			levels.StrongSupports = append(levels.StrongSupports, level)
+		} else if cluster.Strength >= 30 {
+			levels.WeakSupports = append(levels.WeakSupports, level)
+		}
+	}
+
+	// 5. 按距离排序（最近的排在前面）
+	sortPriceLevelsByDistance(levels.StrongSupports)
+	sortPriceLevelsByDistance(levels.WeakSupports)
+	sortPriceLevelsByDistance(levels.StrongResistances)
+	sortPriceLevelsByDistance(levels.WeakResistances)
+
+	// 6. 只保留最重要的3个
+	if len(levels.StrongSupports) > 3 {
+		levels.StrongSupports = levels.StrongSupports[:3]
+	}
+	if len(levels.StrongResistances) > 3 {
+		levels.StrongResistances = levels.StrongResistances[:3]
+	}
+	if len(levels.WeakSupports) > 2 {
+		levels.WeakSupports = levels.WeakSupports[:2]
+	}
+	if len(levels.WeakResistances) > 2 {
+		levels.WeakResistances = levels.WeakResistances[:2]
+	}
+
+	// 7. 标记最近的支撑和压力位
+	if len(levels.StrongSupports) > 0 {
+		levels.NearestSupport = &levels.StrongSupports[0]
+	} else if len(levels.WeakSupports) > 0 {
+		levels.NearestSupport = &levels.WeakSupports[0]
+	}
+
+	if len(levels.StrongResistances) > 0 {
+		levels.NearestResistance = &levels.StrongResistances[0]
+	} else if len(levels.WeakResistances) > 0 {
+		levels.NearestResistance = &levels.WeakResistances[0]
+	}
+
+	// 8. 计算斐波那契回撤位
+	levels.FibonacciLevels = calculateFibonacciLevels(klines4h, currentPrice)
+
+	// 9. 计算成交量分布
+	levels.VolumeProfile = calculateVolumeProfile(klines1h, currentPrice)
+
+	// 10. 计算布林带
+	levels.BollingerBands = calculateBollingerBands(klines1h, 20, 2.0, currentPrice)
+
+	// 11. 检测突破信号
+	allSupports := append(levels.StrongSupports, levels.WeakSupports...)
+	allResistances := append(levels.StrongResistances, levels.WeakResistances...)
+	levels.BreakoutSignals = detectBreakouts(klines1h, allSupports, allResistances)
+
+	// 12. 识别关键价格区域
+	levels.KeyPriceZones = identifyKeyPriceZones(levels.StrongSupports, levels.StrongResistances, levels.VolumeProfile)
+
+	return levels
+}
+
+// pricePoint 价格点（用于计算）
+type pricePoint struct {
+	Price  float64
+	Volume float64
+	Index  int
+}
+
+// findLocalHighs 找出局部高点
+func findLocalHighs(klines []Kline, lookback int) []pricePoint {
+	var highs []pricePoint
+	for i := lookback; i < len(klines)-lookback; i++ {
+		isLocalHigh := true
+		current := klines[i].High
+
+		// 检查左右两边的K线
+		for j := 1; j <= lookback; j++ {
+			if klines[i-j].High >= current || klines[i+j].High >= current {
+				isLocalHigh = false
+				break
+			}
+		}
+
+		if isLocalHigh {
+			highs = append(highs, pricePoint{
+				Price:  current,
+				Volume: klines[i].Volume,
+				Index:  i,
+			})
+		}
+	}
+	return highs
+}
+
+// findLocalLows 找出局部低点
+func findLocalLows(klines []Kline, lookback int) []pricePoint {
+	var lows []pricePoint
+	for i := lookback; i < len(klines)-lookback; i++ {
+		isLocalLow := true
+		current := klines[i].Low
+
+		// 检查左右两边的K线
+		for j := 1; j <= lookback; j++ {
+			if klines[i-j].Low <= current || klines[i+j].Low <= current {
+				isLocalLow = false
+				break
+			}
+		}
+
+		if isLocalLow {
+			lows = append(lows, pricePoint{
+				Price:  current,
+				Volume: klines[i].Volume,
+				Index:  i,
+			})
+		}
+	}
+	return lows
+}
+
+// priceCluster 价格聚类结果
+type priceCluster struct {
+	Price       float64
+	Strength    float64
+	TouchCount  int
+	TotalVolume float64
+}
+
+// clusterPrices 将相近的价格聚类
+func clusterPrices(points []pricePoint, threshold float64) []priceCluster {
+	if len(points) == 0 {
+		return []priceCluster{}
+	}
+
+	// 按价格排序
+	sortedPoints := make([]pricePoint, len(points))
+	copy(sortedPoints, points)
+	for i := 0; i < len(sortedPoints)-1; i++ {
+		for j := i + 1; j < len(sortedPoints); j++ {
+			if sortedPoints[i].Price > sortedPoints[j].Price {
+				sortedPoints[i], sortedPoints[j] = sortedPoints[j], sortedPoints[i]
+			}
+		}
+	}
+
+	var clusters []priceCluster
+	currentCluster := priceCluster{
+		Price:       sortedPoints[0].Price,
+		TouchCount:  1,
+		TotalVolume: sortedPoints[0].Volume,
+	}
+
+	for i := 1; i < len(sortedPoints); i++ {
+		if math.Abs(sortedPoints[i].Price-currentCluster.Price) <= threshold {
+			// 在同一聚类中，更新平均价格
+			totalWeight := currentCluster.TotalVolume + sortedPoints[i].Volume
+			currentCluster.Price = (currentCluster.Price*currentCluster.TotalVolume + sortedPoints[i].Price*sortedPoints[i].Volume) / totalWeight
+			currentCluster.TotalVolume = totalWeight
+			currentCluster.TouchCount++
+		} else {
+			// 计算当前聚类的强度并保存
+			currentCluster.Strength = calculateClusterStrength(currentCluster)
+			clusters = append(clusters, currentCluster)
+
+			// 开始新的聚类
+			currentCluster = priceCluster{
+				Price:       sortedPoints[i].Price,
+				TouchCount:  1,
+				TotalVolume: sortedPoints[i].Volume,
+			}
+		}
+	}
+
+	// 保存最后一个聚类
+	currentCluster.Strength = calculateClusterStrength(currentCluster)
+	clusters = append(clusters, currentCluster)
+
+	return clusters
+}
+
+// calculateClusterStrength 计算聚类强度（0-100）
+func calculateClusterStrength(cluster priceCluster) float64 {
+	// 强度 = 触及次数权重(60%) + 成交量权重(40%)
+	touchScore := float64(cluster.TouchCount) * 15 // 每次触及+15分
+	if touchScore > 60 {
+		touchScore = 60 // 最高60分
+	}
+
+	volumeScore := 40.0 // 成交量基础分
+	if cluster.TotalVolume > 0 {
+		// 成交量越大，分数越高（使用对数刻度避免极端值）
+		volumeScore = math.Min(40, math.Log10(cluster.TotalVolume+1)*8)
+	}
+
+	return touchScore + volumeScore
+}
+
+// sortPriceLevelsByDistance 按距离排序价格位
+func sortPriceLevelsByDistance(levels []PriceLevel) {
+	for i := 0; i < len(levels)-1; i++ {
+		for j := i + 1; j < len(levels); j++ {
+			if levels[i].Distance > levels[j].Distance {
+				levels[i], levels[j] = levels[j], levels[i]
+			}
+		}
+	}
+}
+
+// calculateFibonacciLevels 计算斐波那契回撤位
+func calculateFibonacciLevels(klines []Kline, currentPrice float64) *FibonacciLevels {
+	if len(klines) < 20 {
+		return nil
+	}
+
+	// 找出最近的波段高点和低点（最近50个K线）
+	lookback := 50
+	if len(klines) < lookback {
+		lookback = len(klines)
+	}
+	recentKlines := klines[len(klines)-lookback:]
+
+	swingHigh := recentKlines[0].High
+	swingLow := recentKlines[0].Low
+
+	for _, k := range recentKlines {
+		if k.High > swingHigh {
+			swingHigh = k.High
+		}
+		if k.Low < swingLow {
+			swingLow = k.Low
+		}
+	}
+
+	// 判断趋势方向
+	trend := "unknown"
+	priceRange := swingHigh - swingLow
+	if currentPrice > swingLow+(priceRange*0.6) {
+		trend = "uptrend" // 价格在高位，计算回撤位
+	} else if currentPrice < swingLow+(priceRange*0.4) {
+		trend = "downtrend" // 价格在低位，计算反弹位
+	}
+
+	// 计算斐波那契回撤位
+	levels := make(map[string]float64)
+	if trend == "uptrend" {
+		// 上升趋势：从高点往下回撤
+		levels["0.236"] = swingHigh - priceRange*0.236
+		levels["0.382"] = swingHigh - priceRange*0.382
+		levels["0.5"] = swingHigh - priceRange*0.5
+		levels["0.618"] = swingHigh - priceRange*0.618
+		levels["0.786"] = swingHigh - priceRange*0.786
+	} else if trend == "downtrend" {
+		// 下降趋势：从低点往上反弹
+		levels["0.236"] = swingLow + priceRange*0.236
+		levels["0.382"] = swingLow + priceRange*0.382
+		levels["0.5"] = swingLow + priceRange*0.5
+		levels["0.618"] = swingLow + priceRange*0.618
+		levels["0.786"] = swingLow + priceRange*0.786
+	}
+
+	return &FibonacciLevels{
+		SwingHigh: swingHigh,
+		SwingLow:  swingLow,
+		Trend:     trend,
+		Levels:    levels,
+	}
+}
+
+// calculateVolumeProfile 计算成交量分布
+func calculateVolumeProfile(klines []Kline, currentPrice float64) *VolumeProfile {
+	if len(klines) < 20 {
+		return nil
+	}
+
+	// 使用最近100个K线计算
+	lookback := 100
+	if len(klines) < lookback {
+		lookback = len(klines)
+	}
+	recentKlines := klines[len(klines)-lookback:]
+
+	// 找出价格范围
+	minPrice := recentKlines[0].Low
+	maxPrice := recentKlines[0].High
+	for _, k := range recentKlines {
+		if k.Low < minPrice {
+			minPrice = k.Low
+		}
+		if k.High > maxPrice {
+			maxPrice = k.High
+		}
+	}
+
+	// 将价格范围分成30个区间
+	numBins := 30
+	binSize := (maxPrice - minPrice) / float64(numBins)
+	volumeBins := make([]float64, numBins)
+	binPrices := make([]float64, numBins)
+
+	// 初始化每个区间的中心价格
+	for i := 0; i < numBins; i++ {
+		binPrices[i] = minPrice + float64(i)*binSize + binSize/2
+	}
+
+	// 分配成交量到各个价格区间
+	for _, k := range recentKlines {
+		// 简化：将K线的成交量平均分配到它覆盖的价格区间
+		startBin := int((k.Low - minPrice) / binSize)
+		endBin := int((k.High - minPrice) / binSize)
+
+		if startBin < 0 {
+			startBin = 0
+		}
+		if endBin >= numBins {
+			endBin = numBins - 1
+		}
+
+		volumePerBin := k.Volume / float64(endBin-startBin+1)
+		for i := startBin; i <= endBin; i++ {
+			volumeBins[i] += volumePerBin
+		}
+	}
+
+	// 找出POC（最大成交量价格）
+	pocIndex := 0
+	maxVolume := volumeBins[0]
+	for i := 1; i < numBins; i++ {
+		if volumeBins[i] > maxVolume {
+			maxVolume = volumeBins[i]
+			pocIndex = i
+		}
+	}
+	poc := binPrices[pocIndex]
+
+	// 计算Value Area（70%成交量区域）
+	totalVolume := 0.0
+	for _, v := range volumeBins {
+		totalVolume += v
+	}
+	targetVolume := totalVolume * 0.70
+
+	// 从POC向两侧扩展，直到包含70%的成交量
+	accumulatedVolume := volumeBins[pocIndex]
+	lowerIndex := pocIndex
+	upperIndex := pocIndex
+
+	for accumulatedVolume < targetVolume && (lowerIndex > 0 || upperIndex < numBins-1) {
+		lowerVolume := 0.0
+		upperVolume := 0.0
+
+		if lowerIndex > 0 {
+			lowerVolume = volumeBins[lowerIndex-1]
+		}
+		if upperIndex < numBins-1 {
+			upperVolume = volumeBins[upperIndex+1]
+		}
+
+		if lowerVolume > upperVolume && lowerIndex > 0 {
+			lowerIndex--
+			accumulatedVolume += lowerVolume
+		} else if upperIndex < numBins-1 {
+			upperIndex++
+			accumulatedVolume += upperVolume
+		} else if lowerIndex > 0 {
+			lowerIndex--
+			accumulatedVolume += lowerVolume
+		} else {
+			break
+		}
+	}
+
+	val := binPrices[lowerIndex]
+	vah := binPrices[upperIndex]
+
+	// 找出高成交量区域（成交量>平均值的150%）
+	avgVolume := totalVolume / float64(numBins)
+	highVolumeThreshold := avgVolume * 1.5
+	var highVolumeZones []PriceZone
+
+	i := 0
+	for i < numBins {
+		if volumeBins[i] > highVolumeThreshold {
+			// 找到高成交量区域的起点
+			startIdx := i
+			zoneVolume := 0.0
+
+			// 向后扫描连续的高成交量区间
+			for i < numBins && volumeBins[i] > highVolumeThreshold {
+				zoneVolume += volumeBins[i]
+				i++
+			}
+			endIdx := i - 1
+
+			zone := PriceZone{
+				LowPrice:  binPrices[startIdx] - binSize/2,
+				HighPrice: binPrices[endIdx] + binSize/2,
+				Volume:    zoneVolume,
+				Strength:  math.Min(100, (zoneVolume/totalVolume)*200), // 强度评分
+				Type:      "high_volume_zone",
+			}
+			highVolumeZones = append(highVolumeZones, zone)
+		} else {
+			i++
+		}
+	}
+
+	return &VolumeProfile{
+		POC:             poc,
+		VAH:             vah,
+		VAL:             val,
+		HighVolumeZones: highVolumeZones,
+	}
+}
+
+// calculateBollingerBands 计算布林带
+func calculateBollingerBands(klines []Kline, period int, stdDev float64, currentPrice float64) *BollingerBands {
+	if len(klines) < period {
+		return nil
+	}
+
+	// 计算中轨（SMA）
+	sum := 0.0
+	for i := len(klines) - period; i < len(klines); i++ {
+		sum += klines[i].Close
+	}
+	middle := sum / float64(period)
+
+	// 计算标准差
+	variance := 0.0
+	for i := len(klines) - period; i < len(klines); i++ {
+		diff := klines[i].Close - middle
+		variance += diff * diff
+	}
+	standardDeviation := math.Sqrt(variance / float64(period))
+
+	// 计算上下轨
+	upper := middle + stdDev*standardDeviation
+	lower := middle - stdDev*standardDeviation
+
+	// 计算带宽（波动率指标）
+	width := ((upper - lower) / middle) * 100
+
+	// 判断价格位置
+	position := "in_band"
+	if currentPrice > upper {
+		position = "above_upper"
+	} else if currentPrice < lower {
+		position = "below_lower"
+	}
+
+	// 判断是否处于收缩状态（带宽 < 历史平均的70%）
+	// 简化版：如果带宽 < 2%，认为是收缩状态
+	squeeze := width < 2.0
+
+	return &BollingerBands{
+		Upper:    upper,
+		Middle:   middle,
+		Lower:    lower,
+		Width:    width,
+		Position: position,
+		Squeeze:  squeeze,
+	}
+}
+
+// detectBreakouts 检测突破信号
+func detectBreakouts(klines []Kline, supportLevels []PriceLevel, resistanceLevels []PriceLevel) []BreakoutSignal {
+	if len(klines) < 3 {
+		return []BreakoutSignal{}
+	}
+
+	var signals []BreakoutSignal
+	currentKline := klines[len(klines)-1]
+	prevKline := klines[len(klines)-2]
+
+	// 计算平均成交量
+	avgVolume := 0.0
+	lookback := 20
+	if len(klines) < lookback {
+		lookback = len(klines)
+	}
+	for i := len(klines) - lookback; i < len(klines); i++ {
+		avgVolume += klines[i].Volume
+	}
+	avgVolume /= float64(lookback)
+
+	// 检测压力位突破（向上突破）
+	for _, resistance := range resistanceLevels {
+		if prevKline.Close < resistance.Price && currentKline.Close > resistance.Price {
+			// 计算突破强度（基于成交量）
+			volumeRatio := currentKline.Volume / avgVolume
+			strength := math.Min(100, volumeRatio*50)
+
+			// 检查是否有回踩确认（简化版：检查后续K线）
+			confirmed := false
+			if len(klines) >= 4 {
+				nextKline := klines[len(klines)-1]
+				if nextKline.Low <= resistance.Price && nextKline.Close > resistance.Price {
+					confirmed = true
+				}
+			}
+
+			signals = append(signals, BreakoutSignal{
+				Type:      "resistance_break",
+				Price:     resistance.Price,
+				Volume:    currentKline.Volume,
+				Strength:  strength,
+				Direction: "bullish",
+				Confirmed: confirmed,
+			})
+		}
+	}
+
+	// 检测支撑位突破（向下突破）
+	for _, support := range supportLevels {
+		if prevKline.Close > support.Price && currentKline.Close < support.Price {
+			volumeRatio := currentKline.Volume / avgVolume
+			strength := math.Min(100, volumeRatio*50)
+
+			confirmed := false
+			if len(klines) >= 4 {
+				nextKline := klines[len(klines)-1]
+				if nextKline.High >= support.Price && nextKline.Close < support.Price {
+					confirmed = true
+				}
+			}
+
+			signals = append(signals, BreakoutSignal{
+				Type:      "support_break",
+				Price:     support.Price,
+				Volume:    currentKline.Volume,
+				Strength:  strength,
+				Direction: "bearish",
+				Confirmed: confirmed,
+			})
+		}
+	}
+
+	return signals
+}
+
+// identifyKeyPriceZones 识别关键价格区域
+func identifyKeyPriceZones(supportLevels []PriceLevel, resistanceLevels []PriceLevel, volumeProfile *VolumeProfile) []PriceZone {
+	var zones []PriceZone
+
+	// 1. 从强支撑位创建支撑区域
+	for _, support := range supportLevels {
+		if support.Strength >= 60 {
+			zone := PriceZone{
+				LowPrice:  support.Price * 0.995, // 支撑位下0.5%
+				HighPrice: support.Price * 1.005, // 支撑位上0.5%
+				Volume:    0,                     // 从价格位计算，没有直接成交量数据
+				Strength:  support.Strength,
+				Type:      "support_zone",
+			}
+			zones = append(zones, zone)
+		}
+	}
+
+	// 2. 从强压力位创建压力区域
+	for _, resistance := range resistanceLevels {
+		if resistance.Strength >= 60 {
+			zone := PriceZone{
+				LowPrice:  resistance.Price * 0.995,
+				HighPrice: resistance.Price * 1.005,
+				Volume:    0,
+				Strength:  resistance.Strength,
+				Type:      "resistance_zone",
+			}
+			zones = append(zones, zone)
+		}
+	}
+
+	// 3. 添加成交量分布的高成交量区域
+	if volumeProfile != nil {
+		zones = append(zones, volumeProfile.HighVolumeZones...)
+	}
+
+	// 按强度排序，只保留最重要的5个区域
+	for i := 0; i < len(zones)-1; i++ {
+		for j := i + 1; j < len(zones); j++ {
+			if zones[i].Strength < zones[j].Strength {
+				zones[i], zones[j] = zones[j], zones[i]
+			}
+		}
+	}
+
+	if len(zones) > 5 {
+		zones = zones[:5]
+	}
+
+	return zones
 }
