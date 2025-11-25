@@ -300,6 +300,7 @@ export const translations = {
     promptTemplateHansen: 'Hansen Strategy',
     promptTemplateNof1: 'NoF1 English Framework',
     promptTemplateTaroLong: 'Taro Long Position',
+    promptTemplateOptimizedPro: 'Optimized Pro',
     promptDescDefault: '📊 Default Stable Strategy',
     promptDescDefaultContent:
       'Maximize Sharpe ratio, balanced risk-reward, suitable for beginners and stable long-term trading',
@@ -318,6 +319,9 @@ export const translations = {
     promptDescTaroLong: '📈 Taro Long Position Strategy',
     promptDescTaroLongContent:
       'Data-driven decisions, multi-dimensional validation, continuous learning evolution, long position specialist',
+    promptDescOptimizedPro: '🚀 Optimized Pro Strategy',
+    promptDescOptimizedProContent:
+      'Multi-timeframe resonance, triple take-profit, ATR adaptive volatility, BTC correlation analysis, professional trading strategy',
 
     // Loading & Error
     loading: 'Loading...',
@@ -1138,6 +1142,7 @@ export const translations = {
     promptTemplateHansen: 'Hansen 策略',
     promptTemplateNof1: 'NoF1 英文框架',
     promptTemplateTaroLong: 'Taro 长仓',
+    promptTemplateOptimizedPro: '专业优化',
     promptDescDefault: '📊 默认稳健策略',
     promptDescDefaultContent:
       '最大化夏普比率，平衡风险收益，适合新手和长期稳定交易',
@@ -1155,6 +1160,9 @@ export const translations = {
     promptDescTaroLong: '📈 Taro 长仓策略',
     promptDescTaroLongContent:
       '数据驱动决策，多维度验证，持续学习进化，长仓专用',
+    promptDescOptimizedPro: '🚀 专业优化策略',
+    promptDescOptimizedProContent:
+      '多周期共振，三段式止盈，ATR波动率自适应，BTC联动分析，专业交易策略',
 
     // Loading & Error
     loading: '加载中...',

@@ -380,11 +380,10 @@ export function TraderConfigModal({
                     <button
                       type="button"
                       onClick={() => handleInputChange('is_cross_margin', true)}
-                      className={`flex-1 px-3 py-2 rounded text-sm ${
-                        formData.is_cross_margin
+                      className={`flex-1 px-3 py-2 rounded text-sm ${formData.is_cross_margin
                           ? 'bg-[#F0B90B] text-black'
                           : 'bg-[#0B0E11] text-[#848E9C] border border-[#2B3139]'
-                      }`}
+                        }`}
                     >
                       全仓
                     </button>
@@ -393,11 +392,10 @@ export function TraderConfigModal({
                       onClick={() =>
                         handleInputChange('is_cross_margin', false)
                       }
-                      className={`flex-1 px-3 py-2 rounded text-sm ${
-                        !formData.is_cross_margin
+                      className={`flex-1 px-3 py-2 rounded text-sm ${!formData.is_cross_margin
                           ? 'bg-[#F0B90B] text-black'
                           : 'bg-[#0B0E11] text-[#848E9C] border border-[#2B3139]'
-                      }`}
+                        }`}
                     >
                       逐仓
                     </button>
@@ -580,11 +578,10 @@ export function TraderConfigModal({
                           key={coin}
                           type="button"
                           onClick={() => handleCoinToggle(coin)}
-                          className={`px-2 py-1 text-xs rounded transition-colors ${
-                            selectedCoins.includes(coin)
+                          className={`px-2 py-1 text-xs rounded transition-colors ${selectedCoins.includes(coin)
                               ? 'bg-[#F0B90B] text-black'
                               : 'bg-[#1E2329] text-[#848E9C] border border-[#2B3139] hover:border-[#F0B90B]'
-                          }`}
+                            }`}
                         >
                           {coin.replace('USDT', '')}
                         </button>
@@ -659,6 +656,7 @@ export function TraderConfigModal({
                         Hansen: 'promptTemplateHansen',
                         nof1: 'promptTemplateNof1',
                         taro_long_prompts: 'promptTemplateTaroLong',
+                        optimized_pro: 'promptTemplateOptimizedPro',
                       }
                       const key = keyMap[name]
                       return key
@@ -694,6 +692,7 @@ export function TraderConfigModal({
                         Hansen: 'promptDescHansen',
                         nof1: 'promptDescNof1',
                         taro_long_prompts: 'promptDescTaroLong',
+                        optimized_pro: 'promptDescOptimizedPro',
                       }
                       const key = titleKeyMap[formData.system_prompt_template]
                       return key
@@ -710,6 +709,7 @@ export function TraderConfigModal({
                         Hansen: 'promptDescHansenContent',
                         nof1: 'promptDescNof1Content',
                         taro_long_prompts: 'promptDescTaroLongContent',
+                        optimized_pro: 'promptDescOptimizedProContent',
                       }
                       const key = contentKeyMap[formData.system_prompt_template]
                       return key
