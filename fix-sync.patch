@@ -1,0 +1,78 @@
+diff --git a/api/server.go b/api/server.go
+index c5b01e9..cea8bba 100644
+--- a/api/server.go
++++ b/api/server.go
+@@ -3044,32 +3044,36 @@ func (s *Server) handleSyncCopyTrade(c *gin.Context) {
+
+ 		latestTime := cfg.LastOrderTime
+
+-		// 只取每个币种的最新操作
++		// 收集所有未同步的新订单（每个币种+时间戳唯一去重）
+ 		type symbolOrder struct {
+ 			Symbol       string
+ 			Side         string
+ 			PositionSide string
+ 			ExecutedQty  float64
+ 			AvgPrice     float64
++			TotalPnl     float64
+ 			OrderTime    int64
+ 		}
+-		latestOrders := make(map[string]*symbolOrder)
++		// 用 symbol+orderTime 去重，确保同时间戳的多笔不同数量订单都能被处理
++		seenKey := make(map[string]bool)
++		var allNewOrders []symbolOrder
+ 		for _, order := range cached.Data.List {
+ 			if order.OrderTime > latestTime {
+ 				latestTime = order.OrderTime
+ 			}
+-			// 只处理未同步过的新订单
++			// 只处理未同步过的新订单（by orderTime）
+ 			if order.OrderTime <= cfg.LastOrderTime {
+ 				continue
+ 			}
+-			// 只复制开仓操作
++			// 只复制开仓操作（按 Binance 仓位模式判断）
+ 			isOpen := (order.PositionSide == "LONG" && order.Side == "BUY") ||
+ 				(order.PositionSide == "SHORT" && order.Side == "SELL") ||
+ 				(order.PositionSide == "BOTH" && order.Side == "SELL")
+ 			if cfg.CopyOpenOnly && !isOpen {
+ 				continue
+ 			}
+-			// 仅保留每个币种的最新操作
+-			existing, has := latestOrders[order.Symbol]
+-			if !has || order.OrderTime > existing.OrderTime {
+-				latestOrders[order.Symbol] = &symbolOrder{
++			// 按 symbol+orderTime+PosSide 去重，保留所有不同价格的订单
++			key := fmt.Sprintf("%s_%d_%s_%s", order.Symbol, order.OrderTime, order.PositionSide, order.Side)
++			if seenKey[key] {
++				continue
++			}
++			seenKey[key] = true
++			allNewOrders = append(allNewOrders, symbolOrder{
+ 					Symbol:       order.Symbol,
+ 					Side:         order.Side,
+ 					PositionSide: order.PositionSide,
+ 					ExecutedQty:  order.ExecutedQty,
+ 					AvgPrice:     order.AvgPrice,
++					TotalPnl:     order.TotalPnl,
+ 					OrderTime:    order.OrderTime,
+-				}
+-			}
++			})
+ 		}
+
+-		for symbol, order := range latestOrders {
+-			_ = symbol
++		for _, order := range allNewOrders {
+ 			// 检查是否已记录
+ 			var count int
+ 			s.database.DB().QueryRow("SELECT COUNT(*) FROM copy_trade_records WHERE user_id=? AND lead_order_time=?",
+@@ -3359,7 +3363,7 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
+ 		}
+ 		actualQty := aiQty
+ 		actualPrice := req.AvgPrice
+-		actualOrderID := fmt.Sprintf("manual_%s_%d", req.PortfolioID, req.OrderTime)
++		actualOrderID := fmt.Sprintf("manual_%s_%d_%d", req.PortfolioID, req.OrderTime, time.Now().UnixNano()%100000)
+ 		if tradeResult != nil {
+ 			if q, ok := tradeResult["executedQty"].(float64); ok && q > 0 {
+ 				actualQty = q

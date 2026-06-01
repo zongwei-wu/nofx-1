@@ -2990,81 +2990,105 @@ func (s *Server) handleSyncCopyTrade(c *gin.Context) {
 	// 创建币安交易器用于实际下单
 	fTrader := trader.NewFuturesTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, userID, exchangeCfg.Testnet)
 
-	totalCopied := 0
-	totalErrors := 0
-	cacheDir := filepath.Join(os.Getenv("HOME"), ".hermes", "hermes-agent", "cache", "copy-trading")
+\ttotalCopied := 0
+\ttotalErrors := 0
+\tcacheDir := filepath.Join(os.Getenv(\"HOME\"), \".hermes\", \"hermes-agent\", \"cache\", \"copy-trading\")
 
-	for _, cfg := range configs {
-		log.Printf("🔍 [跟单] 处理配置: %s (ID=%d, portfolio=%s, last_time=%d)", cfg.Nickname, cfg.ID, cfg.PortfolioID, cfg.LastOrderTime)
-		cacheFile := filepath.Join(cacheDir, fmt.Sprintf("orders_%s.json", cfg.PortfolioID))
-		data, err := os.ReadFile(cacheFile)
-		if err != nil {
-			log.Printf("⚠️  [%s] 无缓存数据", cfg.Nickname)
-			continue
-		}
+\tfor _, cfg := range configs {
+\t\tlog.Printf(\"🔍 [跟单] 处理配置: %s (ID=%d, portfolio=%s, last_time=%d)\", cfg.Nickname, cfg.ID, cfg.PortfolioID, cfg.LastOrderTime)
 
-		var cached struct {
-			Data *struct {
-				List []struct {
-					Symbol       string  `json:"symbol"`
-					Side         string  `json:"side"`
-					PositionSide string  `json:"positionSide"`
-					ExecutedQty  float64 `json:"executedQty"`
-					AvgPrice     float64 `json:"avgPrice"`
-					TotalPnl     float64 `json:"totalPnl"`
-					OrderTime    int64   `json:"orderTime"`
-				} `json:"list"`
-			} `json:"data"`
-		}
-		if err := json.Unmarshal(data, &cached); err != nil || cached.Data == nil {
-			continue
-		}
+\t\t// 优先读取缓存文件，若不存在则从 Binance 实时拉取
+\t\tcacheFile := filepath.Join(cacheDir, fmt.Sprintf(\"orders_%s.json\", cfg.PortfolioID))
+\t\tdata, err := os.ReadFile(cacheFile)
+\t\tif err != nil {
+\t\t\tlog.Printf(\"⚠️  [%s] 无缓存数据，尝试从 Binance 实时拉取\", cfg.Nickname)
+\t\t\tbodyPayload := fmt.Sprintf(`{\"portfolioId\":\"%s\",\"startTime\":%d,\"endTime\":%d,\"pageSize\":20}`,
+\t\t\t\tcfg.PortfolioID, time.Now().UnixMilli()-30*24*60*60*1000, time.Now().UnixMilli())
+\t\t\treq, _ := http.NewRequest(\"POST\",
+\t\t\t\t\"https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/lead-portfolio/order-history\",
+\t\t\t\tstrings.NewReader(bodyPayload))
+\t\t\treq.Header.Set(\"Content-Type\", \"application/json\")
+\t\t\treq.Header.Set(\"User-Agent\", \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\")
+\t\t\treq.Header.Set(\"Origin\", \"https://www.binance.com\")
+\t\t\treq.Header.Set(\"Referer\", \"https://www.binance.com/zh-CN/copy-trading\")
+\t\t\tresp, e := http.DefaultClient.Do(req)
+\t\t\tif e != nil {
+\t\t\t\tlog.Printf(\"⚠️  [%s] Binance实时请求失败: %v\", cfg.Nickname, e)
+\t\t\t\tcontinue
+\t\t\t}
+\t\t\trespBody, _ := io.ReadAll(resp.Body)
+\t\t\tresp.Body.Close()
+\t\t\tdata = respBody
+\t\t}
 
-		latestTime := cfg.LastOrderTime
+\t\tvar cached struct {
+\t\t\tData *struct {
+\t\t\t\tList []struct {
+\t\t\t\t\tSymbol       string  `json:\"symbol\"`
+\t\t\t\t\tSide         string  `json:\"side\"`
+\t\t\t\t\tPositionSide string  `json:\"positionSide\"`
+\t\t\t\t\tExecutedQty  float64 `json:\"executedQty\"`
+\t\t\t\t\tAvgPrice     float64 `json:\"avgPrice\"`
+\t\t\t\t\tTotalPnl     float64 `json:\"totalPnl\"`
+\t\t\t\t\tOrderTime    int64   `json:\"orderTime\"`
+\t\t\t\t} `json:\"list\"`
+\t\t\t} `json:\"data\"`
+\t\t}
+\t\tif json.Unmarshal(data, \u0026cached); err != nil || cached.Data == nil {
+\t\t\tif err := json.Unmarshal(data, \u0026cached); err != nil || cached.Data == nil {
+\t\t\tlog.Printf(\"⚠️  [%s] 解析订单数据失败\", cfg.Nickname)
+\t\t\tcontinue
+\t\t\t}
+\t\t}
 
-		// 只取每个币种的最新操作
-		type symbolOrder struct {
-			Symbol       string
-			Side         string
-			PositionSide string
-			ExecutedQty  float64
-			AvgPrice     float64
-			TotalPnl     float64
-			OrderTime    int64
-		}
-		latestOrders := make(map[string]*symbolOrder)
-		for _, order := range cached.Data.List {
-			if order.OrderTime > latestTime {
-				latestTime = order.OrderTime
-			}
-			// 只处理未同步过的新订单
-			if order.OrderTime <= cfg.LastOrderTime {
-				continue
-			}
-			// 只复制开仓操作
-			isOpen := (order.PositionSide == "LONG" && order.Side == "BUY") ||
-				(order.PositionSide == "SHORT" && order.Side == "SELL") ||
-				(order.PositionSide == "BOTH" && order.Side == "SELL")
-			if cfg.CopyOpenOnly && !isOpen {
-				continue
-			}
-			// 仅保留每个币种的最新操作
-			existing, has := latestOrders[order.Symbol]
-			if !has || order.OrderTime > existing.OrderTime {
-				latestOrders[order.Symbol] = &symbolOrder{
-					Symbol:       order.Symbol,
-					Side:         order.Side,
-					PositionSide: order.PositionSide,
-					ExecutedQty:  order.ExecutedQty,
-					AvgPrice:     order.AvgPrice,
-					TotalPnl:     order.TotalPnl,
-					OrderTime:    order.OrderTime,
-				}
-			}
-		}
+\t\tlatestTime := cfg.LastOrderTime
 
-		for symbol, order := range latestOrders {
-			_ = symbol
+\t\t// 收集所有未同步的新订单（每个币种+时间戳唯一去重）
+\t\ttype symbolOrder struct {
+\t\t\tSymbol       string
+\t\t\tSide         string
+\t\t\tPositionSide string
+\t\t\tExecutedQty  float64
+\t\t\tAvgPrice     float64
+\t\t\tTotalPnl     float64
+\t\t\tOrderTime    int64
+\t\t}
+\t\t// 用 symbol+orderTime 去重，确保同时间戳的多笔不同数量订单都能被处理
+\t\tseenKey := make(map[string]bool)
+\t\tvar allNewOrders []symbolOrder
+\t\tfor _, order := range cached.Data.List {
+\t\t\tif order.OrderTime > latestTime {
+\t\t\t\tlatestTime = order.OrderTime
+\t\t\t}
+\t\t\t// 只处理未同步过的新订单
+\t\t\tif order.OrderTime <= cfg.LastOrderTime {
+\t\t\t\tcontinue
+\t\t\t}
+\t\t\t// 只复制开仓操作
+\t\t\tisOpen := (order.PositionSide == "LONG" && order.Side == "BUY") ||
+\t\t\t\t(order.PositionSide == "SHORT" && order.Side == "SELL") ||
+\t\t\t\t(order.PositionSide == "BOTH" && order.Side == "SELL")
+\t\t\tif cfg.CopyOpenOnly && !isOpen {
+\t\t\t\tcontinue
+\t\t\t}
+\t\t\t// 按 symbol+orderTime+PosSide 去重，保留所有不同价格的订单
+\t\t\tkey := fmt.Sprintf("%s_%d_%s_%s", order.Symbol, order.OrderTime, order.PositionSide, order.Side)
+\t\t\tif seenKey[key] {
+\t\t\t\tcontinue
+\t\t\t}
+\t\t\tseenKey[key] = true
+\t\t\tallNewOrders = append(allNewOrders, symbolOrder{
+\t\t\t\tSymbol:       order.Symbol,
+\t\t\t\tSide:         order.Side,
+\t\t\t\tPositionSide: order.PositionSide,
+\t\t\t\tExecutedQty:  order.ExecutedQty,
+\t\t\t\tAvgPrice:     order.AvgPrice,
+\t\t\t\tTotalPnl:     order.TotalPnl,
+\t\t\t\tOrderTime:    order.OrderTime,
+\t\t\t})
+\t\t}
+
+\t\tfor _, order := range allNewOrders {
 			// 检查是否已记录
 			var count int
 			s.database.DB().QueryRow("SELECT COUNT(*) FROM copy_trade_records WHERE user_id=? AND lead_order_time=?",
@@ -3359,7 +3383,7 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 		}
 		actualQty := aiQty
 		actualPrice := req.AvgPrice
-		actualOrderID := fmt.Sprintf("manual_%s_%d", req.PortfolioID, req.OrderTime)
+\t\tactualOrderID := fmt.Sprintf("manual_%s_%d_%d", req.PortfolioID, req.OrderTime, time.Now().UnixNano()%100000)
 		if tradeResult != nil {
 			if q, ok := tradeResult["executedQty"].(float64); ok && q > 0 {
 				actualQty = q
