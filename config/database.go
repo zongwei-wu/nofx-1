@@ -58,6 +58,11 @@ type Database struct {
 	cryptoService *crypto.CryptoService
 }
 
+// DB 暴露数据库连接用于自定义查询
+func (d *Database) DB() *sql.DB {
+	return d.db
+}
+
 // NewDatabase 创建配置数据库
 func NewDatabase(dbPath string) (*Database, error) {
 	db, err := sql.Open("sqlite", dbPath)
@@ -269,6 +274,43 @@ func (d *Database) createTables() error {
 	if err != nil {
 		log.Printf("⚠️ 迁移exchanges表失败: %v", err)
 	}
+
+	// 跟单配置表
+	d.db.Exec(`CREATE TABLE IF NOT EXISTS copy_trade_config (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id TEXT NOT NULL,
+		portfolio_id TEXT NOT NULL,
+		nickname TEXT NOT NULL DEFAULT '',
+		enabled INTEGER NOT NULL DEFAULT 1,
+		max_copy_size REAL NOT NULL DEFAULT 0,
+		size_multiplier REAL NOT NULL DEFAULT 1.0,
+		copy_open_only INTEGER NOT NULL DEFAULT 0,
+		last_order_time INTEGER NOT NULL DEFAULT 0,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(user_id, portfolio_id)
+	)`)
+
+	// 跟单记录表
+	d.db.Exec(`CREATE TABLE IF NOT EXISTS copy_trade_records (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id TEXT NOT NULL,
+		portfolio_id TEXT NOT NULL,
+		nickname TEXT NOT NULL DEFAULT '',
+		order_id TEXT NOT NULL,
+		symbol TEXT NOT NULL,
+		side TEXT NOT NULL,
+		position_side TEXT NOT NULL,
+		executed_qty REAL NOT NULL DEFAULT 0,
+		avg_price REAL NOT NULL DEFAULT 0,
+		total_pnl REAL NOT NULL DEFAULT 0,
+		status TEXT NOT NULL DEFAULT 'OPEN',
+		lead_order_time INTEGER NOT NULL DEFAULT 0,
+		copy_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+		close_time DATETIME,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(user_id, order_id)
+	)`)
 
 	return nil
 }

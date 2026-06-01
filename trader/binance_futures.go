@@ -15,6 +15,9 @@ import (
 	"github.com/adshao/go-binance/v2/futures"
 )
 
+// FuturesTestnetBaseURL 币安合约测试网
+const FuturesTestnetBaseURL = "https://testnet.binancefuture.com"
+
 // getBrOrderID 生成唯一订单ID（合约专用）
 // 格式: x-{BR_ID}{TIMESTAMP}{RANDOM}
 // 合约限制32字符，统一使用此限制以保持一致性
@@ -46,6 +49,7 @@ func getBrOrderID() string {
 // FuturesTrader 币安合约交易器
 type FuturesTrader struct {
 	client *futures.Client
+	testnet bool // 是否使用测试网
 
 	// 余额缓存
 	cachedBalance     map[string]interface{}
@@ -62,8 +66,14 @@ type FuturesTrader struct {
 }
 
 // NewFuturesTrader 创建合约交易器
-func NewFuturesTrader(apiKey, secretKey string, userId string) *FuturesTrader {
+func NewFuturesTrader(apiKey, secretKey string, userId string, testnet bool) *FuturesTrader {
 	client := futures.NewClient(apiKey, secretKey)
+
+	// 如果使用测试网，切换BaseURL
+	if testnet {
+		client.BaseURL = FuturesTestnetBaseURL
+		log.Printf("  🔬 使用币安合约测试网: %s", FuturesTestnetBaseURL)
+	}
 
 	hookRes := hook.HookExec[hook.NewBinanceTraderResult](hook.NEW_BINANCE_TRADER, userId, client)
 	if hookRes != nil && hookRes.GetResult() != nil {
@@ -74,6 +84,7 @@ func NewFuturesTrader(apiKey, secretKey string, userId string) *FuturesTrader {
 	syncBinanceServerTime(client)
 	trader := &FuturesTrader{
 		client:        client,
+		testnet:       testnet,
 		cacheDuration: 15 * time.Second, // 15秒缓存
 	}
 

@@ -59,7 +59,7 @@ export function PageHeader({
         </div>
       </div>
 
-      <div className="flex gap-2 md:gap-3 w-full md:w-auto overflow-hidden flex-wrap md:flex-nowrap">
+      <div className="flex gap-3 md:gap-4 w-full md:w-auto flex-wrap">
         <button
           onClick={onAddModel}
           className="px-3 md:px-4 py-2 rounded text-xs md:text-sm font-semibold transition-all hover:scale-105 flex items-center gap-1 md:gap-2 whitespace-nowrap"

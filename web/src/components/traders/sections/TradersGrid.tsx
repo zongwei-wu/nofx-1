@@ -77,7 +77,7 @@ export function TradersGrid({
             </div>
           </div>
 
-          <div className="flex items-center gap-3 md:gap-4 flex-wrap md:flex-nowrap">
+          <div className="flex items-center gap-2 md:gap-3 flex-wrap">
             {/* Status */}
             <div className="text-center">
               <div

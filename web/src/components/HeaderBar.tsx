@@ -249,6 +249,76 @@ export default function HeaderBar({
 
                   {t('faqNav', language)}
                 </button>
+
+                <button
+                  onClick={() => navigate('/copy-trading')}
+                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                  style={{
+                    color:
+                      currentPage === 'copy-trading'
+                        ? 'var(--brand-yellow)'
+                        : 'var(--brand-light-gray)',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    position: 'relative',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (currentPage !== 'copy-trading') {
+                      e.currentTarget.style.color = 'var(--brand-yellow)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (currentPage !== 'copy-trading') {
+                      e.currentTarget.style.color = 'var(--brand-light-gray)'
+                    }
+                  }}
+                >
+                  {currentPage === 'copy-trading' && (
+                    <span
+                      className="absolute inset-0 rounded-lg"
+                      style={{
+                        background: 'rgba(240, 185, 11, 0.15)',
+                        zIndex: -1,
+                      }}
+                    />
+                  )}
+                  跟单
+                </button>
+
+                <button
+                  onClick={() => navigate('/copy-trade')}
+                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                  style={{
+                    color:
+                      currentPage === 'copy-trade'
+                        ? 'var(--brand-yellow)'
+                        : 'var(--brand-light-gray)',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    position: 'relative',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (currentPage !== 'copy-trade') {
+                      e.currentTarget.style.color = 'var(--brand-yellow)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (currentPage !== 'copy-trade') {
+                      e.currentTarget.style.color = 'var(--brand-light-gray)'
+                    }
+                  }}
+                >
+                  {currentPage === 'copy-trade' && (
+                    <span
+                      className="absolute inset-0 rounded-lg"
+                      style={{
+                        background: 'rgba(240, 185, 11, 0.15)',
+                        zIndex: -1,
+                      }}
+                    />
+                  )}
+                  跟单管理
+                </button>
               </>
             ) : (
               // Landing page navigation when not logged in

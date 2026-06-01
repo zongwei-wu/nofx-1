@@ -9,6 +9,8 @@ import { ResetPasswordPage } from '../components/ResetPasswordPage'
 import { CompetitionPage } from '../components/CompetitionPage'
 import { AITradersPage } from '../pages/AITradersPage'
 import TraderDashboard from '../pages/TraderDashboard'
+import { CopyTradingPage } from '../pages/CopyTradingPage'
+import { CopyTradeDashboard } from '../pages/CopyTradeDashboard'
 
 export const router = createBrowserRouter([
   {
@@ -52,6 +54,14 @@ export const router = createBrowserRouter([
       {
         path: '/dashboard',
         element: <TraderDashboard />,
+      },
+      {
+        path: '/copy-trading',
+        element: <CopyTradingPage />,
+      },
+      {
+        path: '/copy-trade',
+        element: <CopyTradeDashboard />,
       },
     ],
   },
