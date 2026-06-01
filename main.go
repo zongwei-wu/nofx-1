@@ -353,7 +353,7 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	// 启动数据库中配置为运行状态的交易员
-	traderManager.StartAll()
+	// traderManager.StartAll() // 手动从Web界面启动
 
 	// 等待退出信号
 	<-sigChan
