@@ -2885,7 +2885,8 @@ func (s *Server) handleGetCopyTradeRecords(c *gin.Context) {
 	userID := c.GetString("user_id")
 	rows, err := s.database.DB().Query(`
 		SELECT id, portfolio_id, nickname, order_id, symbol, side, position_side,
-		       executed_qty, avg_price, total_pnl, status, lead_order_time, copy_time, close_time
+		       executed_qty, avg_price, total_pnl, status, lead_order_time, copy_time, close_time,
+		       IFNULL(close_price,0) as close_price, IFNULL(error_message,'') as error_message
 		FROM copy_trade_records WHERE user_id = ? ORDER BY copy_time DESC LIMIT 100`, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询失败"})
@@ -3213,6 +3214,35 @@ func (s *Server) handleSyncCopyTrade(c *gin.Context) {
 				userID, orderID, symbol, side, posSide, qtyAbs, price, pnl, time.Now().UnixMilli())
 			log.Printf("  ✓ 已同步持仓: %s %s %.4f张 @ $%.2f PnL: $%.2f", symbol, posSide, qtyAbs, price, pnl)
 			totalCopied++
+		}
+
+		// 检测已平仓：将交易所已无持仓的 OPEN 记录标记为 CLOSED
+		activeSymbols := make(map[string]bool)
+		for _, pos := range positions {
+			sym, _ := pos["symbol"].(string)
+			amt, _ := pos["positionAmt"].(string)
+			if sym != "" && amt != "" && amt != "0" {
+				activeSymbols[sym] = true
+			}
+		}
+		rows, err := s.database.DB().Query(
+			"SELECT id, symbol, avg_price, executed_qty FROM copy_trade_records WHERE user_id=? AND status='OPEN'",
+			userID)
+		if err == nil {
+			for rows.Next() {
+				var rid int
+				var sym, aPrice, qty string
+				if err := rows.Scan(&rid, &sym, &aPrice, &qty); err != nil {
+					continue
+				}
+				if !activeSymbols[sym] {
+					s.database.DB().Exec(
+						"UPDATE copy_trade_records SET status='CLOSED', close_time=CURRENT_TIMESTAMP, close_price=avg_price WHERE id=?",
+						rid)
+					log.Printf("  🔒 %s 已平仓，标记为 CLOSED (ID=%d)", sym, rid)
+				}
+			}
+			rows.Close()
 		}
 	} else {
 		log.Printf("⚠️ 获取持仓失败: %v", posErr)

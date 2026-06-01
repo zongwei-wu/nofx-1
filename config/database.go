@@ -291,7 +291,6 @@ func (d *Database) createTables() error {
 		UNIQUE(user_id, portfolio_id)
 	)`)
 
-	// 跟单记录表
 	d.db.Exec(`CREATE TABLE IF NOT EXISTS copy_trade_records (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		user_id TEXT NOT NULL,
@@ -303,14 +302,20 @@ func (d *Database) createTables() error {
 		position_side TEXT NOT NULL,
 		executed_qty REAL NOT NULL DEFAULT 0,
 		avg_price REAL NOT NULL DEFAULT 0,
+		close_price REAL DEFAULT 0,
 		total_pnl REAL NOT NULL DEFAULT 0,
 		status TEXT NOT NULL DEFAULT 'OPEN',
+		error_message TEXT DEFAULT '',
 		lead_order_time INTEGER NOT NULL DEFAULT 0,
 		copy_time DATETIME DEFAULT CURRENT_TIMESTAMP,
 		close_time DATETIME,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		UNIQUE(user_id, order_id)
 	)`)
+
+	// 迁移：为旧数据库添加新字段
+	s.db.Exec("ALTER TABLE copy_trade_records ADD COLUMN close_price REAL DEFAULT 0")
+	s.db.Exec("ALTER TABLE copy_trade_records ADD COLUMN error_message TEXT DEFAULT ''")
 
 	return nil
 }

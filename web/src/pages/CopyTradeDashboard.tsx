@@ -24,8 +24,10 @@ interface CopyRecord {
   position_side: string
   executed_qty: number
   avg_price: number
+  close_price?: number
   total_pnl: number
   status: string
+  error_message?: string
   lead_order_time: number
   copy_time: string
 }
@@ -130,6 +132,39 @@ export function CopyTradeDashboard() {
     const d = typeof ts === 'number' ? new Date(ts) : new Date(ts)
     return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
   }
+
+  // 单条记录组件
+  const RecordRow = ({ rec }: { rec: CopyRecord }) => (
+    <div className="flex items-center justify-between p-2.5 rounded text-xs" style={{ background: '#0B0E11', border: '1px solid #1E2329' }}>
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="font-semibold truncate" style={{ color: '#EAECEF' }}>{rec.nickname}</span>
+        <span className="font-mono" style={{ color: '#F0B90B' }}>{rec.symbol?.replace('USDT', '')}</span>
+        <span className="px-1 py-0.5 rounded font-medium whitespace-nowrap" style={{
+          background: rec.side === 'BUY' ? 'rgba(14,203,129,0.15)' : 'rgba(246,70,93,0.15)',
+          color: rec.side === 'BUY' ? '#0ECB81' : '#F6465D',
+        }}>
+          {rec.side === 'BUY' ? '买入' : '卖出'}{rec.position_side === 'LONG' ? '多' : '空'}
+        </span>
+      </div>
+      <div className="flex items-center gap-3 whitespace-nowrap">
+        <span style={{ color: '#848E9C' }}>{Number(rec.executed_qty).toFixed(4)}张</span>
+        <span className="font-mono" style={{ color: '#EAECEF' }}>开${Number(rec.avg_price).toLocaleString()}</span>
+        {rec.status === 'CLOSED' && (
+          <span className="font-mono" style={{ color: '#5E6673' }}>平${Number(rec.close_price || 0).toLocaleString()}</span>
+        )}
+        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${rec.status === 'OPEN' ? '' : ''}`} style={{
+          background: rec.status === 'OPEN' ? 'rgba(14,203,129,0.15)' : rec.status === 'CLOSED' ? 'rgba(142,142,147,0.15)' : 'rgba(246,70,93,0.15)',
+          color: rec.status === 'OPEN' ? '#0ECB81' : rec.status === 'CLOSED' ? '#8E8E93' : '#F6465D',
+        }}>
+          {rec.status === 'OPEN' ? '持仓' : rec.status === 'CLOSED' ? '已平' : '失败'}
+        </span>
+        <span style={{ color: '#5E6673' }}>{formatTime(rec.lead_order_time)}</span>
+      </div>
+      {rec.status === 'FAILED' && rec.error_message && (
+        <div className="text-[10px] mt-1" style={{ color: '#F6465D' }}>{rec.error_message}</div>
+      )}
+    </div>
+  )
 
   if (loading) {
     return (
@@ -269,32 +304,60 @@ export function CopyTradeDashboard() {
           {records.length === 0 ? (
             <div className="text-center py-10 text-sm" style={{ color: '#5E6673' }}>暂无跟单记录，请先启用交易员并执行同步</div>
           ) : (
-            <div className="space-y-1.5">
-              {records.map((rec) => (
-                <div key={rec.id} className="flex items-center justify-between p-2 rounded text-xs" style={{ background: '#0B0E11' }}>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold" style={{ color: '#EAECEF' }}>{rec.nickname}</span>
-                    <span style={{ color: '#F0B90B' }}>{rec.symbol?.replace('USDT', '')}</span>
-                    <span className="px-1 py-0.5 rounded font-medium" style={{
-                      background: rec.side === 'BUY' ? 'rgba(14,203,129,0.15)' : 'rgba(246,70,93,0.15)',
-                      color: rec.side === 'BUY' ? '#0ECB81' : '#F6465D',
-                    }}>
-                      {rec.side === 'BUY' ? '买入' : '卖出'}{rec.position_side === 'LONG' ? '多' : '空'}
-                    </span>
+            <div className="space-y-6">
+              {/* 持仓中 */}
+              {(() => {
+                const open = records.filter(r => r.status === 'OPEN')
+                return open.length > 0 && <>
+                  <div>
+                    <div className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: '#0ECB81' }}>
+                      <span className="w-2 h-2 rounded-full bg-green-500 inline-block" style={{ background: '#0ECB81' }}></span>
+                      持仓中 ({open.length})
+                    </div>
+                    <div className="space-y-1.5">
+                      {open.map((rec) => (
+                        <RecordRow key={rec.id} rec={rec} />
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span style={{ color: '#848E9C' }}>{rec.executed_qty}张</span>
-                    <span style={{ color: '#EAECEF' }}>${rec.avg_price?.toLocaleString()}</span>
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{
-                      background: rec.status === 'OPEN' ? 'rgba(14,203,129,0.15)' : 'rgba(142,142,147,0.15)',
-                      color: rec.status === 'OPEN' ? '#0ECB81' : '#8E8E93',
-                    }}>
-                      {rec.status === 'OPEN' ? '持仓' : '已平'}
-                    </span>
-                    <span style={{ color: '#5E6673' }}>{formatTime(rec.lead_order_time)}</span>
+                </>
+              })()}
+
+              {/* 已平仓 */}
+              {(() => {
+                const closed = records.filter(r => r.status === 'CLOSED')
+                return closed.length > 0 && <>
+                  <div>
+                    <div className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: '#848E9C' }}>
+                      <span className="w-2 h-2 rounded-full inline-block" style={{ background: '#848E9C' }}></span>
+                      已平仓 ({closed.length})
+                    </div>
+                    <div className="space-y-1.5">
+                      {closed.map((rec) => (
+                        <RecordRow key={rec.id} rec={rec} />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                </>
+              })()}
+
+              {/* 失败/错误 */}
+              {(() => {
+                const failed = records.filter(r => r.status === 'FAILED')
+                return failed.length > 0 && <>
+                  <div>
+                    <div className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: '#F6465D' }}>
+                      <span className="w-2 h-2 rounded-full inline-block" style={{ background: '#F6465D' }}></span>
+                      失败 ({failed.length})
+                    </div>
+                    <div className="space-y-1.5">
+                      {failed.map((rec) => (
+                        <RecordRow key={rec.id} rec={rec} />
+                      ))}
+                    </div>
+                  </div>
+                </>
+              })()}
             </div>
           )}
         </div>
