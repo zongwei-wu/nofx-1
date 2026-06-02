@@ -10,7 +10,8 @@
 
 **适合：** 初学者、快速部署、生产环境
 
-- **中文文档：** [docker-deploy.zh-CN.md](docker-deploy.zh-CN.md)
+- **部署指南（含加速 / GHCR / CI）：** [deploy.zh-CN.md](deploy.zh-CN.md)
+- **Docker 安装与排错：** [docker-deploy.zh-CN.md](docker-deploy.zh-CN.md)
 - **English:** [docker-deploy.en.md](docker-deploy.en.md)
 
 **优势：**

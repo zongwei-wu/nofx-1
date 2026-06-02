@@ -2,6 +2,8 @@
 
 本教程将指导你使用 Docker 快速部署 NOFX AI 交易竞赛系统。
 
+> **部署加速、GHCR 拉取、CI 构建说明** 见：[deploy.zh-CN.md](deploy.zh-CN.md)
+
 ## 📋 前置要求
 
 在开始之前，请确保你的系统已安装：
