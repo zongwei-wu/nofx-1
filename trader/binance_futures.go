@@ -69,15 +69,15 @@ type FuturesTrader struct {
 func NewFuturesTrader(apiKey, secretKey string, userId string, testnet bool) *FuturesTrader {
 	client := futures.NewClient(apiKey, secretKey)
 
-	// 如果使用测试网，切换BaseURL
-	if testnet {
-		client.BaseURL = FuturesTestnetBaseURL
-		log.Printf("  🔬 使用币安合约测试网: %s", FuturesTestnetBaseURL)
-	}
-
 	hookRes := hook.HookExec[hook.NewBinanceTraderResult](hook.NEW_BINANCE_TRADER, userId, client)
 	if hookRes != nil && hookRes.GetResult() != nil {
 		client = hookRes.GetResult()
+	}
+
+	// hook 可能返回主网 client，测试网必须在 hook 之后再次设置 BaseURL
+	if testnet {
+		client.BaseURL = FuturesTestnetBaseURL
+		log.Printf("  🔬 使用币安合约测试网: %s", FuturesTestnetBaseURL)
 	}
 
 	// 同步时间，避免 Timestamp ahead 错误
