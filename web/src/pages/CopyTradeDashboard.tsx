@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { httpClient } from '../lib/httpClient'
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts'
 import { CopyTradeMonitorTab } from '../components/copy-trade/CopyTradeMonitorTab'
+import { CopyTradeCoinPnLChart } from '../components/copy-trade/CopyTradeCoinPnLChart'
 import { CopyTradePnLList } from '../components/copy-trade/CopyTradePnLList'
 
 interface CopyConfig {
@@ -458,61 +458,17 @@ export function CopyTradeDashboard() {
             )
           })()}
 
-          {/* Per-coin PnL Chart */}
+          {/* Per-coin hourly PnL line chart */}
           <div className="p-4 rounded-lg mb-4" style={{ background: '#1E2329', border: '1px solid #2B3139' }}>
-            <div className="text-sm font-semibold mb-4" style={{ color: '#EAECEF' }}>各币种当前盈亏</div>
-            {(() => {
-              const openTrades = safeRecords.filter(r => r.status === 'OPEN')
-              if (openTrades.length === 0) {
-                return <div className="text-center py-8 text-sm" style={{ color: '#5E6673' }}>暂无持仓</div>
-              }
-              const byCoin: Record<string, { pnl: number; qty: number }> = {}
-              openTrades.forEach(r => {
-                const coin = r.symbol?.replace('USDT', '') || r.symbol
-                if (!byCoin[coin]) byCoin[coin] = { pnl: 0, qty: 0 }
-                byCoin[coin].pnl += r.total_pnl || 0
-                byCoin[coin].qty += r.executed_qty || 0
-              })
-              const chartData = Object.entries(byCoin).map(([coin, data]) => ({
-                coin,
-                pnl: data.pnl,
-                qty: data.qty,
-              }))
-              return (
-                <>
-                  <div style={{ width: '100%', height: 220 }}>
-                    <ResponsiveContainer>
-                      <BarChart data={chartData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#2B3139" />
-                        <XAxis dataKey="coin" tick={{ fontSize: 10, fill: '#848E9C' }} />
-                        <YAxis tick={{ fontSize: 10, fill: '#848E9C' }} tickFormatter={(v) => `$${v}`} />
-                        <Tooltip
-                          contentStyle={{ background: '#1E2329', border: '1px solid #2B3139', borderRadius: '8px' }}
-                          labelStyle={{ color: '#EAECEF' }}
-                          formatter={(value: number) => [`${value >= 0 ? '+' : ''}$${value.toFixed(2)}`, '盈亏']}
-                        />
-                        <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
-                          {chartData.map((entry) => (
-                            <Cell key={entry.coin} fill={entry.pnl >= 0 ? '#0ECB81' : '#F6465D'} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-                    {chartData.map((data) => (
-                      <div key={data.coin} className="p-3 rounded text-center" style={{ background: '#0B0E11' }}>
-                        <div className="text-xs" style={{ color: '#848E9C' }}>{data.coin}</div>
-                        <div className="text-sm font-bold mt-1" style={{ color: data.pnl >= 0 ? '#0ECB81' : '#F6465D' }}>
-                          {data.pnl >= 0 ? '+' : ''}{data.pnl.toFixed(2)}
-                        </div>
-                        <div className="text-[10px]" style={{ color: '#5E6673' }}>{data.qty.toFixed(2)}张</div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )
-            })()}
+            <div className="text-sm font-semibold mb-1" style={{ color: '#EAECEF' }}>
+              各币种盈亏走势
+            </div>
+            <div className="text-xs mb-4" style={{ color: '#5E6673' }}>
+              横轴：每小时 · 纵轴：盈亏金额（USDT）· 每条线代表一个币种
+            </div>
+            <CopyTradeCoinPnLChart
+              records={safeRecords.filter((r) => r.status === 'OPEN' || r.status === 'CLOSED')}
+            />
           </div>
 
           {/* Per-trade PnL List */}
