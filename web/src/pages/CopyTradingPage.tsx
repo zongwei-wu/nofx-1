@@ -67,8 +67,11 @@ export function CopyTradingPage() {
         if (result.code === '000000' && result.data) {
           setPnlTraders(result.data.highestPnlLeads || [])
           setRoiTraders(result.data.highestRoiLeads || [])
+          if (result.stale && result.warning) {
+            setError(String(result.warning))
+          }
         } else {
-          setError('获取数据失败')
+          setError(result.error || result.warning || '获取数据失败')
         }
       } catch (err) {
         setError('网络错误，请稍后重试')

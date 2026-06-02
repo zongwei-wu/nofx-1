@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"math"
 	"net"
@@ -17,8 +16,6 @@ import (
 	"nofx/manager"
 	"nofx/mcp"
 	"nofx/trader"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -168,6 +165,8 @@ func (s *Server) setupRoutes() {
 			protected.POST("/copy-trade/configs", s.handleUpdateCopyTradeConfig)
 			protected.DELETE("/copy-trade/configs/:id", s.handleDeleteCopyTradeConfig)
 			protected.GET("/copy-trade/records", s.handleGetCopyTradeRecords)
+			protected.GET("/copy-trade/monitor", s.handleGetCopyTradeMonitor)
+			protected.POST("/copy-trade/refresh-pnl", s.handleRefreshCopyTradePnL)
 			protected.POST("/copy-trade/sync", s.handleSyncCopyTrade)
 			protected.POST("/copy-trade/copy-order", s.handleCopyOrder)
 		}
@@ -2073,16 +2072,17 @@ func (s *Server) startAutoFollowTimer() {
 	}
 }
 
-// autoFollow 自动跟单：读取开启了auto_follow的配置，调用AI分析后执行
+// autoFollow 自动跟单：读取开启了auto_follow的配置，调用AI分析后执行，并写入监控日志
 func (s *Server) autoFollow() {
 	log.Println("⏰ 执行自动跟单检查...")
+	globalCopyTradeRunState.markAutoFollowStarted()
 
-	// 获取所有用户的跟单配置
 	rows, err := s.database.DB().Query(`
 		SELECT DISTINCT user_id FROM copy_trade_config WHERE enabled = 1 AND auto_follow = 1
 	`)
 	if err != nil {
 		log.Printf("⚠️ 自动跟单查询失败: %v", err)
+		globalCopyTradeRunState.markAutoFollowFinished()
 		return
 	}
 	defer rows.Close()
@@ -2095,183 +2095,224 @@ func (s *Server) autoFollow() {
 	}
 
 	if len(userIDs) == 0 {
+		globalCopyTradeRunState.markAutoFollowFinished()
 		return
 	}
 
-	cacheDir := filepath.Join(os.Getenv("HOME"), ".hermes", "hermes-agent", "cache", "copy-trading")
-
 	for _, userID := range userIDs {
-		// 获取交易所配置
-		exchanges, err := s.database.GetExchanges(userID)
-		if err != nil || len(exchanges) == 0 {
-			continue
+		s.runAutoFollowForUser(userID)
+	}
+	globalCopyTradeRunState.markAutoFollowFinished()
+}
+
+func (s *Server) runAutoFollowForUser(userID string) {
+	runID, err := s.startCopyTradeRun(userID, "auto")
+	if err != nil {
+		log.Printf("⚠️ [自动跟单] 创建 run 失败 user=%s: %v", userID, err)
+		return
+	}
+	counters := copyTradeRunCounters{}
+
+	defer func() {
+		s.finishCopyTradeRun(runID, runStatusFromCounters(counters), counters, formatRunMessage(counters))
+	}()
+
+	exchanges, err := s.database.GetExchanges(userID)
+	if err != nil || len(exchanges) == 0 {
+		s.insertCopyTradeRunEvent(runID, userID, "", "", "", "no_exchange", "", "", "NONE", "未配置交易所", 0)
+		counters.failed++
+		return
+	}
+	var exchangeCfg *config.ExchangeConfig
+	for _, ex := range exchanges {
+		if ex.ID == "binance" && ex.Enabled {
+			exchangeCfg = ex
+			break
 		}
-		var exchangeCfg *config.ExchangeConfig
-		for _, ex := range exchanges {
-			if ex.ID == "binance" && ex.Enabled {
-				exchangeCfg = ex
-				break
+	}
+	if exchangeCfg == nil {
+		s.insertCopyTradeRunEvent(runID, userID, "", "", "", "no_exchange", "", "", "NONE", "未启用币安交易所", 0)
+		counters.failed++
+		return
+	}
+
+	aiModels, _ := s.database.GetAIModels(userID)
+	var aiCfg *config.AIModelConfig
+	for _, m := range aiModels {
+		if m.Enabled {
+			aiCfg = m
+			break
+		}
+	}
+	if aiCfg == nil {
+		s.insertCopyTradeRunEvent(runID, userID, "", "", "", "no_ai", "", "", "NONE", "无可用AI模型", 0)
+		counters.failed++
+		return
+	}
+
+	fTrader := trader.NewFuturesTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, userID, exchangeCfg.Testnet)
+	balance, _ := fTrader.GetBalance()
+	positions, _ := fTrader.GetPositions()
+
+	totalEquity := 0.0
+	availableBalance := 0.0
+	if balance != nil {
+		if wb, ok := balance["totalWalletBalance"].(float64); ok {
+			totalEquity = wb
+		}
+		if ab, ok := balance["availableBalance"].(float64); ok {
+			availableBalance = ab
+		}
+	}
+
+	posSummary := ""
+	openCount := 0
+	if positions != nil {
+		for _, p := range positions {
+			sym, _ := p["symbol"].(string)
+			amt, _ := p["positionAmt"].(string)
+			upnl, _ := p["unRealizedProfit"].(string)
+			if sym != "" && amt != "" && amt != "0" {
+				posSummary += fmt.Sprintf("  - %s 数量=%s 未实现盈亏=%s\n", sym, amt, upnl)
+				openCount++
 			}
 		}
-		if exchangeCfg == nil {
-			continue
-		}
+	}
 
-		// 获取AI模型
-		aiModels, _ := s.database.GetAIModels(userID)
-		var aiCfg *config.AIModelConfig
-		for _, m := range aiModels {
-			if m.Enabled {
-				aiCfg = m
-				break
-			}
-		}
-		if aiCfg == nil {
-			log.Printf("⚠️ [自动跟单] %s 无可用AI模型", userID)
-			continue
-		}
+	cfgRows, err := s.database.DB().Query(`
+		SELECT id, portfolio_id, nickname, max_copy_size, size_multiplier, copy_open_only, last_order_time
+		FROM copy_trade_config WHERE user_id = ? AND enabled = 1 AND auto_follow = 1`, userID)
+	if err != nil {
+		return
+	}
+	defer cfgRows.Close()
 
-		fTrader := trader.NewFuturesTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, userID, exchangeCfg.Testnet)
+	for cfgRows.Next() {
+		var id int
+		var portfolioID, nickname string
+		var maxCopySize, sizeMultiplier float64
+		var lastOrderTime int64
+		var copyOpen int
+		cfgRows.Scan(&id, &portfolioID, &nickname, &maxCopySize, &sizeMultiplier, &copyOpen, &lastOrderTime)
+		copyOpenOnly := copyOpen != 0
+		counters.tradersChecked++
 
-		// 获取账户信息
-		balance, _ := fTrader.GetBalance()
-		positions, _ := fTrader.GetPositions()
-
-		totalEquity := 0.0
-		availableBalance := 0.0
-		if balance != nil {
-			if wb, ok := balance["totalWalletBalance"].(float64); ok {
-				totalEquity = wb
-			}
-			if ab, ok := balance["availableBalance"].(float64); ok {
-				availableBalance = ab
-			}
-		}
-
-		posSummary := ""
-		openCount := 0
-		if positions != nil {
-			for _, p := range positions {
-				sym, _ := p["symbol"].(string)
-				amt, _ := p["positionAmt"].(string)
-				upnl, _ := p["unRealizedProfit"].(string)
-				if sym != "" && amt != "" && amt != "0" {
-					posSummary += fmt.Sprintf("  - %s 数量=%s 未实现盈亏=%s\n", sym, amt, upnl)
-					openCount++
-				}
-			}
-		}
-
-		// 读取auto_follow配置
-		cfgRows, err := s.database.DB().Query(`
-			SELECT id, portfolio_id, nickname, max_copy_size, size_multiplier, copy_open_only, last_order_time
-			FROM copy_trade_config WHERE user_id = ? AND enabled = 1 AND auto_follow = 1`, userID)
+		cached, err := refreshOrderCache(portfolioID, 50)
 		if err != nil {
+			s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, "", "fetch_failed", "", "", "NONE", err.Error(), 0)
+			counters.failed++
+			continue
+		}
+		if cached.Data == nil || len(cached.Data.List) == 0 {
+			s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, "", "holding", "", "", "NONE", "带单员暂无订单记录", 0)
+			counters.skipped++
 			continue
 		}
 
-		for cfgRows.Next() {
-			var id int
-			var portfolioID, nickname string
-			var maxCopySize, sizeMultiplier float64
-			var lastOrderTime int64
-			var copyOpen int
-			cfgRows.Scan(&id, &portfolioID, &nickname, &maxCopySize, &sizeMultiplier, &copyOpen, &lastOrderTime)
-			copyOpenOnly := copyOpen != 0
+		type symOrder struct {
+			Symbol       string
+			Side         string
+			PositionSide string
+			ExecutedQty  float64
+			AvgPrice     float64
+			OrderTime    int64
+			IsOpen       bool
+		}
+		latest := make(map[string]*symOrder)
+		latestTime := int64(lastOrderTime)
+		hasNewLeadClose := false
 
-			// 读取缓存
-			cacheFile := filepath.Join(cacheDir, fmt.Sprintf("orders_%s.json", portfolioID))
-			data, err := os.ReadFile(cacheFile)
-			if err != nil {
+		for _, o := range cached.Data.List {
+			if o.OrderTime > latestTime {
+				latestTime = o.OrderTime
+			}
+			if o.OrderTime <= lastOrderTime {
+				continue
+			}
+			open := isLeadOpenOrder(o.PositionSide, o.Side)
+			close := isLeadCloseOrder(o.PositionSide, o.Side)
+			if close {
+				hasNewLeadClose = true
+				ourSt := s.ourStatusForSymbol(userID, portfolioID, o.Symbol)
+				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, o.Symbol, "lead_close",
+					o.Side, o.PositionSide, ourSt, leadActionDisplay(o.PositionSide, o.Side), o.OrderTime)
+			}
+			if copyOpenOnly && !open {
+				continue
+			}
+			existing, has := latest[o.Symbol]
+			if !has || o.OrderTime > existing.OrderTime {
+				latest[o.Symbol] = &symOrder{
+					Symbol: o.Symbol, Side: o.Side, PositionSide: o.PositionSide,
+					ExecutedQty: o.ExecutedQty, AvgPrice: o.AvgPrice, OrderTime: o.OrderTime, IsOpen: open,
+				}
+			}
+		}
+
+		if len(latest) == 0 {
+			if hasNewLeadClose {
+				counters.skipped++
+			} else {
+				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, "", "holding", "", "", "NONE", "无新带单操作", 0)
+				counters.skipped++
+			}
+			if latestTime > lastOrderTime {
+				s.database.DB().Exec("UPDATE copy_trade_config SET last_order_time=? WHERE id=?", latestTime, id)
+			}
+			continue
+		}
+
+		for symbol, order := range latest {
+			ourSt := s.ourStatusForSymbol(userID, portfolioID, symbol)
+			if !order.IsOpen {
+				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "skipped",
+					order.Side, order.PositionSide, ourSt, "仅跟开仓，跳过非开仓信号", order.OrderTime)
+				counters.skipped++
 				continue
 			}
 
-			var cached struct {
-				Data *struct {
-					List []struct {
-						Symbol       string  `json:"symbol"`
-						Side         string  `json:"side"`
-						PositionSide string  `json:"positionSide"`
-						ExecutedQty  float64 `json:"executedQty"`
-						AvgPrice     float64 `json:"avgPrice"`
-						TotalPnl     float64 `json:"totalPnl"`
-						OrderTime    int64   `json:"orderTime"`
-					} `json:"list"`
-				} `json:"data"`
-			}
-			if err := json.Unmarshal(data, &cached); err != nil || cached.Data == nil {
+			s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "lead_open",
+				order.Side, order.PositionSide, ourSt, leadActionDisplay(order.PositionSide, order.Side), order.OrderTime)
+
+			var count int
+			s.database.DB().QueryRow("SELECT COUNT(*) FROM copy_trade_records WHERE user_id=? AND symbol=? AND lead_order_time=?",
+				userID, symbol, order.OrderTime).Scan(&count)
+			if count > 0 {
+				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "already_copied",
+					order.Side, order.PositionSide, ourSt, "该带单订单已跟过", order.OrderTime)
+				counters.skipped++
 				continue
 			}
 
-			// 找每个币种最新的开仓操作
-			type symOrder struct {
-				Symbol       string
-				Side         string
-				PositionSide string
-				ExecutedQty  float64
-				AvgPrice     float64
-				OrderTime    int64
+			qty := order.ExecutedQty * sizeMultiplier
+			if maxCopySize > 0 && qty*order.AvgPrice > maxCopySize {
+				qty = maxCopySize / order.AvgPrice
 			}
-			latest := make(map[string]*symOrder)
-			latestTime := int64(lastOrderTime)
-
-			for _, o := range cached.Data.List {
-				if o.OrderTime > latestTime {
-					latestTime = o.OrderTime
-				}
-				if o.OrderTime <= lastOrderTime {
-					continue
-				}
-				isOpen := (o.PositionSide == "LONG" && o.Side == "BUY") ||
-					(o.PositionSide == "SHORT" && o.Side == "SELL") ||
-					(o.PositionSide == "BOTH" && o.Side == "SELL")
-				if copyOpenOnly && !isOpen {
-					continue
-				}
-				existing, has := latest[o.Symbol]
-				if !has || o.OrderTime > existing.OrderTime {
-					latest[o.Symbol] = &symOrder{Symbol: o.Symbol, Side: o.Side, PositionSide: o.PositionSide, ExecutedQty: o.ExecutedQty, AvgPrice: o.AvgPrice, OrderTime: o.OrderTime}
-				}
+			if qty < 0.001 {
+				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "qty_too_small",
+					order.Side, order.PositionSide, ourSt, fmt.Sprintf("计算数量过小: %.6f", qty), order.OrderTime)
+				counters.skipped++
+				continue
 			}
 
-			for symbol, order := range latest {
-				// 检查是否已记录
-				var count int
-				s.database.DB().QueryRow("SELECT COUNT(*) FROM copy_trade_records WHERE user_id=? AND symbol=? AND lead_order_time=?",
-					userID, symbol, order.OrderTime).Scan(&count)
-				if count > 0 {
-					continue
-				}
+			tradePosSide := order.PositionSide
+			if tradePosSide == "BOTH" {
+				tradePosSide = "SHORT"
+			}
+			dir := "卖出开空"
+			if tradePosSide == "LONG" {
+				dir = "买入开多"
+			}
 
-				// 计算基础数量
-				qty := order.ExecutedQty * sizeMultiplier
-				if maxCopySize > 0 && qty*order.AvgPrice > maxCopySize {
-					qty = maxCopySize / order.AvgPrice
-				}
-				if qty < 0.001 {
-					continue
-				}
+			mcpClient := mcp.New()
+			if aiCfg.Provider == "deepseek" {
+				mcpClient = mcp.NewDeepSeekClient()
+			} else if aiCfg.Provider == "qwen" {
+				mcpClient = mcp.NewQwenClient()
+			}
+			mcpClient.SetAPIKey(aiCfg.APIKey, aiCfg.CustomAPIURL, aiCfg.CustomModelName)
 
-				// AI分析
-				tradePosSide := order.PositionSide
-				if tradePosSide == "BOTH" {
-					tradePosSide = "SHORT"
-				}
-				dir := "卖出开空"
-				if tradePosSide == "LONG" {
-					dir = "买入开多"
-				}
-
-				// 创建AI客户端
-				mcpClient := mcp.New()
-				if aiCfg.Provider == "deepseek" {
-					mcpClient = mcp.NewDeepSeekClient()
-				} else if aiCfg.Provider == "qwen" {
-					mcpClient = mcp.NewQwenClient()
-				}
-				mcpClient.SetAPIKey(aiCfg.APIKey, aiCfg.CustomAPIURL, aiCfg.CustomModelName)
-
-				prompt := fmt.Sprintf(`你是一个专业的加密货币期货交易风控分析师。请分析以下跟单交易请求。
+			prompt := fmt.Sprintf(`你是一个专业的加密货币期货交易风控分析师。请分析以下跟单交易请求。
 
 账户总权益: %.2f USDT
 可用余额: %.2f USDT
@@ -2281,93 +2322,92 @@ func (s *Server) autoFollow() {
 跟单: %s %s 价格$%.2f 数量%.4f张
 
 请以JSON输出: {"feasible":true/false,"reasoning":"理由","recommended_ratio":0.1,"recommended_qty":0.5,"suggestion":"建议"}`,
-					totalEquity, availableBalance, openCount, posSummary,
-					symbol, dir, order.AvgPrice, qty)
+				totalEquity, availableBalance, openCount, posSummary,
+				symbol, dir, order.AvgPrice, qty)
 
-				resp, aiErr := mcpClient.CallWithMessages("你是一个加密合约风控分析师。输出JSON。", prompt)
-				aiQty := qty
-				aiFeasible := true
+			resp, aiErr := mcpClient.CallWithMessages("你是一个加密合约风控分析师。输出JSON。", prompt)
+			aiQty := qty
+			aiFeasible := true
+			aiReason := ""
 
-				if aiErr == nil && resp != "" {
-					cleaned := strings.TrimSpace(resp)
-					if s := strings.Index(cleaned, "{"); s >= 0 {
-						if e := strings.LastIndex(cleaned, "}"); e > s {
-							cleaned = cleaned[s : e+1]
-						}
-					}
-					var aiResult struct {
-						Feasible       bool    `json:"feasible"`
-						RecommendedQty float64 `json:"recommended_qty"`
-					}
-					if json.Unmarshal([]byte(cleaned), &aiResult) == nil {
-						aiFeasible = aiResult.Feasible
-						if aiResult.RecommendedQty > 0 {
-							aiQty = aiResult.RecommendedQty
-						}
+			if aiErr == nil && resp != "" {
+				cleaned := strings.TrimSpace(resp)
+				if si := strings.Index(cleaned, "{"); si >= 0 {
+					if e := strings.LastIndex(cleaned, "}"); e > si {
+						cleaned = cleaned[si : e+1]
 					}
 				}
-
-				if !aiFeasible {
-					log.Printf("  ⚠️ [自动跟单] %s AI不建议跟单: %s", nickname, symbol)
-					continue
+				var aiResult struct {
+					Feasible       bool    `json:"feasible"`
+					RecommendedQty float64 `json:"recommended_qty"`
+					Reasoning      string  `json:"reasoning"`
 				}
-
-				// 执行交易
-				var tradeResult map[string]interface{}
-				var tradeErr error
-				if tradePosSide == "LONG" {
-					tradeResult, tradeErr = fTrader.OpenLong(symbol, aiQty, 5)
-				} else {
-					tradeResult, tradeErr = fTrader.OpenShort(symbol, aiQty, 5)
-				}
-
-				if tradeErr != nil {
-					log.Printf("❌ [自动跟单] %s 开仓失败 %s: %v", nickname, symbol, tradeErr)
-					continue
-				}
-
-				actualQty := aiQty
-				actualPrice := order.AvgPrice
-				orderID := fmt.Sprintf("auto_%s_%d", nickname, order.OrderTime)
-				if tradeResult != nil {
-					if q, ok := tradeResult["executedQty"].(float64); ok && q > 0 {
-						actualQty = q
-					}
-					if p, ok := tradeResult["avgPrice"].(float64); ok && p > 0 {
-						actualPrice = p
+				if json.Unmarshal([]byte(cleaned), &aiResult) == nil {
+					aiFeasible = aiResult.Feasible
+					aiReason = aiResult.Reasoning
+					if aiResult.RecommendedQty > 0 {
+						aiQty = aiResult.RecommendedQty
 					}
 				}
-
-				s.database.DB().Exec(`
-					INSERT INTO copy_trade_records 
-					(user_id, portfolio_id, nickname, order_id, symbol, side, position_side,
-					 executed_qty, avg_price, total_pnl, status, lead_order_time)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'OPEN', ?)`,
-					userID, portfolioID, nickname, orderID, symbol,
-					order.Side, tradePosSide, actualQty, actualPrice, order.OrderTime)
-
-				log.Printf("  ✓ [自动跟单] %s %s %s %.4f张 @ $%.2f (AI建议)", nickname, symbol, tradePosSide, actualQty, actualPrice)
-				time.Sleep(500 * time.Millisecond) // 避免API限频
 			}
 
-			if latestTime > lastOrderTime {
-				s.database.DB().Exec("UPDATE copy_trade_config SET last_order_time=? WHERE id=?", latestTime, id)
+			if !aiFeasible {
+				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "ai_rejected",
+					order.Side, tradePosSide, ourSt, aiReason, order.OrderTime)
+				counters.skipped++
+				continue
 			}
+
+			var tradeResult map[string]interface{}
+			var tradeErr error
+			if tradePosSide == "LONG" {
+				tradeResult, tradeErr = fTrader.OpenLong(symbol, aiQty, 5)
+			} else {
+				tradeResult, tradeErr = fTrader.OpenShort(symbol, aiQty, 5)
+			}
+
+			if tradeErr != nil {
+				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "open_failed",
+					order.Side, tradePosSide, ourSt, tradeErr.Error(), order.OrderTime)
+				counters.failed++
+				continue
+			}
+
+			actualQty := aiQty
+			actualPrice := order.AvgPrice
+			orderID := fmt.Sprintf("auto_%s_%d", nickname, order.OrderTime)
+			if tradeResult != nil {
+				if q, ok := tradeResult["executedQty"].(float64); ok && q > 0 {
+					actualQty = q
+				}
+				if p, ok := tradeResult["avgPrice"].(float64); ok && p > 0 {
+					actualPrice = p
+				}
+			}
+
+			s.database.DB().Exec(`
+				INSERT INTO copy_trade_records 
+				(user_id, portfolio_id, nickname, order_id, symbol, side, position_side,
+				 executed_qty, avg_price, total_pnl, status, lead_order_time)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'OPEN', ?)`,
+				userID, portfolioID, nickname, orderID, symbol,
+				order.Side, tradePosSide, actualQty, actualPrice, order.OrderTime)
+
+			s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "copied_open",
+				order.Side, tradePosSide, "OPEN",
+				fmt.Sprintf("已跟单 %.4f张 @ $%.2f", actualQty, actualPrice), order.OrderTime)
+			counters.opened++
+			log.Printf("  ✓ [自动跟单] %s %s %s %.4f张 @ $%.2f", nickname, symbol, tradePosSide, actualQty, actualPrice)
+			time.Sleep(500 * time.Millisecond)
 		}
-		cfgRows.Close()
 
-		// 更新持仓盈亏
-		if positions != nil {
-			for _, pos := range positions {
-				sym, _ := pos["symbol"].(string)
-				upnl, _ := pos["unRealizedProfit"].(string)
-				if sym != "" && upnl != "" {
-					pnl := 0.0
-					fmt.Sscanf(upnl, "%f", &pnl)
-					s.database.DB().Exec("UPDATE copy_trade_records SET total_pnl=? WHERE user_id=? AND symbol=? AND status='OPEN'", pnl, userID, sym)
-				}
-			}
+		if latestTime > lastOrderTime {
+			s.database.DB().Exec("UPDATE copy_trade_config SET last_order_time=? WHERE id=?", latestTime, id)
 		}
+	}
+
+	if _, err := s.refreshCopyTradeUnrealizedPnL(userID, fTrader); err != nil {
+		log.Printf("⚠️ [自动跟单] 刷新未实现盈亏失败: %v", err)
 	}
 }
 
@@ -2628,74 +2668,48 @@ func (s *Server) reloadPromptTemplatesWithLog(templateName string) {
 	}
 }
 
-// handleCopyTradingLeaderboard 从币安获取跟单交易员排行榜
+// handleCopyTradingLeaderboard 从币安获取跟单交易员排行榜（失败时回退本地缓存）
 func (s *Server) handleCopyTradingLeaderboard(c *gin.Context) {
-	// 调用币安内部API
-	binanceURL := "https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/home-page/recommend-lead-list"
-
-	payload := strings.NewReader(`{}`)
-
-	req, err := http.NewRequest("POST", binanceURL, payload)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建请求失败"})
-		return
-	}
-	
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-	req.Header.Set("Origin", "https://www.binance.com")
-	req.Header.Set("Referer", "https://www.binance.com/zh-CN/copy-trading")
-
-	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "请求币安API失败", "detail": err.Error()})
-		return
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "读取币安响应失败"})
-		return
-	}
-
-	// 解析响应
-	var binanceResp struct {
-		Code    string `json:"code"`
-		Message string `json:"message"`
-		Data    json.RawMessage `json:"data"`
-	}
-	if err := json.Unmarshal(body, &binanceResp); err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "解析币安响应失败"})
-		return
-	}
-
-	if binanceResp.Code != "000000" {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "币安API返回错误", "code": binanceResp.Code, "message": binanceResp.Message})
-		return
-	}
-
-	// 返回解析后的数据
-	var data map[string]json.RawMessage
-	json.Unmarshal(binanceResp.Data, &data)
-
-	// 尝试写入缓存
-	cacheDir := filepath.Join(os.Getenv("HOME"), ".hermes", "hermes-agent", "cache", "copy-trading")
-	if cacheFile, err := os.Create(filepath.Join(cacheDir, "leaderboard.json")); err == nil {
-		cacheData := map[string]interface{}{
-			"ts":   time.Now().Unix(),
-			"data": data,
+	respondLeaderboard := func(data json.RawMessage, stale bool, warning string) {
+		var parsed interface{}
+		if err := json.Unmarshal(data, &parsed); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "解析排行榜数据失败"})
+			return
 		}
-		json.NewEncoder(cacheFile).Encode(cacheData)
-		cacheFile.Close()
+		resp := gin.H{
+			"code":    "000000",
+			"message": "success",
+			"data":    parsed,
+		}
+		if stale {
+			resp["stale"] = true
+		}
+		if warning != "" {
+			resp["warning"] = warning
+		}
+		c.JSON(http.StatusOK, resp)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":    "000000",
-		"message": "success",
-		"data":    data,
-	})
+	data, err := fetchBinanceLeaderboard()
+	if err == nil {
+		if werr := writeLeaderboardCache(data); werr != nil {
+			log.Printf("⚠️ 写入排行榜缓存失败: %v", werr)
+		}
+		respondLeaderboard(data, false, "")
+		return
+	}
+
+	log.Printf("⚠️ 币安跟单排行榜请求失败: %v", err)
+
+	if cached, ts, cerr := readLeaderboardCache(); cerr == nil {
+		age := time.Since(time.Unix(ts, 0)).Round(time.Minute)
+		respondLeaderboard(cached, true,
+			fmt.Sprintf("币安 API 暂不可用，已使用 %v 前的本地缓存（%v）", age, err))
+		return
+	}
+
+	respondLeaderboard(emptyLeaderboardData(), true,
+		"币安跟单 API 不可用（Docker/服务器可能受地区限制），且暂无本地缓存。可在能访问币安的环境先打开本页以生成缓存，或配置 HTTP_PROXY / BINANCE_BAPI_BASE_URL")
 }
 
 // handleCopyTradingOrders 获取币安跟单交易员最新操作记录
@@ -2706,68 +2720,43 @@ func (s *Server) handleCopyTradingOrders(c *gin.Context) {
 		return
 	}
 
-	pageSize := c.DefaultQuery("page_size", "10")
-
-	// 计算时间范围（最近30天）
-	now := time.Now()
-	endTime := now.UnixMilli()
-	startTime := now.AddDate(0, -1, 0).UnixMilli()
-
-	binanceURL := "https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/lead-portfolio/order-history"
-
-	payload := map[string]interface{}{
-		"portfolioId": portfolioID,
-		"startTime":   startTime,
-		"endTime":     endTime,
-		"pageSize":    pageSize,
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if pageSize <= 0 {
+		pageSize = 10
 	}
-	jsonPayload, _ := json.Marshal(payload)
 
-	req, err := http.NewRequest("POST", binanceURL, strings.NewReader(string(jsonPayload)))
+	stale := false
+	warning := ""
+	history, err := fetchBinanceLeadOrders(portfolioID, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建请求失败"})
-		return
+		log.Printf("⚠️ 币安跟单订单请求失败 portfolio=%s: %v", portfolioID, err)
+		if cached, ok := getLeadOrdersCached(portfolioID, 7*24*time.Hour); ok {
+			history = cached
+			stale = true
+			warning = "币安 API 暂不可用，已使用本地缓存"
+		} else {
+			c.JSON(http.StatusBadGateway, gin.H{"error": "请求币安API失败", "detail": err.Error()})
+			return
+		}
+	} else if err := writeOrderCache(portfolioID, history); err != nil {
+		log.Printf("⚠️ 写入跟单订单缓存失败: %v", err)
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-	req.Header.Set("Origin", "https://www.binance.com")
-	req.Header.Set("Referer", "https://www.binance.com/zh-CN/copy-trading")
-
-	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "请求币安API失败", "detail": err.Error()})
-		return
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "读取币安响应失败"})
-		return
+	var data json.RawMessage
+	if history.Data != nil {
+		data, _ = json.Marshal(history.Data)
 	}
 
-	var binanceResp struct {
-		Code    string          `json:"code"`
-		Message string          `json:"message"`
-		Data    json.RawMessage `json:"data"`
-	}
-	if err := json.Unmarshal(body, &binanceResp); err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "解析币安响应失败"})
-		return
-	}
-
-	if binanceResp.Code != "000000" {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "币安API返回错误", "code": binanceResp.Code, "message": binanceResp.Message})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
+	resp := gin.H{
 		"code":    "000000",
 		"message": "success",
-		"data":    binanceResp.Data,
-	})
+		"data":    data,
+	}
+	if stale {
+		resp["stale"] = true
+		resp["warning"] = warning
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // handleGetCopyTradeConfigs 获取跟单配置
@@ -2897,12 +2886,12 @@ func (s *Server) handleGetCopyTradeRecords(c *gin.Context) {
 	var records = make([]map[string]interface{}, 0)
 	for rows.Next() {
 		var id int
-		var portfolioID, nickname, orderID, symbol, side, posSide, status string
-		var qty, price, pnl float64
+		var portfolioID, nickname, orderID, symbol, side, posSide, status, errorMessage string
+		var qty, price, pnl, closePrice float64
 		var leadTime int64
 		var copyTime, closeTime interface{}
 		if err := rows.Scan(&id, &portfolioID, &nickname, &orderID, &symbol, &side, &posSide,
-			&qty, &price, &pnl, &status, &leadTime, &copyTime, &closeTime); err != nil {
+			&qty, &price, &pnl, &status, &leadTime, &copyTime, &closeTime, &closePrice, &errorMessage); err != nil {
 			continue
 		}
 		rec := map[string]interface{}{
@@ -2910,6 +2899,8 @@ func (s *Server) handleGetCopyTradeRecords(c *gin.Context) {
 			"order_id": orderID, "symbol": symbol, "side": side,
 			"position_side": posSide, "executed_qty": qty, "avg_price": price,
 			"total_pnl": pnl, "status": status, "lead_order_time": leadTime,
+			"copy_time": copyTime, "close_time": closeTime,
+			"close_price": closePrice, "error_message": errorMessage,
 		}
 		records = append(records, rec)
 	}
@@ -2990,105 +2981,63 @@ func (s *Server) handleSyncCopyTrade(c *gin.Context) {
 	// 创建币安交易器用于实际下单
 	fTrader := trader.NewFuturesTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, userID, exchangeCfg.Testnet)
 
-\ttotalCopied := 0
-\ttotalErrors := 0
-\tcacheDir := filepath.Join(os.Getenv(\"HOME\"), \".hermes\", \"hermes-agent\", \"cache\", \"copy-trading\")
+	runID, _ := s.startCopyTradeRun(userID, "manual")
+	syncCounters := copyTradeRunCounters{}
 
-\tfor _, cfg := range configs {
-\t\tlog.Printf(\"🔍 [跟单] 处理配置: %s (ID=%d, portfolio=%s, last_time=%d)\", cfg.Nickname, cfg.ID, cfg.PortfolioID, cfg.LastOrderTime)
+	totalCopied := 0
+	totalErrors := 0
 
-\t\t// 优先读取缓存文件，若不存在则从 Binance 实时拉取
-\t\tcacheFile := filepath.Join(cacheDir, fmt.Sprintf(\"orders_%s.json\", cfg.PortfolioID))
-\t\tdata, err := os.ReadFile(cacheFile)
-\t\tif err != nil {
-\t\t\tlog.Printf(\"⚠️  [%s] 无缓存数据，尝试从 Binance 实时拉取\", cfg.Nickname)
-\t\t\tbodyPayload := fmt.Sprintf(`{\"portfolioId\":\"%s\",\"startTime\":%d,\"endTime\":%d,\"pageSize\":20}`,
-\t\t\t\tcfg.PortfolioID, time.Now().UnixMilli()-30*24*60*60*1000, time.Now().UnixMilli())
-\t\t\treq, _ := http.NewRequest(\"POST\",
-\t\t\t\t\"https://www.binance.com/bapi/futures/v1/friendly/future/copy-trade/lead-portfolio/order-history\",
-\t\t\t\tstrings.NewReader(bodyPayload))
-\t\t\treq.Header.Set(\"Content-Type\", \"application/json\")
-\t\t\treq.Header.Set(\"User-Agent\", \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\")
-\t\t\treq.Header.Set(\"Origin\", \"https://www.binance.com\")
-\t\t\treq.Header.Set(\"Referer\", \"https://www.binance.com/zh-CN/copy-trading\")
-\t\t\tresp, e := http.DefaultClient.Do(req)
-\t\t\tif e != nil {
-\t\t\t\tlog.Printf(\"⚠️  [%s] Binance实时请求失败: %v\", cfg.Nickname, e)
-\t\t\t\tcontinue
-\t\t\t}
-\t\t\trespBody, _ := io.ReadAll(resp.Body)
-\t\t\tresp.Body.Close()
-\t\t\tdata = respBody
-\t\t}
+	for _, cfg := range configs {
+		log.Printf("🔍 [跟单] 处理配置: %s (ID=%d, portfolio=%s, last_time=%d)", cfg.Nickname, cfg.ID, cfg.PortfolioID, cfg.LastOrderTime)
+		syncCounters.tradersChecked++
 
-\t\tvar cached struct {
-\t\t\tData *struct {
-\t\t\t\tList []struct {
-\t\t\t\t\tSymbol       string  `json:\"symbol\"`
-\t\t\t\t\tSide         string  `json:\"side\"`
-\t\t\t\t\tPositionSide string  `json:\"positionSide\"`
-\t\t\t\t\tExecutedQty  float64 `json:\"executedQty\"`
-\t\t\t\t\tAvgPrice     float64 `json:\"avgPrice\"`
-\t\t\t\t\tTotalPnl     float64 `json:\"totalPnl\"`
-\t\t\t\t\tOrderTime    int64   `json:\"orderTime\"`
-\t\t\t\t} `json:\"list\"`
-\t\t\t} `json:\"data\"`
-\t\t}
-\t\tif json.Unmarshal(data, \u0026cached); err != nil || cached.Data == nil {
-\t\t\tif err := json.Unmarshal(data, \u0026cached); err != nil || cached.Data == nil {
-\t\t\tlog.Printf(\"⚠️  [%s] 解析订单数据失败\", cfg.Nickname)
-\t\t\tcontinue
-\t\t\t}
-\t\t}
+		cached, err := refreshOrderCache(cfg.PortfolioID, 50)
+		if err != nil {
+			log.Printf("⚠️  [%s] 拉取订单失败: %v", cfg.Nickname, err)
+			s.insertCopyTradeRunEvent(runID, userID, cfg.PortfolioID, cfg.Nickname, "", "fetch_failed", "", "", "NONE", err.Error(), 0)
+			totalErrors++
+			continue
+		}
+		if cached.Data == nil {
+			continue
+		}
 
-\t\tlatestTime := cfg.LastOrderTime
+		latestTime := cfg.LastOrderTime
 
-\t\t// 收集所有未同步的新订单（每个币种+时间戳唯一去重）
-\t\ttype symbolOrder struct {
-\t\t\tSymbol       string
-\t\t\tSide         string
-\t\t\tPositionSide string
-\t\t\tExecutedQty  float64
-\t\t\tAvgPrice     float64
-\t\t\tTotalPnl     float64
-\t\t\tOrderTime    int64
-\t\t}
-\t\t// 用 symbol+orderTime 去重，确保同时间戳的多笔不同数量订单都能被处理
-\t\tseenKey := make(map[string]bool)
-\t\tvar allNewOrders []symbolOrder
-\t\tfor _, order := range cached.Data.List {
-\t\t\tif order.OrderTime > latestTime {
-\t\t\t\tlatestTime = order.OrderTime
-\t\t\t}
-\t\t\t// 只处理未同步过的新订单
-\t\t\tif order.OrderTime <= cfg.LastOrderTime {
-\t\t\t\tcontinue
-\t\t\t}
-\t\t\t// 只复制开仓操作
-\t\t\tisOpen := (order.PositionSide == "LONG" && order.Side == "BUY") ||
-\t\t\t\t(order.PositionSide == "SHORT" && order.Side == "SELL") ||
-\t\t\t\t(order.PositionSide == "BOTH" && order.Side == "SELL")
-\t\t\tif cfg.CopyOpenOnly && !isOpen {
-\t\t\t\tcontinue
-\t\t\t}
-\t\t\t// 按 symbol+orderTime+PosSide 去重，保留所有不同价格的订单
-\t\t\tkey := fmt.Sprintf("%s_%d_%s_%s", order.Symbol, order.OrderTime, order.PositionSide, order.Side)
-\t\t\tif seenKey[key] {
-\t\t\t\tcontinue
-\t\t\t}
-\t\t\tseenKey[key] = true
-\t\t\tallNewOrders = append(allNewOrders, symbolOrder{
-\t\t\t\tSymbol:       order.Symbol,
-\t\t\t\tSide:         order.Side,
-\t\t\t\tPositionSide: order.PositionSide,
-\t\t\t\tExecutedQty:  order.ExecutedQty,
-\t\t\t\tAvgPrice:     order.AvgPrice,
-\t\t\t\tTotalPnl:     order.TotalPnl,
-\t\t\t\tOrderTime:    order.OrderTime,
-\t\t\t})
-\t\t}
+		type symbolOrder struct {
+			Symbol       string
+			Side         string
+			PositionSide string
+			ExecutedQty  float64
+			AvgPrice     float64
+			TotalPnl     float64
+			OrderTime    int64
+		}
+		seenKey := make(map[string]bool)
+		var allNewOrders []symbolOrder
+		for _, order := range cached.Data.List {
+			if order.OrderTime > latestTime {
+				latestTime = order.OrderTime
+			}
+			if order.OrderTime <= cfg.LastOrderTime {
+				continue
+			}
+			if cfg.CopyOpenOnly && !isLeadOpenOrder(order.PositionSide, order.Side) {
+				continue
+			}
+			key := fmt.Sprintf("%s_%d_%s_%s", order.Symbol, order.OrderTime, order.PositionSide, order.Side)
+			if seenKey[key] {
+				continue
+			}
+			seenKey[key] = true
+			allNewOrders = append(allNewOrders, symbolOrder{
+				Symbol: order.Symbol, Side: order.Side, PositionSide: order.PositionSide,
+				ExecutedQty: order.ExecutedQty, AvgPrice: order.AvgPrice,
+				TotalPnl: order.TotalPnl, OrderTime: order.OrderTime,
+			})
+		}
 
-\t\tfor _, order := range allNewOrders {
+		for _, order := range allNewOrders {
 			// 检查是否已记录
 			var count int
 			s.database.DB().QueryRow("SELECT COUNT(*) FROM copy_trade_records WHERE user_id=? AND lead_order_time=?",
@@ -3175,95 +3124,73 @@ func (s *Server) handleSyncCopyTrade(c *gin.Context) {
 
 	// 同步当前交易所持仓到跟单记录 & 更新未实现盈亏
 	log.Printf("📋 同步持仓盈亏数据...")
+	if _, err := s.refreshCopyTradeUnrealizedPnL(userID, fTrader); err != nil {
+		log.Printf("⚠️ 刷新未实现盈亏失败: %v", err)
+	}
 	positions, posErr := fTrader.GetPositions()
 	if posErr == nil {
-		// 先更新已有记录的未实现盈亏
 		for _, pos := range positions {
 			symbol, _ := pos["symbol"].(string)
 			if symbol == "" {
 				continue
 			}
-			positionAmt, _ := pos["positionAmt"].(string)
-			if positionAmt == "" || positionAmt == "0" {
+			qty := copyTradePosFloat(pos["positionAmt"])
+			if qty == 0 {
 				continue
 			}
-			entryPrice, _ := pos["entryPrice"].(string)
-			unrealizedPnl, _ := pos["unRealizedProfit"].(string)
-			markPrice, _ := pos["markPrice"].(string)
-
-			qty := 0.0
-			fmt.Sscanf(positionAmt, "%f", &qty)
-			qtyAbs := qty
-			posSide := "LONG"
+			posSide := copyTradePosSideFromExchange(pos)
 			side := "BUY"
-			if qty < 0 {
-				qtyAbs = -qty
-				posSide = "SHORT"
+			qtyAbs := qty
+			if posSide == "SHORT" {
 				side = "SELL"
+				qtyAbs = -qty
 			}
+			price := copyTradePosFloat(pos["entryPrice"])
+			pnl := copyTradePosFloat(pos["unRealizedProfit"])
 
-			price := 0.0
-			fmt.Sscanf(entryPrice, "%f", &price)
-			pnl := 0.0
-			fmt.Sscanf(unrealizedPnl, "%f", &pnl)
-			mark := 0.0
-			fmt.Sscanf(markPrice, "%f", &mark)
-
-			// 更新已有记录的未实现盈亏
-			result, err := s.database.DB().Exec(
-				"UPDATE copy_trade_records SET total_pnl=? WHERE user_id=? AND symbol=? AND status='OPEN'",
-				pnl, userID, symbol)
-			if err == nil {
-				rowsAffected, _ := result.RowsAffected()
-				if rowsAffected > 0 {
-					log.Printf("  ✓ 更新 %s 未实现盈亏: $%.2f (当前价: $%.2f)", symbol, pnl, mark)
-				}
-			}
-
-			// 检查是否已有记录
 			var count int
-			s.database.DB().QueryRow("SELECT COUNT(*) FROM copy_trade_records WHERE user_id=? AND symbol=? AND status='OPEN'",
-				userID, symbol).Scan(&count)
+			s.database.DB().QueryRow(
+				"SELECT COUNT(*) FROM copy_trade_records WHERE user_id=? AND symbol=? AND position_side=? AND status='OPEN'",
+				userID, symbol, posSide).Scan(&count)
 			if count > 0 {
 				continue
 			}
 
-			// 创建跟单记录
 			orderID := fmt.Sprintf("sync_pos_%s_%d", symbol, time.Now().UnixMilli())
 			s.database.DB().Exec(`
 				INSERT OR IGNORE INTO copy_trade_records 
 				(user_id, portfolio_id, nickname, order_id, symbol, side, position_side,
 				 executed_qty, avg_price, total_pnl, status, lead_order_time)
-				VALUES (?, 'exchange', '当前持仓', ?, ?, ?, ?, ?, ?, 'OPEN', ?)`,
+				VALUES (?, 'exchange', '当前持仓', ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?)`,
 				userID, orderID, symbol, side, posSide, qtyAbs, price, pnl, time.Now().UnixMilli())
 			log.Printf("  ✓ 已同步持仓: %s %s %.4f张 @ $%.2f PnL: $%.2f", symbol, posSide, qtyAbs, price, pnl)
 			totalCopied++
 		}
 
-		// 检测已平仓：将交易所已无持仓的 OPEN 记录标记为 CLOSED
-		activeSymbols := make(map[string]bool)
+		activeKeys := make(map[string]bool)
 		for _, pos := range positions {
 			sym, _ := pos["symbol"].(string)
-			amt, _ := pos["positionAmt"].(string)
-			if sym != "" && amt != "" && amt != "0" {
-				activeSymbols[sym] = true
+			qty := copyTradePosFloat(pos["positionAmt"])
+			if sym != "" && qty != 0 {
+				posSide := copyTradePosSideFromExchange(pos)
+				activeKeys[sym+"|"+posSide] = true
 			}
 		}
 		rows, err := s.database.DB().Query(
-			"SELECT id, symbol, avg_price, executed_qty FROM copy_trade_records WHERE user_id=? AND status='OPEN'",
+			"SELECT id, symbol, position_side FROM copy_trade_records WHERE user_id=? AND status='OPEN'",
 			userID)
 		if err == nil {
 			for rows.Next() {
 				var rid int
-				var sym, aPrice, qty string
-				if err := rows.Scan(&rid, &sym, &aPrice, &qty); err != nil {
+				var sym, posSide string
+				if err := rows.Scan(&rid, &sym, &posSide); err != nil {
 					continue
 				}
-				if !activeSymbols[sym] {
+				if !activeKeys[sym+"|"+posSide] {
 					s.database.DB().Exec(
 						"UPDATE copy_trade_records SET status='CLOSED', close_time=CURRENT_TIMESTAMP, close_price=avg_price WHERE id=?",
 						rid)
-					log.Printf("  🔒 %s 已平仓，标记为 CLOSED (ID=%d)", sym, rid)
+					log.Printf("  🔒 %s %s 已平仓，标记为 CLOSED (ID=%d)", sym, posSide, rid)
 				}
 			}
 			rows.Close()
@@ -3272,10 +3199,15 @@ func (s *Server) handleSyncCopyTrade(c *gin.Context) {
 		log.Printf("⚠️ 获取持仓失败: %v", posErr)
 	}
 
+	syncCounters.opened = totalCopied
+	syncCounters.failed = totalErrors
+	s.finishCopyTradeRun(runID, runStatusFromCounters(syncCounters), syncCounters, formatRunMessage(syncCounters))
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "同步完成",
 		"copied":  totalCopied,
 		"errors":  totalErrors,
+		"run_id":  runID,
 	})
 }
 
@@ -3383,7 +3315,7 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 		}
 		actualQty := aiQty
 		actualPrice := req.AvgPrice
-\t\tactualOrderID := fmt.Sprintf("manual_%s_%d_%d", req.PortfolioID, req.OrderTime, time.Now().UnixNano()%100000)
+		actualOrderID := fmt.Sprintf("manual_%s_%d_%d", req.PortfolioID, req.OrderTime, time.Now().UnixNano()%100000)
 		if tradeResult != nil {
 			if q, ok := tradeResult["executedQty"].(float64); ok && q > 0 {
 				actualQty = q

@@ -282,6 +282,7 @@ func (d *Database) createTables() error {
 		portfolio_id TEXT NOT NULL,
 		nickname TEXT NOT NULL DEFAULT '',
 		enabled INTEGER NOT NULL DEFAULT 1,
+		auto_follow INTEGER NOT NULL DEFAULT 0,
 		max_copy_size REAL NOT NULL DEFAULT 0,
 		size_multiplier REAL NOT NULL DEFAULT 1.0,
 		copy_open_only INTEGER NOT NULL DEFAULT 0,
@@ -290,6 +291,7 @@ func (d *Database) createTables() error {
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		UNIQUE(user_id, portfolio_id)
 	)`)
+	d.db.Exec(`ALTER TABLE copy_trade_config ADD COLUMN auto_follow INTEGER NOT NULL DEFAULT 0`)
 
 	d.db.Exec(`CREATE TABLE IF NOT EXISTS copy_trade_records (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -314,8 +316,41 @@ func (d *Database) createTables() error {
 	)`)
 
 	// 迁移：为旧数据库添加新字段
-	s.db.Exec("ALTER TABLE copy_trade_records ADD COLUMN close_price REAL DEFAULT 0")
-	s.db.Exec("ALTER TABLE copy_trade_records ADD COLUMN error_message TEXT DEFAULT ''")
+	d.db.Exec("ALTER TABLE copy_trade_records ADD COLUMN close_price REAL DEFAULT 0")
+	d.db.Exec("ALTER TABLE copy_trade_records ADD COLUMN error_message TEXT DEFAULT ''")
+
+	// 自动跟单执行日志
+	d.db.Exec(`CREATE TABLE IF NOT EXISTS copy_trade_runs (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id TEXT NOT NULL,
+		trigger TEXT NOT NULL DEFAULT 'auto',
+		started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		finished_at DATETIME,
+		status TEXT NOT NULL DEFAULT 'running',
+		traders_checked INTEGER NOT NULL DEFAULT 0,
+		actions_opened INTEGER NOT NULL DEFAULT 0,
+		actions_skipped INTEGER NOT NULL DEFAULT 0,
+		actions_failed INTEGER NOT NULL DEFAULT 0,
+		message TEXT DEFAULT ''
+	)`)
+	d.db.Exec(`CREATE TABLE IF NOT EXISTS copy_trade_run_events (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		run_id INTEGER NOT NULL,
+		user_id TEXT NOT NULL,
+		portfolio_id TEXT NOT NULL,
+		nickname TEXT NOT NULL DEFAULT '',
+		symbol TEXT DEFAULT '',
+		action TEXT NOT NULL,
+		lead_side TEXT DEFAULT '',
+		lead_position_side TEXT DEFAULT '',
+		our_status TEXT DEFAULT 'NONE',
+		detail TEXT DEFAULT '',
+		lead_order_time INTEGER DEFAULT 0,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (run_id) REFERENCES copy_trade_runs(id) ON DELETE CASCADE
+	)`)
+	d.db.Exec(`CREATE INDEX IF NOT EXISTS idx_copy_trade_runs_user ON copy_trade_runs(user_id, started_at DESC)`)
+	d.db.Exec(`CREATE INDEX IF NOT EXISTS idx_copy_trade_run_events_run ON copy_trade_run_events(run_id)`)
 
 	return nil
 }

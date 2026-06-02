@@ -266,6 +266,10 @@ start() {
         print_info "创建日志目录..."
         install -m 700 -d decision_logs
     fi
+    if [ ! -d "data/copy-trading" ]; then
+        print_info "创建跟单缓存目录..."
+        install -m 755 -d data/copy-trading
+    fi
 
     # Auto-build frontend if missing or forced
     # if [ ! -d "web/dist" ] || [ "$1" == "--build" ]; then

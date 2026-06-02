@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { httpClient } from '../lib/httpClient'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts'
+import { CopyTradeMonitorTab } from '../components/copy-trade/CopyTradeMonitorTab'
+import { CopyTradePnLList } from '../components/copy-trade/CopyTradePnLList'
 
 interface CopyConfig {
   id: number
@@ -19,6 +21,7 @@ interface CopyRecord {
   id: number
   portfolio_id: string
   nickname: string
+  order_id?: string
   symbol: string
   side: string
   position_side: string
@@ -29,7 +32,8 @@ interface CopyRecord {
   status: string
   error_message?: string
   lead_order_time: number
-  copy_time: string
+  copy_time?: string
+  close_time?: string
 }
 
 export function CopyTradeDashboard() {
@@ -39,7 +43,8 @@ export function CopyTradeDashboard() {
   const [leaderboard, setLeaderboard] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
-  const [activeTab, setActiveTab] = useState<'traders' | 'records' | 'pnl'>('traders')
+  const [refreshingPnl, setRefreshingPnl] = useState(false)
+  const [activeTab, setActiveTab] = useState<'traders' | 'records' | 'pnl' | 'monitor'>('traders')
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -53,11 +58,17 @@ export function CopyTradeDashboard() {
 
       // Load copy configs
       const configRes = await httpClient.get('/api/copy-trade/configs', headers)
-      if (configRes.ok) setConfigs(await configRes.json())
+      if (configRes.ok) {
+        const configData = await configRes.json()
+        setConfigs(Array.isArray(configData) ? configData : [])
+      }
 
       // Load records
       const recordsRes = await httpClient.get('/api/copy-trade/records', headers)
-      if (recordsRes.ok) setRecords(await recordsRes.json())
+      if (recordsRes.ok) {
+        const recordsData = await recordsRes.json()
+        setRecords(Array.isArray(recordsData) ? recordsData : [])
+      }
 
       // Load leaderboard for available traders
       const lbRes = await httpClient.get('/api/copy-trading/leaderboard')
@@ -78,7 +89,7 @@ export function CopyTradeDashboard() {
   }
 
   const toggleTrader = async (trader: any) => {
-    const existing = configs.find(c => c.portfolio_id === trader.leadPortfolioId)
+    const existing = (configs ?? []).find(c => c.portfolio_id === trader.leadPortfolioId)
     const token = localStorage.getItem('auth_token')
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -128,6 +139,28 @@ export function CopyTradeDashboard() {
     }
   }
 
+  const handleRefreshPnL = async () => {
+    setRefreshingPnl(true)
+    setMessage('')
+    try {
+      const token = localStorage.getItem('auth_token')
+      const res = await httpClient.post('/api/copy-trade/refresh-pnl', undefined, {
+        Authorization: token ? `Bearer ${token}` : '',
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setMessage('刷新盈亏失败: ' + (data.error || '未知错误'))
+        return
+      }
+      setMessage(`盈亏已刷新，更新 ${data.updated || 0} 条记录`)
+      await loadData()
+    } catch (e: any) {
+      setMessage('刷新盈亏失败: ' + (e.message || '未知错误'))
+    } finally {
+      setRefreshingPnl(false)
+    }
+  }
+
   const formatTime = (ts: number | string) => {
     const d = typeof ts === 'number' ? new Date(ts) : new Date(ts)
     return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -174,7 +207,9 @@ export function CopyTradeDashboard() {
     )
   }
 
-  const activeConfigs = configs.filter(c => c.enabled)
+  const safeRecords = records ?? []
+  const safeConfigs = configs ?? []
+  const activeConfigs = safeConfigs.filter(c => c.enabled)
 
   return (
     <div>
@@ -183,7 +218,7 @@ export function CopyTradeDashboard() {
         <div>
           <h1 className="text-2xl font-bold" style={{ color: '#EAECEF' }}>跟单管理</h1>
           <p className="text-sm mt-1" style={{ color: '#848E9C' }}>
-            {activeConfigs.length} 个交易员已启用 · {records.filter(r => r.status === 'OPEN').length} 个持仓
+            {activeConfigs.length} 个交易员已启用 · {safeRecords.filter(r => r.status === 'OPEN').length} 个持仓
           </p>
         </div>
         <button
@@ -216,7 +251,7 @@ export function CopyTradeDashboard() {
           className="flex-1 py-2 px-4 rounded text-sm font-semibold transition-all"
           style={{ background: activeTab === 'records' ? '#F0B90B' : 'transparent', color: activeTab === 'records' ? '#0B0E11' : '#848E9C' }}
         >
-          跟单记录 ({records.length})
+          跟单记录 ({safeRecords.length})
         </button>
         <button
           onClick={() => setActiveTab('pnl')}
@@ -225,6 +260,13 @@ export function CopyTradeDashboard() {
         >
           收益
         </button>
+        <button
+          onClick={() => setActiveTab('monitor')}
+          className="flex-1 py-2 px-4 rounded text-sm font-semibold transition-all"
+          style={{ background: activeTab === 'monitor' ? '#F0B90B' : 'transparent', color: activeTab === 'monitor' ? '#0B0E11' : '#848E9C' }}
+        >
+          自动监控
+        </button>
       </div>
 
       {activeTab === 'traders' && (
@@ -232,8 +274,8 @@ export function CopyTradeDashboard() {
           <div className="text-xs font-semibold mb-2" style={{ color: '#848E9C' }}>
             点击交易员启用/禁用跟单
           </div>
-          {leaderboard.map((trader: any) => {
-            const cfg = configs.find(c => c.portfolio_id === trader.leadPortfolioId)
+          {(leaderboard ?? []).map((trader: any) => {
+            const cfg = safeConfigs.find(c => c.portfolio_id === trader.leadPortfolioId)
             const enabled = cfg?.enabled || false
             return (
               <div
@@ -301,13 +343,13 @@ export function CopyTradeDashboard() {
 
       {activeTab === 'records' && (
         <div>
-          {records.length === 0 ? (
+          {safeRecords.length === 0 ? (
             <div className="text-center py-10 text-sm" style={{ color: '#5E6673' }}>暂无跟单记录，请先启用交易员并执行同步</div>
           ) : (
             <div className="space-y-6">
               {/* 持仓中 */}
               {(() => {
-                const open = records.filter(r => r.status === 'OPEN')
+                const open = safeRecords.filter(r => r.status === 'OPEN')
                 return open.length > 0 && <>
                   <div>
                     <div className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: '#0ECB81' }}>
@@ -325,7 +367,7 @@ export function CopyTradeDashboard() {
 
               {/* 已平仓 */}
               {(() => {
-                const closed = records.filter(r => r.status === 'CLOSED')
+                const closed = safeRecords.filter(r => r.status === 'CLOSED')
                 return closed.length > 0 && <>
                   <div>
                     <div className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: '#848E9C' }}>
@@ -343,7 +385,7 @@ export function CopyTradeDashboard() {
 
               {/* 失败/错误 */}
               {(() => {
-                const failed = records.filter(r => r.status === 'FAILED')
+                const failed = safeRecords.filter(r => r.status === 'FAILED')
                 return failed.length > 0 && <>
                   <div>
                     <div className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: '#F6465D' }}>
@@ -365,97 +407,108 @@ export function CopyTradeDashboard() {
 
       {activeTab === 'pnl' && (
         <div>
-          {/* Summary */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="p-4 rounded-lg" style={{ background: '#1E2329', border: '1px solid #2B3139' }}>
-              <div className="text-xs mb-1" style={{ color: '#848E9C' }}>总持仓</div>
-              <div className="text-2xl font-bold" style={{ color: '#EAECEF' }}>
-                {records.filter(r => r.status === 'OPEN').length}
-              </div>
+          <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+            <div className="text-sm" style={{ color: '#848E9C' }}>
+              点击刷新从交易所拉取最新未实现盈亏
             </div>
-            <div className="p-4 rounded-lg" style={{ background: '#1E2329', border: '1px solid #2B3139' }}>
-              <div className="text-xs mb-1" style={{ color: '#848E9C' }}>总未实现盈亏</div>
-              <div className="text-2xl font-bold" style={{
-                color: (() => {
-                  const total = records.reduce((s, r) => s + (r.total_pnl || 0), 0)
-                  return total >= 0 ? '#0ECB81' : '#F6465D'
-                })()
-              }}>
-                ${records.reduce((s, r) => s + (r.total_pnl || 0), 0).toFixed(2)}
-              </div>
-            </div>
+            <button
+              onClick={handleRefreshPnL}
+              disabled={refreshingPnl}
+              className="px-4 py-2 rounded text-sm font-semibold transition-all disabled:opacity-50"
+              style={{ background: '#2B3139', color: '#EAECEF', border: '1px solid #474D57' }}
+            >
+              {refreshingPnl ? '刷新中...' : '刷新盈亏'}
+            </button>
           </div>
 
-          {/* Per-coin PnL Line Chart */}
+          {/* Summary */}
+          {(() => {
+            const openRecords = safeRecords.filter(r => r.status === 'OPEN')
+            const closedRecords = safeRecords.filter(r => r.status === 'CLOSED')
+            const unrealized = openRecords.reduce((s, r) => s + (r.total_pnl || 0), 0)
+            const realized = closedRecords.reduce((s, r) => s + (r.total_pnl || 0), 0)
+            const total = unrealized + realized
+            return (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                <div className="p-4 rounded-lg" style={{ background: '#1E2329', border: '1px solid #2B3139' }}>
+                  <div className="text-xs mb-1" style={{ color: '#848E9C' }}>总持仓</div>
+                  <div className="text-2xl font-bold" style={{ color: '#EAECEF' }}>
+                    {openRecords.length}
+                  </div>
+                </div>
+                <div className="p-4 rounded-lg" style={{ background: '#1E2329', border: '1px solid #2B3139' }}>
+                  <div className="text-xs mb-1" style={{ color: '#848E9C' }}>未实现盈亏</div>
+                  <div className="text-2xl font-bold" style={{ color: unrealized >= 0 ? '#0ECB81' : '#F6465D' }}>
+                    ${unrealized.toFixed(2)}
+                  </div>
+                </div>
+                <div className="p-4 rounded-lg" style={{ background: '#1E2329', border: '1px solid #2B3139' }}>
+                  <div className="text-xs mb-1" style={{ color: '#848E9C' }}>已实现盈亏</div>
+                  <div className="text-2xl font-bold" style={{ color: realized >= 0 ? '#0ECB81' : '#F6465D' }}>
+                    ${realized.toFixed(2)}
+                  </div>
+                </div>
+                <div className="p-4 rounded-lg" style={{ background: '#1E2329', border: '1px solid #2B3139' }}>
+                  <div className="text-xs mb-1" style={{ color: '#848E9C' }}>总盈亏</div>
+                  <div className="text-2xl font-bold" style={{ color: total >= 0 ? '#0ECB81' : '#F6465D' }}>
+                    ${total.toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Per-coin PnL Chart */}
           <div className="p-4 rounded-lg mb-4" style={{ background: '#1E2329', border: '1px solid #2B3139' }}>
-            <div className="text-sm font-semibold mb-4" style={{ color: '#EAECEF' }}>各币种盈亏趋势</div>
+            <div className="text-sm font-semibold mb-4" style={{ color: '#EAECEF' }}>各币种当前盈亏</div>
             {(() => {
-              const openTrades = records.filter(r => r.status === 'OPEN')
+              const openTrades = safeRecords.filter(r => r.status === 'OPEN')
               if (openTrades.length === 0) {
                 return <div className="text-center py-8 text-sm" style={{ color: '#5E6673' }}>暂无持仓</div>
               }
-              // Sort by time
-              const sorted = [...openTrades].sort((a, b) => (a.lead_order_time || 0) - (b.lead_order_time || 0))
-              // Build chart data: each point is a trade, with time on X and PnL on Y
-              const chartData = sorted.map(r => ({
-                time: new Date(r.lead_order_time).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit' }),
-                pnl: r.total_pnl || 0,
-                coin: r.symbol?.replace('USDT', '') || r.symbol,
-                qty: r.executed_qty,
+              const byCoin: Record<string, { pnl: number; qty: number }> = {}
+              openTrades.forEach(r => {
+                const coin = r.symbol?.replace('USDT', '') || r.symbol
+                if (!byCoin[coin]) byCoin[coin] = { pnl: 0, qty: 0 }
+                byCoin[coin].pnl += r.total_pnl || 0
+                byCoin[coin].qty += r.executed_qty || 0
+              })
+              const chartData = Object.entries(byCoin).map(([coin, data]) => ({
+                coin,
+                pnl: data.pnl,
+                qty: data.qty,
               }))
-              // Group by coin for multiple lines
-              const coinColors: Record<string, string> = { BTC: '#F0B90B', ETH: '#627EEA', SOL: '#9945FF', BNB: '#F3BA2F', XRP: '#23292F', ADA: '#0033AD', DOGE: '#C2A633', HYPE: '#FF007A' }
-              const coins = [...new Set(sorted.map(r => r.symbol?.replace('USDT', '') || r.symbol))]
               return (
                 <>
-                  <div style={{ width: '100%', height: 250 }}>
+                  <div style={{ width: '100%', height: 220 }}>
                     <ResponsiveContainer>
-                      <LineChart data={chartData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                      <BarChart data={chartData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#2B3139" />
-                        <XAxis dataKey="time" tick={{ fontSize: 10, fill: '#848E9C' }} />
+                        <XAxis dataKey="coin" tick={{ fontSize: 10, fill: '#848E9C' }} />
                         <YAxis tick={{ fontSize: 10, fill: '#848E9C' }} tickFormatter={(v) => `$${v}`} />
                         <Tooltip
                           contentStyle={{ background: '#1E2329', border: '1px solid #2B3139', borderRadius: '8px' }}
                           labelStyle={{ color: '#EAECEF' }}
-                          formatter={(value: number, name: string) => [`${value >= 0 ? '+' : ''}$${value.toFixed(2)}`, name]}
+                          formatter={(value: number) => [`${value >= 0 ? '+' : ''}$${value.toFixed(2)}`, '盈亏']}
                         />
-                        <Legend wrapperStyle={{ fontSize: '11px', color: '#848E9C' }} />
-                        {coins.map(coin => (
-                          <Line
-                            key={coin}
-                            type="monotone"
-                            dataKey="pnl"
-                            data={chartData.filter(d => d.coin === coin)}
-                            name={coin}
-                            stroke={coinColors[coin] || '#848E9C'}
-                            strokeWidth={2}
-                            dot={{ r: 3 }}
-                            connectNulls
-                          />
-                        ))}
-                      </LineChart>
+                        <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
+                          {chartData.map((entry) => (
+                            <Cell key={entry.coin} fill={entry.pnl >= 0 ? '#0ECB81' : '#F6465D'} />
+                          ))}
+                        </Bar>
+                      </BarChart>
                     </ResponsiveContainer>
                   </div>
-                  {/* Summary cards below chart */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-                    {(() => {
-                      const byCoin: Record<string, { pnl: number; qty: number }> = {}
-                      openTrades.forEach(r => {
-                        const coin = r.symbol?.replace('USDT', '') || r.symbol
-                        if (!byCoin[coin]) byCoin[coin] = { pnl: 0, qty: 0 }
-                        byCoin[coin].pnl += r.total_pnl || 0
-                        byCoin[coin].qty += r.executed_qty || 0
-                      })
-                      return Object.entries(byCoin).map(([coin, data]) => (
-                        <div key={coin} className="p-3 rounded text-center" style={{ background: '#0B0E11' }}>
-                          <div className="text-xs" style={{ color: '#848E9C' }}>{coin}</div>
-                          <div className="text-sm font-bold mt-1" style={{ color: data.pnl >= 0 ? '#0ECB81' : '#F6465D' }}>
-                            {data.pnl >= 0 ? '+' : ''}{data.pnl.toFixed(2)}
-                          </div>
-                          <div className="text-[10px]" style={{ color: '#5E6673' }}>{data.qty.toFixed(2)}张</div>
+                    {chartData.map((data) => (
+                      <div key={data.coin} className="p-3 rounded text-center" style={{ background: '#0B0E11' }}>
+                        <div className="text-xs" style={{ color: '#848E9C' }}>{data.coin}</div>
+                        <div className="text-sm font-bold mt-1" style={{ color: data.pnl >= 0 ? '#0ECB81' : '#F6465D' }}>
+                          {data.pnl >= 0 ? '+' : ''}{data.pnl.toFixed(2)}
                         </div>
-                      ))
-                    })()}
+                        <div className="text-[10px]" style={{ color: '#5E6673' }}>{data.qty.toFixed(2)}张</div>
+                      </div>
+                    ))}
                   </div>
                 </>
               )
@@ -465,35 +518,12 @@ export function CopyTradeDashboard() {
           {/* Per-trade PnL List */}
           <div className="p-4 rounded-lg" style={{ background: '#1E2329', border: '1px solid #2B3139' }}>
             <div className="text-sm font-semibold mb-3" style={{ color: '#EAECEF' }}>逐笔盈亏</div>
-            {records.filter(r => r.status === 'OPEN').length === 0 ? (
-              <div className="text-center py-4 text-sm" style={{ color: '#5E6673' }}>暂无持仓</div>
-            ) : (
-              <div className="space-y-1.5">
-                {records.filter(r => r.status === 'OPEN').map((rec) => (
-                  <div key={rec.id} className="flex items-center justify-between p-2 rounded text-xs" style={{ background: '#0B0E11' }}>
-                    <div className="flex items-center gap-2">
-                      <span style={{ color: '#F0B90B' }}>{rec.symbol?.replace('USDT', '')}</span>
-                      <span className="px-1 py-0.5 rounded font-medium" style={{
-                        background: rec.side === 'BUY' ? 'rgba(14,203,129,0.15)' : 'rgba(246,70,93,0.15)',
-                        color: rec.side === 'BUY' ? '#0ECB81' : '#F6465D',
-                      }}>
-                        {rec.side === 'BUY' ? '多' : '空'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span style={{ color: '#848E9C' }}>{rec.executed_qty?.toFixed(4)}张</span>
-                      <span style={{ color: '#EAECEF' }}>${rec.avg_price?.toLocaleString()}</span>
-                      <span style={{ color: (rec.total_pnl || 0) >= 0 ? '#0ECB81' : '#F6465D' }}>
-                        {(rec.total_pnl || 0) >= 0 ? '+' : ''}{(rec.total_pnl || 0).toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <CopyTradePnLList records={safeRecords.filter(r => r.status === 'OPEN' || r.status === 'CLOSED')} />
           </div>
         </div>
       )}
+
+      {activeTab === 'monitor' && <CopyTradeMonitorTab />}
     </div>
   )
 }

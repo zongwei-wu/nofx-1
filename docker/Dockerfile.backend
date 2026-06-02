@@ -6,14 +6,17 @@
 # Versions extracted as ARGs for maintainability
 # ═══════════════════════════════════════════════════════════════
 
-ARG GO_VERSION=1.25-alpine
-ARG ALPINE_VERSION=latest
 ARG TA_LIB_VERSION=0.4.0
+# 国内 Docker Hub 403 时可在 .env 设置，例如:
+# ALPINE_IMAGE=docker.m.daocloud.io/library/alpine:latest
+# GOLANG_IMAGE=docker.m.daocloud.io/library/golang:1.25-alpine
+ARG ALPINE_IMAGE=alpine:latest
+ARG GOLANG_IMAGE=golang:1.25-alpine
 
 # ──────────────────────────────────────────────────────────────
 # TA-Lib Build Stage (shared across builds)
 # ──────────────────────────────────────────────────────────────
-FROM alpine:${ALPINE_VERSION} AS ta-lib-builder
+FROM ${ALPINE_IMAGE} AS ta-lib-builder
 ARG TA_LIB_VERSION
 
 RUN apk update && apk add --no-cache \
@@ -36,7 +39,13 @@ RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-${TA_LIB_VERSION}-src.
 # ──────────────────────────────────────────────────────────────
 # Backend Build Stage (Go Application)
 # ──────────────────────────────────────────────────────────────
-FROM golang:${GO_VERSION} AS backend-builder
+FROM ${GOLANG_IMAGE} AS backend-builder
+
+# 国内/受限网络可改用 goproxy.cn；海外可构建时传 --build-arg GOPROXY=https://proxy.golang.org,direct
+ARG GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
+ARG GOSUMDB=sum.golang.google.cn
+ENV GOPROXY=${GOPROXY}
+ENV GOSUMDB=${GOSUMDB}
 
 RUN apk update && apk add --no-cache git make gcc g++ musl-dev
 
@@ -55,7 +64,7 @@ RUN CGO_ENABLED=1 GOOS=linux \
 # ──────────────────────────────────────────────────────────────
 # Runtime Stage (Minimal Executable Environment)
 # ──────────────────────────────────────────────────────────────
-FROM alpine:${ALPINE_VERSION}
+FROM ${ALPINE_IMAGE}
 
 RUN apk update && apk add --no-cache ca-certificates tzdata
 
