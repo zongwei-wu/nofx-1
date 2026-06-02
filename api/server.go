@@ -428,6 +428,7 @@ type SafeModelConfig struct {
 	Name            string `json:"name"`
 	Provider        string `json:"provider"`
 	Enabled         bool   `json:"enabled"`
+	APIKey          string `json:"apiKey,omitempty"`
 	CustomAPIURL    string `json:"customApiUrl"`    // 自定义API URL（通常不敏感）
 	CustomModelName string `json:"customModelName"` // 自定义模型名（不敏感）
 }
@@ -448,6 +449,8 @@ type SafeExchangeConfig struct {
 	Name                  string `json:"name"`
 	Type                  string `json:"type"` // "cex" or "dex"
 	Enabled               bool   `json:"enabled"`
+	APIKey                string `json:"apiKey,omitempty"`
+	SecretKey             string `json:"secretKey,omitempty"`
 	Testnet               bool   `json:"testnet,omitempty"`
 	HyperliquidWalletAddr string `json:"hyperliquidWalletAddr"` // Hyperliquid钱包地址（不敏感）
 	AsterUser             string `json:"asterUser"`             // Aster用户名（不敏感）
@@ -984,6 +987,7 @@ func (s *Server) handleGetModelConfigs(c *gin.Context) {
 			Name:            model.Name,
 			Provider:        model.Provider,
 			Enabled:         model.Enabled,
+			APIKey:          model.APIKey,
 			CustomAPIURL:    model.CustomAPIURL,
 			CustomModelName: model.CustomModelName,
 		}
@@ -1079,6 +1083,8 @@ func (s *Server) handleGetExchangeConfigs(c *gin.Context) {
 			Name:                  exchange.Name,
 			Type:                  exchange.Type,
 			Enabled:               exchange.Enabled,
+			APIKey:                exchange.APIKey,
+			SecretKey:             exchange.SecretKey,
 			Testnet:               exchange.Testnet,
 			HyperliquidWalletAddr: exchange.HyperliquidWalletAddr,
 			AsterUser:             exchange.AsterUser,
@@ -1994,6 +2000,8 @@ func (s *Server) handleGetSupportedExchanges(c *gin.Context) {
 			Name:                  exchange.Name,
 			Type:                  exchange.Type,
 			Enabled:               exchange.Enabled,
+			APIKey:                exchange.APIKey,
+			SecretKey:             exchange.SecretKey,
 			Testnet:               exchange.Testnet,
 			HyperliquidWalletAddr: "", // 默认配置不包含钱包地址
 			AsterUser:             "", // 默认配置不包含用户信息

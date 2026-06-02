@@ -2094,6 +2094,44 @@ function ExchangeConfigModal({
             )}
 
             {selectedExchange && (
+              <div
+                className="p-4 rounded"
+                style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold" style={{ color: '#EAECEF' }}>
+                      {t('useTestnet', language)}
+                    </div>
+                    <div className="text-xs mt-1" style={{ color: '#848E9C' }}>
+                      {t('testnetDescription', language)}
+                    </div>
+                  </div>
+                  <label className="inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={testnet}
+                      onChange={(e) => setTestnet(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <span
+                      className="w-11 h-6 rounded-full relative transition-all"
+                      style={{ background: testnet ? '#0ECB81' : '#2B3139' }}
+                    >
+                      <span
+                        className="absolute top-0.5 w-5 h-5 rounded-full transition-all"
+                        style={{
+                          left: testnet ? '22px' : '2px',
+                          background: '#EAECEF',
+                        }}
+                      />
+                    </span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {selectedExchange && (
               <>
                 {/* Binance 和其他 CEX 交易所的字段 */}
                 {(selectedExchange.id === 'binance' ||
