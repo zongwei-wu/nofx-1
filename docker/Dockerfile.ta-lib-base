@@ -1,0 +1,30 @@
+# TA-Lib 预编译基础镜像（按架构单独构建并推送，供 backend fast 构建使用）
+# 构建示例:
+#   docker build -f docker/Dockerfile.ta-lib-base -t local/nofx-ta-lib-base:0.4.0 .
+
+ARG TA_LIB_VERSION=0.4.0
+ARG ALPINE_IMAGE=alpine:latest
+
+FROM ${ALPINE_IMAGE}
+
+ARG TA_LIB_VERSION
+
+RUN apk update && apk add --no-cache \
+    wget tar make gcc g++ musl-dev autoconf automake
+
+RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-${TA_LIB_VERSION}-src.tar.gz && \
+    tar -xzf ta-lib-${TA_LIB_VERSION}-src.tar.gz && \
+    cd ta-lib && \
+    if [ "$(uname -m)" = "aarch64" ]; then \
+        CONFIG_GUESS=$(find /usr/share -name config.guess | head -1) && \
+        CONFIG_SUB=$(find /usr/share -name config.sub | head -1) && \
+        cp "$CONFIG_GUESS" config.guess && \
+        cp "$CONFIG_SUB" config.sub && \
+        chmod +x config.guess config.sub; \
+    fi && \
+    ./configure --prefix=/usr/local && \
+    make && make install && \
+    cd .. && rm -rf ta-lib ta-lib-${TA_LIB_VERSION}-src.tar.gz
+
+LABEL org.opencontainers.image.title="nofx-ta-lib-base" \
+      org.opencontainers.image.description="Prebuilt TA-Lib for NOFX backend CGO builds"

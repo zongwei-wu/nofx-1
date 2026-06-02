@@ -1,20 +1,23 @@
 # docker/backend/Dockerfile
-
-# ═══════════════════════════════════════════════════════════════
-# NOFX Backend Dockerfile (Go + TA-Lib)
-# Multi-stage build with shared TA-Lib compilation stage
-# Versions extracted as ARGs for maintainability
-# ═══════════════════════════════════════════════════════════════
+#
+# Targets:
+#   default — 内联编译 TA-Lib（本地零配置，兼容旧流程）
+#   fast    — 使用预构建 TA-Lib 镜像（CI / 已构建 ta-lib-base 后推荐）
+#
+# fast 示例:
+#   docker build -f docker/Dockerfile.ta-lib-base -t local/nofx-ta-lib-base:0.4.0 .
+#   docker build -f docker/Dockerfile.backend --target fast \
+#     --build-arg TA_LIB_BASE_IMAGE=local/nofx-ta-lib-base:0.4.0 -t nofx-backend .
 
 ARG TA_LIB_VERSION=0.4.0
-# 国内 Docker Hub 403 时可在 .env 设置，例如:
-# ALPINE_IMAGE=docker.m.daocloud.io/library/alpine:latest
-# GOLANG_IMAGE=docker.m.daocloud.io/library/golang:1.25-alpine
 ARG ALPINE_IMAGE=alpine:latest
 ARG GOLANG_IMAGE=golang:1.25-alpine
+ARG TA_LIB_BASE_IMAGE=local/nofx-ta-lib-base:0.4.0
+ARG GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
+ARG GOSUMDB=sum.golang.google.cn
 
 # ──────────────────────────────────────────────────────────────
-# TA-Lib Build Stage (shared across builds)
+# TA-Lib Build Stage (default target only)
 # ──────────────────────────────────────────────────────────────
 FROM ${ALPINE_IMAGE} AS ta-lib-builder
 ARG TA_LIB_VERSION
@@ -37,13 +40,16 @@ RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-${TA_LIB_VERSION}-src.
     cd .. && rm -rf ta-lib ta-lib-${TA_LIB_VERSION}-src.tar.gz
 
 # ──────────────────────────────────────────────────────────────
-# Backend Build Stage (Go Application)
+# Prebuilt TA-Lib (fast target)
 # ──────────────────────────────────────────────────────────────
-FROM ${GOLANG_IMAGE} AS backend-builder
+FROM ${TA_LIB_BASE_IMAGE} AS ta-lib-prebuilt
 
-# 国内/受限网络可改用 goproxy.cn；海外可构建时传 --build-arg GOPROXY=https://proxy.golang.org,direct
-ARG GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
-ARG GOSUMDB=sum.golang.google.cn
+# ──────────────────────────────────────────────────────────────
+# Backend Build — default (inline TA-Lib)
+# ──────────────────────────────────────────────────────────────
+FROM ${GOLANG_IMAGE} AS backend-builder-default
+ARG GOPROXY
+ARG GOSUMDB
 ENV GOPROXY=${GOPROXY}
 ENV GOSUMDB=${GOSUMDB}
 
@@ -62,15 +68,56 @@ RUN CGO_ENABLED=1 GOOS=linux \
     go build -p=1 -trimpath -ldflags="-s -w" -o nofx .
 
 # ──────────────────────────────────────────────────────────────
-# Runtime Stage (Minimal Executable Environment)
+# Backend Build — fast (prebuilt TA-Lib)
 # ──────────────────────────────────────────────────────────────
-FROM ${ALPINE_IMAGE}
+FROM ${GOLANG_IMAGE} AS backend-builder-fast
+ARG GOPROXY
+ARG GOSUMDB
+ENV GOPROXY=${GOPROXY}
+ENV GOSUMDB=${GOSUMDB}
+
+RUN apk update && apk add --no-cache git make gcc g++ musl-dev
+
+COPY --from=ta-lib-prebuilt /usr/local /usr/local
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=1 GOOS=linux \
+    CGO_CFLAGS="-D_LARGEFILE64_SOURCE" \
+    GOGC=30 GOMEMLIMIT=768MiB \
+    go build -p=1 -trimpath -ldflags="-s -w" -o nofx .
+
+# ──────────────────────────────────────────────────────────────
+# Runtime — default
+# ──────────────────────────────────────────────────────────────
+FROM ${ALPINE_IMAGE} AS default
 
 RUN apk update && apk add --no-cache ca-certificates tzdata
 
 COPY --from=ta-lib-builder /usr/local /usr/local
 WORKDIR /app
-COPY --from=backend-builder /app/nofx .
+COPY --from=backend-builder-default /app/nofx .
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/health || exit 1
+
+CMD ["./nofx"]
+
+# ──────────────────────────────────────────────────────────────
+# Runtime — fast
+# ──────────────────────────────────────────────────────────────
+FROM ${ALPINE_IMAGE} AS fast
+
+RUN apk update && apk add --no-cache ca-certificates tzdata
+
+COPY --from=ta-lib-prebuilt /usr/local /usr/local
+WORKDIR /app
+COPY --from=backend-builder-fast /app/nofx .
 
 EXPOSE 8080
 

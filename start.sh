@@ -352,12 +352,34 @@ clean() {
 }
 
 # ------------------------------------------------------------------------
+# Build: TA-Lib base image (for NOFX_BACKEND_BUILD_TARGET=fast)
+# ------------------------------------------------------------------------
+build_ta_lib() {
+    local version="${TA_LIB_VERSION:-0.4.0}"
+    local tag="${TA_LIB_BASE_IMAGE:-local/nofx-ta-lib-base:${version}}"
+    print_info "构建 TA-Lib 基础镜像: ${tag}"
+    docker build -f docker/Dockerfile.ta-lib-base -t "${tag}" \
+        --build-arg TA_LIB_VERSION="${version}" \
+        --build-arg ALPINE_IMAGE="${ALPINE_IMAGE:-alpine:latest}" \
+        .
+    print_success "TA-Lib 基础镜像已就绪: ${tag}"
+    print_info "可在 .env 中设置: NOFX_BACKEND_BUILD_TARGET=fast"
+}
+
+# ------------------------------------------------------------------------
 # Maintenance: Update
 # ------------------------------------------------------------------------
 update() {
     print_info "正在更新..."
     git pull
-    $COMPOSE_CMD up -d --build
+    if [ "$2" == "--build" ]; then
+        print_info "检测到 --build，重新构建镜像并启动..."
+        $COMPOSE_CMD up -d --build
+    else
+        print_info "快速更新模式：拉取镜像并启动（不重建）..."
+        $COMPOSE_CMD pull
+        $COMPOSE_CMD up -d
+    fi
     print_success "更新完成"
 }
 
@@ -391,7 +413,8 @@ show_help() {
     echo "  logs [service]     查看日志（可选：指定服务名 backend/frontend）"
     echo "  status             查看服务状态"
     echo "  clean              清理所有容器和数据"
-    echo "  update             更新代码并重启"
+    echo "  update [--build]   更新代码并重启（默认快速更新，可选重建）"
+    echo "  build-ta-lib       构建 TA-Lib 预编译基础镜像（fast 构建前使用）"
     echo "  setup-encryption   设置加密环境（RSA密钥+数据加密）"
     echo "  help               显示此帮助信息"
     echo ""
@@ -399,7 +422,9 @@ show_help() {
     echo "  ./start.sh start --build    # 构建并启动"
     echo "  ./start.sh logs backend     # 查看后端日志"
     echo "  ./start.sh status           # 查看状态"
-    echo "  ./start.sh setup-encryption # 手动设置加密环境"
+    echo "  ./start.sh update             # 快速更新（拉取镜像，不重建）"
+    echo "  ./start.sh update --build     # 更新并重建镜像"
+    echo "  ./start.sh setup-encryption   # 手动设置加密环境"
     echo ""
     echo "🔐 关于加密:"
     echo "  系统自动检测加密环境，首次运行时会自动设置"
@@ -436,7 +461,10 @@ main() {
             clean
             ;;
         update)
-            update
+            update "$@"
+            ;;
+        build-ta-lib)
+            build_ta_lib
             ;;
         setup-encryption)
             setup_encryption_manual

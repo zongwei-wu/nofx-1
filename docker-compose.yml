@@ -1,14 +1,18 @@
 services:
   # Backend service (API and core logic)
   nofx:
+    image: ${NOFX_BACKEND_IMAGE:-nofx-trading:local}
     build:
       context: .
       dockerfile: ./docker/Dockerfile.backend
+      target: ${NOFX_BACKEND_BUILD_TARGET:-default}
       args:
         GOPROXY: ${GOPROXY:-https://goproxy.cn,https://proxy.golang.org,direct}
         GOSUMDB: ${GOSUMDB:-sum.golang.google.cn}
         ALPINE_IMAGE: ${ALPINE_IMAGE:-alpine:latest}
         GOLANG_IMAGE: ${GOLANG_IMAGE:-golang:1.25-alpine}
+        TA_LIB_VERSION: ${TA_LIB_VERSION:-0.4.0}
+        TA_LIB_BASE_IMAGE: ${TA_LIB_BASE_IMAGE:-local/nofx-ta-lib-base:0.4.0}
     container_name: nofx-trading
     restart: unless-stopped
     stop_grace_period: 30s  # 允许应用有 30 秒时间优雅关闭
@@ -40,6 +44,7 @@ services:
 
   # Frontend service (static serving and proxy)
   nofx-frontend:
+    image: ${NOFX_FRONTEND_IMAGE:-nofx-frontend:local}
     build:
       context: .
       dockerfile: ./docker/Dockerfile.frontend
