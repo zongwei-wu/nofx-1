@@ -48,6 +48,8 @@ interface MonitorData {
     }>
     our_positions: Array<{
       symbol: string
+      position_side?: string
+      side?: string
       status: string
       executed_qty: number
       total_pnl: number
@@ -66,6 +68,12 @@ interface MonitorData {
 
 function formatAction(action: string) {
   return ACTION_LABELS[action] || action
+}
+
+function positionDirLabel(positionSide?: string) {
+  if (positionSide === 'LONG') return '多'
+  if (positionSide === 'SHORT') return '空'
+  return ''
 }
 
 function formatTime(ts: string | number | undefined) {
@@ -299,9 +307,13 @@ export function CopyTradeMonitorTab() {
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {t.our_positions?.length ? (
-                    t.our_positions.map((p, i) => (
+                    t.our_positions.map((p) => {
+                      const coin = p.symbol?.replace('USDT', '') || p.symbol
+                      const dir = positionDirLabel(p.position_side)
+                      const key = `${p.symbol}-${p.position_side || ''}`
+                      return (
                       <span
-                        key={i}
+                        key={key}
                         className="px-1.5 py-0.5 rounded text-[10px] font-medium inline-flex items-center gap-1"
                         style={{
                           background:
@@ -310,7 +322,8 @@ export function CopyTradeMonitorTab() {
                         }}
                       >
                         <span>
-                          {p.symbol?.replace('USDT', '')}{' '}
+                          {coin}
+                          {dir ? ` ${dir}` : ''}{' '}
                           {p.status === 'OPEN' ? '持仓' : p.status === 'CLOSED' ? '已平' : p.status}
                         </span>
                         {(p.status === 'OPEN' || (p.total_pnl || 0) !== 0) && (
@@ -319,7 +332,7 @@ export function CopyTradeMonitorTab() {
                           </span>
                         )}
                       </span>
-                    ))
+                    )})
                   ) : (
                     <span style={{ color: '#5E6673' }}>未跟单</span>
                   )}

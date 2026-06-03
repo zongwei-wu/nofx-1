@@ -213,19 +213,30 @@ func (s *Server) handleGetCopyTradeMonitor(c *gin.Context) {
 			}
 		}
 
+		// 按 symbol + position_side 聚合 OPEN 持仓，避免同币种同方向多条跟单记录重复展示
 		posRows, _ := s.database.DB().Query(`
-			SELECT symbol, status, executed_qty, avg_price, total_pnl, lead_order_time
+			SELECT symbol, position_side, side, status,
+			       SUM(executed_qty) AS executed_qty,
+			       CASE WHEN SUM(executed_qty) > 0
+			            THEN SUM(avg_price * executed_qty) / SUM(executed_qty)
+			            ELSE 0 END AS avg_price,
+			       SUM(total_pnl) AS total_pnl,
+			       MAX(lead_order_time) AS lead_order_time
 			FROM copy_trade_records
-			WHERE user_id = ? AND portfolio_id = ?
-			ORDER BY copy_time DESC LIMIT 10`, userID, mt.PortfolioID)
+			WHERE user_id = ? AND portfolio_id = ? AND status = 'OPEN'
+			GROUP BY symbol, position_side
+			ORDER BY MAX(copy_time) DESC
+			LIMIT 10`, userID, mt.PortfolioID)
 		if posRows != nil {
 			for posRows.Next() {
-				var sym, st string
+				var sym, posSide, side, st string
 				var qty, price, pnl float64
 				var lot int64
-				if posRows.Scan(&sym, &st, &qty, &price, &pnl, &lot) == nil {
+				if posRows.Scan(&sym, &posSide, &side, &st, &qty, &price, &pnl, &lot) == nil {
 					mt.OurPositions = append(mt.OurPositions, map[string]interface{}{
 						"symbol":          sym,
+						"position_side":   posSide,
+						"side":            side,
 						"status":          st,
 						"executed_qty":    qty,
 						"avg_price":       price,
