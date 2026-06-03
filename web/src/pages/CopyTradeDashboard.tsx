@@ -40,6 +40,33 @@ interface CopyRecord {
   close_time?: string
 }
 
+type TraderRecordGroup = {
+  key: string
+  nickname: string
+  portfolio_id: string
+  records: CopyRecord[]
+}
+
+function groupRecordsByTrader(records: CopyRecord[]): TraderRecordGroup[] {
+  const map = new Map<string, TraderRecordGroup>()
+  for (const rec of records) {
+    const key = rec.portfolio_id || rec.nickname || `id-${rec.id}`
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        nickname: rec.nickname || '未知交易员',
+        portfolio_id: rec.portfolio_id || '',
+        records: [],
+      })
+    }
+    map.get(key)!.records.push(rec)
+  }
+  for (const group of map.values()) {
+    group.records.sort((a, b) => (b.lead_order_time || 0) - (a.lead_order_time || 0))
+  }
+  return Array.from(map.values()).sort((a, b) => a.nickname.localeCompare(b.nickname, 'zh-CN'))
+}
+
 export function CopyTradeDashboard() {
   const { language } = useLanguage()
   const [configs, setConfigs] = useState<CopyConfig[]>([])
@@ -50,6 +77,7 @@ export function CopyTradeDashboard() {
   const [refreshingPnl, setRefreshingPnl] = useState(false)
   const [activeTab, setActiveTab] = useState<'traders' | 'records' | 'pnl' | 'monitor'>('traders')
   const [message, setMessage] = useState('')
+  const [manualSyncTrigger, setManualSyncTrigger] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -107,6 +135,7 @@ export function CopyTradeDashboard() {
         portfolio_id: existing.portfolio_id,
         nickname: existing.nickname,
         enabled: !existing.enabled,
+        auto_follow: existing.auto_follow || false,
         max_copy_size: existing.max_copy_size,
         size_multiplier: existing.size_multiplier,
         copy_open_only: existing.copy_open_only,
@@ -117,6 +146,7 @@ export function CopyTradeDashboard() {
         portfolio_id: trader.leadPortfolioId,
         nickname: trader.nickname,
         enabled: true,
+        auto_follow: false,
         max_copy_size: 1000,
         size_multiplier: 0.1,
         copy_open_only: true,
@@ -171,10 +201,15 @@ export function CopyTradeDashboard() {
   }
 
   // 单条记录组件
-  const RecordRow = ({ rec }: { rec: CopyRecord }) => (
-    <div className="flex items-center justify-between p-2.5 rounded text-xs" style={{ background: '#0B0E11', border: '1px solid #1E2329' }}>
+  const RecordRow = ({ rec, showTrader = false }: { rec: CopyRecord; showTrader?: boolean }) => (
+    <div className="flex flex-col gap-1 p-2.5 rounded text-xs" style={{ background: '#0B0E11', border: '1px solid #1E2329' }}>
+      <div className="flex items-center justify-between gap-2">
       <div className="flex items-center gap-2 min-w-0">
-        <span className="font-semibold truncate" style={{ color: '#EAECEF' }}>{rec.nickname}</span>
+        {showTrader && (
+          <span className="font-semibold truncate shrink-0 max-w-[72px]" style={{ color: '#EAECEF' }}>
+            {rec.nickname}
+          </span>
+        )}
         <span className="font-mono" style={{ color: '#F0B90B' }}>{rec.symbol?.replace('USDT', '')}</span>
         <span className="px-1 py-0.5 rounded font-medium whitespace-nowrap" style={{
           background: rec.side === 'BUY' ? 'rgba(14,203,129,0.15)' : 'rgba(246,70,93,0.15)',
@@ -197,11 +232,78 @@ export function CopyTradeDashboard() {
         </span>
         <span style={{ color: '#5E6673' }}>{formatTime(rec.lead_order_time)}</span>
       </div>
+      </div>
       {rec.status === 'FAILED' && rec.error_message && (
-        <div className="text-[10px] mt-1" style={{ color: '#F6465D' }}>{rec.error_message}</div>
+        <div className="text-[10px]" style={{ color: '#F6465D' }}>{rec.error_message}</div>
       )}
     </div>
   )
+
+  const RecordsByTraderSection = ({
+    records,
+    status,
+    title,
+    dotColor,
+    titleColor,
+  }: {
+    records: CopyRecord[]
+    status: string
+    title: string
+    dotColor: string
+    titleColor: string
+  }) => {
+    const filtered = records.filter((r) => r.status === status)
+    if (filtered.length === 0) return null
+    const groups = groupRecordsByTrader(filtered)
+    const uniqueOpen =
+      status === 'OPEN' ? countUniqueOpenPositions(filtered) : filtered.length
+    const countLabel =
+      status === 'OPEN'
+        ? `${uniqueOpen} 个持仓 · ${filtered.length} 笔`
+        : `${filtered.length} 笔`
+
+    return (
+      <div>
+        <div
+          className="text-sm font-semibold mb-3 flex items-center gap-2"
+          style={{ color: titleColor }}
+        >
+          <span className="w-2 h-2 rounded-full inline-block" style={{ background: dotColor }} />
+          {title} ({countLabel})
+        </div>
+        <div className="space-y-4">
+          {groups.map((group) => {
+            const inGroup = group.records.filter((r) => r.status === status)
+            if (inGroup.length === 0) return null
+            return (
+              <div
+                key={`${status}-${group.key}`}
+                className="rounded-lg overflow-hidden"
+                style={{ background: '#1E2329', border: '1px solid #2B3139' }}
+              >
+                <div
+                  className="px-3 py-2 flex items-center justify-between gap-2"
+                  style={{ background: '#0B0E11', borderBottom: '1px solid #2B3139' }}
+                >
+                  <span className="text-sm font-semibold truncate" style={{ color: '#EAECEF' }}>
+                    {group.nickname}
+                  </span>
+                  <span className="text-[10px] shrink-0" style={{ color: '#5E6673' }}>
+                    {inGroup.length} 笔
+                  </span>
+                </div>
+                <div className="p-2 space-y-1.5">
+                  {inGroup.map((rec) => (
+                    <RecordRow key={rec.id} rec={rec} />
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   if (loading) {
     return (
@@ -220,21 +322,11 @@ export function CopyTradeDashboard() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: '#EAECEF' }}>跟单管理</h1>
-          <p className="text-sm mt-1" style={{ color: '#848E9C' }}>
-            {activeConfigs.length} 个交易员已启用 · {uniqueOpenCount} 个持仓
-          </p>
-        </div>
-        <button
-          onClick={handleSync}
-          disabled={syncing}
-          className="px-4 py-2 rounded text-sm font-semibold transition-all disabled:opacity-50"
-          style={{ background: '#F0B90B', color: '#0B0E11' }}
-        >
-          {syncing ? '同步中...' : '⏳ 执行跟单同步'}
-        </button>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold" style={{ color: '#EAECEF' }}>跟单管理</h1>
+        <p className="text-sm mt-1" style={{ color: '#848E9C' }}>
+          {activeConfigs.length} 个交易员已启用 · {uniqueOpenCount} 个持仓
+        </p>
       </div>
 
       {message && (
@@ -276,9 +368,70 @@ export function CopyTradeDashboard() {
       </div>
 
       {activeTab === 'traders' && (
-        <div className="space-y-2">
-          <div className="text-xs font-semibold mb-2" style={{ color: '#848E9C' }}>
-            点击交易员启用/禁用跟单
+        <div className="space-y-3">
+          <div
+            className="p-3 rounded-lg text-xs space-y-2"
+            style={{ background: '#1E2329', border: '1px solid #2B3139', color: '#848E9C' }}
+          >
+            <div className="font-semibold" style={{ color: '#EAECEF' }}>
+              操作说明
+            </div>
+            <ul className="list-disc list-inside space-y-1 leading-relaxed">
+              <li>
+                <span style={{ color: '#EAECEF' }}>点击交易员行</span>
+                ：加入或移出跟单名单（启用 / 禁用），不会自动下单
+              </li>
+              <li>
+                <span style={{ color: '#EAECEF' }}>自动监控</span>
+                ：仅对已启用交易员生效，每 5 分钟 AI 分析并自动跟单
+              </li>
+              <li>
+                <span style={{ color: '#EAECEF' }}>手动跟单同步</span>
+                ：立即对所有已启用交易员执行一次同步（拉带单、对齐交易所持仓与记录）
+              </li>
+            </ul>
+          </div>
+
+          <label
+            className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-opacity ${
+              syncing || activeConfigs.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+            style={{ background: '#1E2329', border: '1px solid #2B3139' }}
+          >
+            <input
+              type="checkbox"
+              checked={manualSyncTrigger || syncing}
+              disabled={syncing || activeConfigs.length === 0}
+              onChange={async (e) => {
+                if (!e.target.checked || syncing) return
+                setManualSyncTrigger(true)
+                try {
+                  await handleSync()
+                } finally {
+                  setManualSyncTrigger(false)
+                }
+              }}
+              className="w-4 h-4 mt-0.5 rounded shrink-0"
+              style={{ accentColor: '#F0B90B' }}
+            />
+            <div className="min-w-0">
+              <div className="text-sm font-semibold" style={{ color: '#EAECEF' }}>
+                手动跟单同步
+                {syncing && (
+                  <span className="ml-2 text-xs font-normal" style={{ color: '#F0B90B' }}>
+                    同步中…
+                  </span>
+                )}
+              </div>
+              <div className="text-[11px] mt-1 leading-relaxed" style={{ color: '#5E6673' }}>
+                勾选后立即执行一次，处理当前所有已启用带单员；与「自动监控」无关，不会定时重复。
+                {activeConfigs.length === 0 && '（请先启用至少一名交易员）'}
+              </div>
+            </div>
+          </label>
+
+          <div className="text-xs font-semibold pt-1" style={{ color: '#848E9C' }}>
+            带单交易员 · 点击行启用 / 禁用
           </div>
           {(leaderboard ?? []).map((trader: any) => {
             const cfg = safeConfigs.find(c => c.portfolio_id === trader.leadPortfolioId)
@@ -312,14 +465,18 @@ export function CopyTradeDashboard() {
                     />
                   </div>
                 </div>
-                {cfg && (
-                  <div className="flex items-center gap-4 mt-2 pt-2 border-t" style={{ borderColor: '#2B3139' }}>
-                    <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: '#848E9C' }}>
+                {cfg && enabled && (
+                  <div
+                    className="mt-2 pt-2 border-t space-y-2"
+                    style={{ borderColor: '#2B3139' }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <label className="flex items-start gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={cfg.auto_follow || false}
+                        disabled={!cfg.enabled}
                         onChange={async (e) => {
-                          e.stopPropagation()
                           const token = localStorage.getItem('auth_token')
                           await httpClient.post('/api/copy-trade/configs', {
                             id: cfg.id,
@@ -330,15 +487,29 @@ export function CopyTradeDashboard() {
                             max_copy_size: cfg.max_copy_size,
                             size_multiplier: cfg.size_multiplier,
                             copy_open_only: cfg.copy_open_only,
-                          }, { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' })
+                          }, {
+                            'Content-Type': 'application/json',
+                            Authorization: token ? `Bearer ${token}` : '',
+                          })
                           await loadData()
                         }}
-                        className="w-3 h-3 rounded"
+                        className="w-3.5 h-3.5 mt-0.5 rounded shrink-0"
                         style={{ accentColor: '#0ECB81' }}
                       />
-                      自动监控
+                      <span className="min-w-0">
+                        <span className="text-xs font-medium block" style={{ color: '#EAECEF' }}>
+                          自动监控
+                        </span>
+                        <span className="text-[10px] block mt-0.5" style={{ color: '#5E6673' }}>
+                          每 5 分钟拉取带单并 AI 分析，通过后自动下单
+                        </span>
+                      </span>
                     </label>
-                    <span className="text-[10px]" style={{ color: '#5E6673' }}>每5分钟AI分析+自动跟单</span>
+                  </div>
+                )}
+                {cfg && !enabled && (
+                  <div className="text-[10px] mt-2 pt-2 border-t" style={{ borderColor: '#2B3139', color: '#5E6673' }}>
+                    已禁用 · 不参与手动同步与自动监控
                   </div>
                 )}
               </div>
@@ -350,63 +521,32 @@ export function CopyTradeDashboard() {
       {activeTab === 'records' && (
         <div>
           {safeRecords.length === 0 ? (
-            <div className="text-center py-10 text-sm" style={{ color: '#5E6673' }}>暂无跟单记录，请先启用交易员并执行同步</div>
+            <div className="text-center py-10 text-sm" style={{ color: '#5E6673' }}>
+              暂无跟单记录，请先在「交易员配置」启用带单员并勾选「手动跟单同步」
+            </div>
           ) : (
-            <div className="space-y-6">
-              {/* 持仓中 */}
-              {(() => {
-                const open = safeRecords.filter(r => r.status === 'OPEN')
-                const openUnique = countUniqueOpenPositions(open)
-                return open.length > 0 && <>
-                  <div>
-                    <div className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: '#0ECB81' }}>
-                      <span className="w-2 h-2 rounded-full bg-green-500 inline-block" style={{ background: '#0ECB81' }}></span>
-                      持仓中 ({openUnique} 个持仓 · {open.length} 笔)
-                    </div>
-                    <div className="space-y-1.5">
-                      {open.map((rec) => (
-                        <RecordRow key={rec.id} rec={rec} />
-                      ))}
-                    </div>
-                  </div>
-                </>
-              })()}
-
-              {/* 已平仓 */}
-              {(() => {
-                const closed = safeRecords.filter(r => r.status === 'CLOSED')
-                return closed.length > 0 && <>
-                  <div>
-                    <div className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: '#848E9C' }}>
-                      <span className="w-2 h-2 rounded-full inline-block" style={{ background: '#848E9C' }}></span>
-                      已平仓 ({closed.length})
-                    </div>
-                    <div className="space-y-1.5">
-                      {closed.map((rec) => (
-                        <RecordRow key={rec.id} rec={rec} />
-                      ))}
-                    </div>
-                  </div>
-                </>
-              })()}
-
-              {/* 失败/错误 */}
-              {(() => {
-                const failed = safeRecords.filter(r => r.status === 'FAILED')
-                return failed.length > 0 && <>
-                  <div>
-                    <div className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: '#F6465D' }}>
-                      <span className="w-2 h-2 rounded-full inline-block" style={{ background: '#F6465D' }}></span>
-                      失败 ({failed.length})
-                    </div>
-                    <div className="space-y-1.5">
-                      {failed.map((rec) => (
-                        <RecordRow key={rec.id} rec={rec} />
-                      ))}
-                    </div>
-                  </div>
-                </>
-              })()}
+            <div className="space-y-8">
+              <RecordsByTraderSection
+                records={safeRecords}
+                status="OPEN"
+                title="持仓中"
+                dotColor="#0ECB81"
+                titleColor="#0ECB81"
+              />
+              <RecordsByTraderSection
+                records={safeRecords}
+                status="CLOSED"
+                title="已平仓"
+                dotColor="#848E9C"
+                titleColor="#848E9C"
+              />
+              <RecordsByTraderSection
+                records={safeRecords}
+                status="FAILED"
+                title="失败"
+                dotColor="#F6465D"
+                titleColor="#F6465D"
+              />
             </div>
           )}
         </div>
