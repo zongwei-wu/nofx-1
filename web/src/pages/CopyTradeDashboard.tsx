@@ -67,6 +67,182 @@ function groupRecordsByTrader(records: CopyRecord[]): TraderRecordGroup[] {
   return Array.from(map.values()).sort((a, b) => a.nickname.localeCompare(b.nickname, 'zh-CN'))
 }
 
+const RECORDS_PREVIEW_COUNT = 5
+
+function formatRecordTime(ts: number | string) {
+  const d = typeof ts === 'number' ? new Date(ts) : new Date(ts)
+  return d.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function CopyRecordRow({ rec }: { rec: CopyRecord }) {
+  return (
+    <div
+      className="flex flex-col gap-1 p-2.5 rounded text-xs"
+      style={{ background: '#0B0E11', border: '1px solid #1E2329' }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-mono" style={{ color: '#F0B90B' }}>
+            {rec.symbol?.replace('USDT', '')}
+          </span>
+          <span
+            className="px-1 py-0.5 rounded font-medium whitespace-nowrap"
+            style={{
+              background:
+                rec.side === 'BUY' ? 'rgba(14,203,129,0.15)' : 'rgba(246,70,93,0.15)',
+              color: rec.side === 'BUY' ? '#0ECB81' : '#F6465D',
+            }}
+          >
+            {rec.side === 'BUY' ? '买入' : '卖出'}
+            {rec.position_side === 'LONG' ? '多' : '空'}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 whitespace-nowrap">
+          <span style={{ color: '#848E9C' }}>{Number(rec.executed_qty).toFixed(4)}张</span>
+          <span className="font-mono" style={{ color: '#EAECEF' }}>
+            开${Number(rec.avg_price).toLocaleString()}
+          </span>
+          {rec.status === 'CLOSED' && (
+            <span className="font-mono" style={{ color: '#5E6673' }}>
+              平${Number(rec.close_price || 0).toLocaleString()}
+            </span>
+          )}
+          <span
+            className="px-1.5 py-0.5 rounded text-[10px] font-medium"
+            style={{
+              background:
+                rec.status === 'OPEN'
+                  ? 'rgba(14,203,129,0.15)'
+                  : rec.status === 'CLOSED'
+                    ? 'rgba(142,142,147,0.15)'
+                    : 'rgba(246,70,93,0.15)',
+              color:
+                rec.status === 'OPEN'
+                  ? '#0ECB81'
+                  : rec.status === 'CLOSED'
+                    ? '#8E8E93'
+                    : '#F6465D',
+            }}
+          >
+            {rec.status === 'OPEN' ? '持仓' : rec.status === 'CLOSED' ? '已平' : '失败'}
+          </span>
+          <span style={{ color: '#5E6673' }}>{formatRecordTime(rec.lead_order_time)}</span>
+        </div>
+      </div>
+      {rec.status === 'FAILED' && rec.error_message && (
+        <div className="text-[10px]" style={{ color: '#F6465D' }}>
+          {rec.error_message}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TraderRecordGroupCard({
+  nickname,
+  records,
+}: {
+  nickname: string
+  records: CopyRecord[]
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const hasMore = records.length > RECORDS_PREVIEW_COUNT
+  const visible = expanded ? records : records.slice(0, RECORDS_PREVIEW_COUNT)
+  const hiddenCount = records.length - RECORDS_PREVIEW_COUNT
+
+  return (
+    <div
+      className="rounded-lg overflow-hidden"
+      style={{ background: '#1E2329', border: '1px solid #2B3139' }}
+    >
+      <div
+        className="px-3 py-2 flex items-center justify-between gap-2"
+        style={{ background: '#0B0E11', borderBottom: '1px solid #2B3139' }}
+      >
+        <span className="text-sm font-semibold truncate" style={{ color: '#EAECEF' }}>
+          {nickname}
+        </span>
+        <span className="text-[10px] shrink-0" style={{ color: '#5E6673' }}>
+          {records.length} 笔
+        </span>
+      </div>
+      <div className="p-2 space-y-1.5">
+        {visible.map((rec) => (
+          <CopyRecordRow key={rec.id} rec={rec} />
+        ))}
+        {hasMore && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="w-full py-2 text-xs font-medium rounded transition-colors"
+            style={{
+              background: '#0B0E11',
+              border: '1px solid #2B3139',
+              color: '#F0B90B',
+            }}
+          >
+            {expanded ? '收起' : `展开其余 ${hiddenCount} 笔`}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function RecordsByTraderSection({
+  records,
+  status,
+  title,
+  dotColor,
+  titleColor,
+}: {
+  records: CopyRecord[]
+  status: string
+  title: string
+  dotColor: string
+  titleColor: string
+}) {
+  const filtered = records.filter((r) => r.status === status)
+  if (filtered.length === 0) return null
+  const groups = groupRecordsByTrader(filtered)
+  const uniqueOpen =
+    status === 'OPEN' ? countUniqueOpenPositions(filtered) : filtered.length
+  const countLabel =
+    status === 'OPEN'
+      ? `${uniqueOpen} 个持仓 · ${filtered.length} 笔`
+      : `${filtered.length} 笔`
+
+  return (
+    <div>
+      <div
+        className="text-sm font-semibold mb-3 flex items-center gap-2"
+        style={{ color: titleColor }}
+      >
+        <span className="w-2 h-2 rounded-full inline-block" style={{ background: dotColor }} />
+        {title} ({countLabel})
+      </div>
+      <div className="space-y-4">
+        {groups.map((group) => {
+          const inGroup = group.records.filter((r) => r.status === status)
+          if (inGroup.length === 0) return null
+          return (
+            <TraderRecordGroupCard
+              key={`${status}-${group.key}`}
+              nickname={group.nickname}
+              records={inGroup}
+            />
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export function CopyTradeDashboard() {
   void useLanguage()
   const [configs, setConfigs] = useState<CopyConfig[]>([])
@@ -193,116 +369,6 @@ export function CopyTradeDashboard() {
     } finally {
       setRefreshingPnl(false)
     }
-  }
-
-  const formatTime = (ts: number | string) => {
-    const d = typeof ts === 'number' ? new Date(ts) : new Date(ts)
-    return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-  }
-
-  // 单条记录组件
-  const RecordRow = ({ rec, showTrader = false }: { rec: CopyRecord; showTrader?: boolean }) => (
-    <div className="flex flex-col gap-1 p-2.5 rounded text-xs" style={{ background: '#0B0E11', border: '1px solid #1E2329' }}>
-      <div className="flex items-center justify-between gap-2">
-      <div className="flex items-center gap-2 min-w-0">
-        {showTrader && (
-          <span className="font-semibold truncate shrink-0 max-w-[72px]" style={{ color: '#EAECEF' }}>
-            {rec.nickname}
-          </span>
-        )}
-        <span className="font-mono" style={{ color: '#F0B90B' }}>{rec.symbol?.replace('USDT', '')}</span>
-        <span className="px-1 py-0.5 rounded font-medium whitespace-nowrap" style={{
-          background: rec.side === 'BUY' ? 'rgba(14,203,129,0.15)' : 'rgba(246,70,93,0.15)',
-          color: rec.side === 'BUY' ? '#0ECB81' : '#F6465D',
-        }}>
-          {rec.side === 'BUY' ? '买入' : '卖出'}{rec.position_side === 'LONG' ? '多' : '空'}
-        </span>
-      </div>
-      <div className="flex items-center gap-3 whitespace-nowrap">
-        <span style={{ color: '#848E9C' }}>{Number(rec.executed_qty).toFixed(4)}张</span>
-        <span className="font-mono" style={{ color: '#EAECEF' }}>开${Number(rec.avg_price).toLocaleString()}</span>
-        {rec.status === 'CLOSED' && (
-          <span className="font-mono" style={{ color: '#5E6673' }}>平${Number(rec.close_price || 0).toLocaleString()}</span>
-        )}
-        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${rec.status === 'OPEN' ? '' : ''}`} style={{
-          background: rec.status === 'OPEN' ? 'rgba(14,203,129,0.15)' : rec.status === 'CLOSED' ? 'rgba(142,142,147,0.15)' : 'rgba(246,70,93,0.15)',
-          color: rec.status === 'OPEN' ? '#0ECB81' : rec.status === 'CLOSED' ? '#8E8E93' : '#F6465D',
-        }}>
-          {rec.status === 'OPEN' ? '持仓' : rec.status === 'CLOSED' ? '已平' : '失败'}
-        </span>
-        <span style={{ color: '#5E6673' }}>{formatTime(rec.lead_order_time)}</span>
-      </div>
-      </div>
-      {rec.status === 'FAILED' && rec.error_message && (
-        <div className="text-[10px]" style={{ color: '#F6465D' }}>{rec.error_message}</div>
-      )}
-    </div>
-  )
-
-  const RecordsByTraderSection = ({
-    records,
-    status,
-    title,
-    dotColor,
-    titleColor,
-  }: {
-    records: CopyRecord[]
-    status: string
-    title: string
-    dotColor: string
-    titleColor: string
-  }) => {
-    const filtered = records.filter((r) => r.status === status)
-    if (filtered.length === 0) return null
-    const groups = groupRecordsByTrader(filtered)
-    const uniqueOpen =
-      status === 'OPEN' ? countUniqueOpenPositions(filtered) : filtered.length
-    const countLabel =
-      status === 'OPEN'
-        ? `${uniqueOpen} 个持仓 · ${filtered.length} 笔`
-        : `${filtered.length} 笔`
-
-    return (
-      <div>
-        <div
-          className="text-sm font-semibold mb-3 flex items-center gap-2"
-          style={{ color: titleColor }}
-        >
-          <span className="w-2 h-2 rounded-full inline-block" style={{ background: dotColor }} />
-          {title} ({countLabel})
-        </div>
-        <div className="space-y-4">
-          {groups.map((group) => {
-            const inGroup = group.records.filter((r) => r.status === status)
-            if (inGroup.length === 0) return null
-            return (
-              <div
-                key={`${status}-${group.key}`}
-                className="rounded-lg overflow-hidden"
-                style={{ background: '#1E2329', border: '1px solid #2B3139' }}
-              >
-                <div
-                  className="px-3 py-2 flex items-center justify-between gap-2"
-                  style={{ background: '#0B0E11', borderBottom: '1px solid #2B3139' }}
-                >
-                  <span className="text-sm font-semibold truncate" style={{ color: '#EAECEF' }}>
-                    {group.nickname}
-                  </span>
-                  <span className="text-[10px] shrink-0" style={{ color: '#5E6673' }}>
-                    {inGroup.length} 笔
-                  </span>
-                </div>
-                <div className="p-2 space-y-1.5">
-                  {inGroup.map((rec) => (
-                    <RecordRow key={rec.id} rec={rec} />
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    )
   }
 
   if (loading) {
