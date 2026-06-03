@@ -16,6 +16,9 @@ var (
 
 	// feishuHook 飞书hook引用
 	feishuHook *FeishuHook
+
+	// feishuTradeNotifyEnabled 是否启用飞书交易通知
+	feishuTradeNotifyEnabled bool
 )
 
 // ============================================================================
@@ -94,7 +97,11 @@ func setupFeishuHook(feishuCfg *FeishuConfig) error {
 
 	Log.AddHook(hook)
 	feishuHook = hook
+	feishuTradeNotifyEnabled = feishuCfg.TradeNotify
 	Log.Info("✅ 飞书日志推送已启用")
+	if feishuTradeNotifyEnabled {
+		Log.Info("✅ 飞书交易通知已启用")
+	}
 	return nil
 }
 
@@ -146,9 +153,10 @@ func InitFromLogConfig(logConfig *config.LogConfig) error {
 	if logConfig.Feishu != nil && logConfig.Feishu.Enabled {
 		if webhookURL := logConfig.Feishu.WebhookURL; webhookURL != "" {
 			cfg.Feishu = &FeishuConfig{
-				Enabled:    true,
-				WebhookURL: webhookURL,
-				MinLevel:   logConfig.Feishu.MinLevel,
+				Enabled:     true,
+				WebhookURL:  webhookURL,
+				MinLevel:    logConfig.Feishu.MinLevel,
+				TradeNotify: logConfig.Feishu.TradeNotify,
 			}
 		}
 	}
@@ -182,6 +190,7 @@ func Shutdown() {
 		feishuHook.Stop()
 		feishuHook = nil
 	}
+	feishuTradeNotifyEnabled = false
 }
 
 // ============================================================================

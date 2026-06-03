@@ -13,6 +13,7 @@ import (
 	"nofx/crypto"
 	"nofx/decision"
 	"nofx/hook"
+	"nofx/logger"
 	"nofx/manager"
 	"nofx/mcp"
 	"nofx/trader"
@@ -2392,6 +2393,11 @@ func (s *Server) runAutoFollowForUser(userID string) {
 				})
 				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "ai_rejected",
 					order.Side, tradePosSide, ourSt, aiReason, order.OrderTime)
+				logger.NotifyTrade(logger.TradeNotifyParams{
+					Source: "跟单-自动监控", Status: logger.TradeStatusAIReject, Action: "跟单开仓",
+					Symbol: symbol, Side: order.Side, PositionSide: tradePosSide,
+					TraderOrNickname: nickname, Reason: aiReason,
+				})
 				counters.skipped++
 				continue
 			}
@@ -2413,6 +2419,11 @@ func (s *Server) runAutoFollowForUser(userID string) {
 				})
 				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "open_failed",
 					order.Side, tradePosSide, ourSt, tradeErr.Error(), order.OrderTime)
+				logger.NotifyTrade(logger.TradeNotifyParams{
+					Source: "跟单-自动监控", Status: logger.TradeStatusFailed, Action: "跟单开仓",
+					Symbol: symbol, Side: order.Side, PositionSide: tradePosSide, Qty: aiQty,
+					TraderOrNickname: nickname, Error: tradeErr.Error(),
+				})
 				counters.failed++
 				continue
 			}
@@ -2448,6 +2459,11 @@ func (s *Server) runAutoFollowForUser(userID string) {
 			s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "copied_open",
 				order.Side, tradePosSide, "OPEN",
 				fmt.Sprintf("已跟单 %.4f张 @ $%.2f", actualQty, actualPrice), order.OrderTime)
+			logger.NotifyTrade(logger.TradeNotifyParams{
+				Source: "跟单-自动监控", Status: logger.TradeStatusSuccess, Action: "跟单开仓",
+				Symbol: symbol, Side: order.Side, PositionSide: tradePosSide,
+				Qty: actualQty, Price: actualPrice, TraderOrNickname: nickname,
+			})
 			counters.opened++
 			log.Printf("  ✓ [自动跟单] %s %s %s %.4f张 @ $%.2f", nickname, symbol, tradePosSide, actualQty, actualPrice)
 			time.Sleep(500 * time.Millisecond)
@@ -3129,6 +3145,11 @@ func (s *Server) handleSyncCopyTrade(c *gin.Context) {
 			if tradeErr != nil {
 				log.Printf("❌ [%s] 开仓失败 %s %s: %v", cfg.Nickname, order.Symbol, order.PositionSide, tradeErr)
 				totalErrors++
+				logger.NotifyTrade(logger.TradeNotifyParams{
+					Source: "跟单-手动同步", Status: logger.TradeStatusFailed, Action: "跟单开仓",
+					Symbol: order.Symbol, Side: order.Side, PositionSide: order.PositionSide, Qty: qty,
+					TraderOrNickname: cfg.Nickname, Error: tradeErr.Error(),
+				})
 
 				// 仍然记录失败状态
 				s.database.DB().Exec(`
@@ -3166,6 +3187,11 @@ func (s *Server) handleSyncCopyTrade(c *gin.Context) {
 			totalCopied++
 			log.Printf("  ✓ [%s] 已开仓 %s %s %.4f张 @ $%.2f",
 				cfg.Nickname, order.Symbol, order.PositionSide, actualQty, actualPrice)
+			logger.NotifyTrade(logger.TradeNotifyParams{
+				Source: "跟单-手动同步", Status: logger.TradeStatusSuccess, Action: "跟单开仓",
+				Symbol: order.Symbol, Side: order.Side, PositionSide: order.PositionSide,
+				Qty: actualQty, Price: actualPrice, TraderOrNickname: cfg.Nickname,
+			})
 		}
 
 		if latestTime > cfg.LastOrderTime {
@@ -3362,6 +3388,11 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 			tradeResult, tradeErr = fTrader.OpenShort(req.Symbol, aiQty, 5)
 		}
 		if tradeErr != nil {
+			logger.NotifyTrade(logger.TradeNotifyParams{
+				Source: "跟单-单笔", Status: logger.TradeStatusFailed, Action: "跟单开仓",
+				Symbol: req.Symbol, Side: req.Side, PositionSide: tradePosSide, Qty: aiQty,
+				TraderOrNickname: req.Nickname, Error: tradeErr.Error(),
+			})
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("开仓失败: %v", tradeErr)})
 			return
 		}
@@ -3383,6 +3414,11 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'OPEN', ?)`,
 			userID, req.PortfolioID, req.Nickname, actualOrderID, req.Symbol,
 			req.Side, tradePosSide, actualQty, actualPrice, req.OrderTime)
+		logger.NotifyTrade(logger.TradeNotifyParams{
+			Source: "跟单-单笔", Status: logger.TradeStatusSuccess, Action: "跟单开仓",
+			Symbol: req.Symbol, Side: req.Side, PositionSide: tradePosSide,
+			Qty: actualQty, Price: actualPrice, TraderOrNickname: req.Nickname,
+		})
 		c.JSON(http.StatusOK, gin.H{"message": "跟单成功", "symbol": req.Symbol, "position": tradePosSide, "qty": actualQty, "price": actualPrice})
 		return
 	}
@@ -3471,17 +3507,33 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 					cleaned = cleaned[jsonStart : jsonEnd+1]
 				}
 			}
-			if jsonErr := json.Unmarshal([]byte(cleaned), &aiResult); jsonErr == nil && aiResult.Feasible {
-				aiAnalysis = aiResult.Reasoning
-				if aiResult.Suggestion != "" {
-					aiAnalysis = aiResult.Suggestion + "\n" + aiResult.Reasoning
+			if jsonErr := json.Unmarshal([]byte(cleaned), &aiResult); jsonErr == nil {
+				if !aiResult.Feasible {
+					rejectReason := aiResult.Reasoning
+					if aiResult.Suggestion != "" {
+						rejectReason = aiResult.Suggestion
+						if aiResult.Reasoning != "" {
+							rejectReason = aiResult.Suggestion + "\n" + aiResult.Reasoning
+						}
+					}
+					aiAnalysis = rejectReason
+					logger.NotifyTrade(logger.TradeNotifyParams{
+						Source: "跟单-单笔", Status: logger.TradeStatusAIReject, Action: "跟单开仓",
+						Symbol: req.Symbol, Side: req.Side, PositionSide: tradePosSide,
+						TraderOrNickname: req.Nickname, Reason: rejectReason,
+					})
+				} else {
+					aiAnalysis = aiResult.Reasoning
+					if aiResult.Suggestion != "" {
+						aiAnalysis = aiResult.Suggestion + "\n" + aiResult.Reasoning
+					}
+					if aiResult.RecommendedQty > 0 {
+						recommendedQty = aiResult.RecommendedQty
+					} else if aiResult.RecommendedRatio > 0 {
+						recommendedQty = req.ExecutedQty * aiResult.RecommendedRatio
+					}
+					log.Printf("  🤖 AI分析: 可行=%v 建议比例=%.2f 建议数量=%.4f", aiResult.Feasible, aiResult.RecommendedRatio, recommendedQty)
 				}
-				if aiResult.RecommendedQty > 0 {
-					recommendedQty = aiResult.RecommendedQty
-				} else if aiResult.RecommendedRatio > 0 {
-					recommendedQty = req.ExecutedQty * aiResult.RecommendedRatio
-				}
-				log.Printf("  🤖 AI分析: 可行=%v 建议比例=%.2f 建议数量=%.4f", aiResult.Feasible, aiResult.RecommendedRatio, recommendedQty)
 			} else {
 				// JSON解析失败，使用原始响应
 				aiAnalysis = aiResponse

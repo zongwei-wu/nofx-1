@@ -460,16 +460,18 @@ func (at *AutoTrader) runCycle() error {
 			Success:   false,
 		}
 
-		if err := at.executeDecisionWithRecord(&d, &actionRecord); err != nil {
-			log.Printf("❌ 执行决策失败 (%s %s): %v", d.Symbol, d.Action, err)
-			actionRecord.Error = err.Error()
-			record.ExecutionLog = append(record.ExecutionLog, fmt.Sprintf("❌ %s %s 失败: %v", d.Symbol, d.Action, err))
+		var execErr error
+		if execErr = at.executeDecisionWithRecord(&d, &actionRecord); execErr != nil {
+			log.Printf("❌ 执行决策失败 (%s %s): %v", d.Symbol, d.Action, execErr)
+			actionRecord.Error = execErr.Error()
+			record.ExecutionLog = append(record.ExecutionLog, fmt.Sprintf("❌ %s %s 失败: %v", d.Symbol, d.Action, execErr))
 		} else {
 			actionRecord.Success = true
 			record.ExecutionLog = append(record.ExecutionLog, fmt.Sprintf("✓ %s %s 成功", d.Symbol, d.Action))
 			// 成功执行后短暂延迟
 			time.Sleep(1 * time.Second)
 		}
+		at.notifyTradeDecision(&d, &actionRecord, execErr)
 
 		record.Decisions = append(record.Decisions, actionRecord)
 	}
@@ -636,6 +638,30 @@ func (at *AutoTrader) buildTradingContext() (*decision.Context, error) {
 	}
 
 	return ctx, nil
+}
+
+// notifyTradeDecision 向飞书推送 AI 交易员决策执行结果（hold/wait 不通知）
+func (at *AutoTrader) notifyTradeDecision(d *decision.Decision, actionRecord *logger.DecisionAction, execErr error) {
+	if d.Action == "hold" || d.Action == "wait" {
+		return
+	}
+	params := logger.TradeNotifyParams{
+		Source:           "AI交易员",
+		Action:           d.Action,
+		Symbol:           d.Symbol,
+		Leverage:         actionRecord.Leverage,
+		Qty:              actionRecord.Quantity,
+		Price:            actionRecord.Price,
+		OrderID:          actionRecord.OrderID,
+		TraderOrNickname: at.config.Name,
+	}
+	if execErr != nil {
+		params.Status = logger.TradeStatusFailed
+		params.Error = execErr.Error()
+	} else {
+		params.Status = logger.TradeStatusSuccess
+	}
+	logger.NotifyTrade(params)
 }
 
 // executeDecisionWithRecord 执行AI决策并记录详细信息

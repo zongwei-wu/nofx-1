@@ -26,7 +26,8 @@
     "feishu": {
       "enabled": false,
       "webhook_url": "https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxxxxxx",
-      "min_level": "error"
+      "min_level": "error",
+      "trade_notify": false
     }
   }
 }
