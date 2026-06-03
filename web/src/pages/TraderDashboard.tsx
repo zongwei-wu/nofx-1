@@ -748,22 +748,54 @@ function DecisionCard({
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div>
-          <div className="font-semibold" style={{ color: '#EAECEF' }}>
-            {t('cycle', language)} #{decision.cycle_number}
-          </div>
-          <div className="text-xs" style={{ color: '#848E9C' }}>
+          {decision.source === 'copy_trade' ? (
+            <div className="font-semibold" style={{ color: '#EAECEF' }}>
+              {language === 'zh' ? '跟单风控' : 'Copy Trade Risk'}
+              {decision.copy_trade_meta?.nickname && (
+                <span style={{ color: '#F0B90B' }}>
+                  {' '}
+                  · {decision.copy_trade_meta.nickname}
+                </span>
+              )}
+              {decision.decisions?.[0]?.symbol && (
+                <span className="font-mono text-sm ml-1" style={{ color: '#848E9C' }}>
+                  {decision.decisions[0].symbol.replace('USDT', '')}
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="font-semibold" style={{ color: '#EAECEF' }}>
+              {t('cycle', language)} #{decision.cycle_number}
+            </div>
+          )}
+          <div className="text-xs mt-0.5" style={{ color: '#848E9C' }}>
             {new Date(decision.timestamp).toLocaleString()}
+            {decision.source === 'copy_trade' && decision.copy_trade_meta?.action_taken && (
+              <span className="ml-2" style={{ color: '#5E6673' }}>
+                {decision.copy_trade_meta.action_taken}
+              </span>
+            )}
           </div>
         </div>
-        <div
-          className="px-3 py-1 rounded text-xs font-bold"
-          style={
-            decision.success
-              ? { background: 'rgba(14, 203, 129, 0.1)', color: '#0ECB81' }
-              : { background: 'rgba(246, 70, 93, 0.1)', color: '#F6465D' }
-          }
-        >
-          {t(decision.success ? 'success' : 'failed', language)}
+        <div className="flex items-center gap-2">
+          {decision.source === 'copy_trade' && (
+            <span
+              className="px-2 py-0.5 rounded text-[10px] font-bold"
+              style={{ background: 'rgba(240, 185, 11, 0.15)', color: '#F0B90B' }}
+            >
+              {language === 'zh' ? '跟单' : 'Copy'}
+            </span>
+          )}
+          <div
+            className="px-3 py-1 rounded text-xs font-bold"
+            style={
+              decision.success
+                ? { background: 'rgba(14, 203, 129, 0.1)', color: '#0ECB81' }
+                : { background: 'rgba(246, 70, 93, 0.1)', color: '#F6465D' }
+            }
+          >
+            {t(decision.success ? 'success' : 'failed', language)}
+          </div>
         </div>
       </div>
 
@@ -921,7 +953,9 @@ function DecisionCard({
       )}
 
       {/* Candidate Coins Warning */}
-      {decision.candidate_coins && decision.candidate_coins.length === 0 && (
+      {decision.source !== 'copy_trade' &&
+        decision.candidate_coins &&
+        decision.candidate_coins.length === 0 && (
         <div
           className="text-sm rounded px-4 py-3 mb-3 flex items-start gap-3"
           style={{

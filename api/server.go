@@ -1394,6 +1394,7 @@ func (s *Server) handleDecisions(c *gin.Context) {
 
 // handleLatestDecisions 最新决策日志（最近5条，最新的在前）
 func (s *Server) handleLatestDecisions(c *gin.Context) {
+	userID := c.GetString("user_id")
 	_, traderID, err := s.getTraderFromQuery(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -1406,7 +1407,6 @@ func (s *Server) handleLatestDecisions(c *gin.Context) {
 		return
 	}
 
-	// 从 query 参数读取 limit，默认 5，最大 50
 	limit := 5
 	if limitStr := c.Query("limit"); limitStr != "" {
 		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 50 {
@@ -1422,13 +1422,14 @@ func (s *Server) handleLatestDecisions(c *gin.Context) {
 		return
 	}
 
-	// 反转数组，让最新的在前面（用于列表显示）
-	// GetLatestRecords返回的是从旧到新（用于图表），这里需要从新到旧
-	for i, j := 0, len(records)-1; i < j; i, j = i+1, j-1 {
-		records[i], records[j] = records[j], records[i]
+	var copyRows []copyTradeAIDecisionRow
+	traderCfg, _, exchangeCfg, cfgErr := s.database.GetTraderConfig(userID, traderID)
+	if cfgErr == nil && traderCfg != nil && exchangeCfg != nil && exchangeCfg.ID == "binance" {
+		copyRows, _ = s.getLatestCopyTradeAIDecisions(userID, limit)
 	}
 
-	c.JSON(http.StatusOK, records)
+	merged := mergeLatestDecisionResponses(records, copyRows, limit)
+	c.JSON(http.StatusOK, merged)
 }
 
 // handleStatistics 统计信息
@@ -2337,29 +2338,58 @@ func (s *Server) runAutoFollowForUser(userID string) {
 			aiQty := qty
 			aiFeasible := true
 			aiReason := ""
+			aiSuggestion := ""
+			decisionJSON := ""
+			actionTaken := "parse_failed"
+			aiSuccess := false
 
-			if aiErr == nil && resp != "" {
+			if aiErr != nil {
+				actionTaken = "ai_error"
+				aiFeasible = false
+				aiReason = aiErr.Error()
+			} else if resp == "" {
+				actionTaken = "ai_error"
+				aiFeasible = false
+				aiReason = "AI 返回空响应"
+			} else {
 				cleaned := strings.TrimSpace(resp)
 				if si := strings.Index(cleaned, "{"); si >= 0 {
 					if e := strings.LastIndex(cleaned, "}"); e > si {
-						cleaned = cleaned[si : e+1]
+						decisionJSON = cleaned[si : e+1]
+						cleaned = decisionJSON
 					}
 				}
 				var aiResult struct {
 					Feasible       bool    `json:"feasible"`
 					RecommendedQty float64 `json:"recommended_qty"`
 					Reasoning      string  `json:"reasoning"`
+					Suggestion     string  `json:"suggestion"`
 				}
 				if json.Unmarshal([]byte(cleaned), &aiResult) == nil {
 					aiFeasible = aiResult.Feasible
 					aiReason = aiResult.Reasoning
+					aiSuggestion = aiResult.Suggestion
 					if aiResult.RecommendedQty > 0 {
 						aiQty = aiResult.RecommendedQty
 					}
+					if !aiFeasible {
+						actionTaken = "ai_rejected"
+					} else {
+						actionTaken = "pending_open"
+					}
+				} else {
+					aiFeasible = false
+					aiReason = "AI 响应 JSON 解析失败"
 				}
 			}
 
 			if !aiFeasible {
+				s.insertCopyTradeAIDecision(copyTradeAIDecisionParams{
+					UserID: userID, RunID: runID, PortfolioID: portfolioID, Nickname: nickname, Symbol: symbol,
+					InputPrompt: prompt, AIResponseRaw: resp, DecisionJSON: decisionJSON,
+					Feasible: aiFeasible, RecommendedQty: aiQty, Reasoning: aiReason, Suggestion: aiSuggestion,
+					ActionTaken: actionTaken, Success: false,
+				})
 				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "ai_rejected",
 					order.Side, tradePosSide, ourSt, aiReason, order.OrderTime)
 				counters.skipped++
@@ -2375,6 +2405,12 @@ func (s *Server) runAutoFollowForUser(userID string) {
 			}
 
 			if tradeErr != nil {
+				s.insertCopyTradeAIDecision(copyTradeAIDecisionParams{
+					UserID: userID, RunID: runID, PortfolioID: portfolioID, Nickname: nickname, Symbol: symbol,
+					InputPrompt: prompt, AIResponseRaw: resp, DecisionJSON: decisionJSON,
+					Feasible: true, RecommendedQty: aiQty, Reasoning: aiReason, Suggestion: aiSuggestion,
+					ActionTaken: "open_failed", Success: false,
+				})
 				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "open_failed",
 					order.Side, tradePosSide, ourSt, tradeErr.Error(), order.OrderTime)
 				counters.failed++
@@ -2392,6 +2428,14 @@ func (s *Server) runAutoFollowForUser(userID string) {
 					actualPrice = p
 				}
 			}
+			aiSuccess = true
+
+			s.insertCopyTradeAIDecision(copyTradeAIDecisionParams{
+				UserID: userID, RunID: runID, PortfolioID: portfolioID, Nickname: nickname, Symbol: symbol,
+				InputPrompt: prompt, AIResponseRaw: resp, DecisionJSON: decisionJSON,
+				Feasible: true, RecommendedQty: actualQty, Reasoning: aiReason, Suggestion: aiSuggestion,
+				ActionTaken: "copied_open", Success: aiSuccess,
+			})
 
 			s.database.DB().Exec(`
 				INSERT INTO copy_trade_records 

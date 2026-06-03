@@ -352,6 +352,26 @@ func (d *Database) createTables() error {
 	d.db.Exec(`CREATE INDEX IF NOT EXISTS idx_copy_trade_runs_user ON copy_trade_runs(user_id, started_at DESC)`)
 	d.db.Exec(`CREATE INDEX IF NOT EXISTS idx_copy_trade_run_events_run ON copy_trade_run_events(run_id)`)
 
+	d.db.Exec(`CREATE TABLE IF NOT EXISTS copy_trade_ai_decisions (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id TEXT NOT NULL,
+		run_id INTEGER NOT NULL DEFAULT 0,
+		portfolio_id TEXT NOT NULL DEFAULT '',
+		nickname TEXT NOT NULL DEFAULT '',
+		symbol TEXT NOT NULL DEFAULT '',
+		input_prompt TEXT NOT NULL DEFAULT '',
+		ai_response_raw TEXT NOT NULL DEFAULT '',
+		decision_json TEXT NOT NULL DEFAULT '',
+		feasible INTEGER NOT NULL DEFAULT 0,
+		recommended_qty REAL NOT NULL DEFAULT 0,
+		reasoning TEXT NOT NULL DEFAULT '',
+		suggestion TEXT NOT NULL DEFAULT '',
+		action_taken TEXT NOT NULL DEFAULT '',
+		success INTEGER NOT NULL DEFAULT 0,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
+	d.db.Exec(`CREATE INDEX IF NOT EXISTS idx_copy_trade_ai_decisions_user ON copy_trade_ai_decisions(user_id, created_at DESC)`)
+
 	return nil
 }
 

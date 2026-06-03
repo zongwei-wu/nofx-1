@@ -73,6 +73,14 @@ export interface DecisionRecord {
   execution_log: string[]
   success: boolean
   error_message?: string
+  source?: 'auto_trader' | 'copy_trade'
+  copy_trade_meta?: {
+    nickname: string
+    portfolio_id: string
+    action_taken: string
+    feasible?: boolean
+    run_id?: number
+  }
 }
 
 export interface Statistics {
