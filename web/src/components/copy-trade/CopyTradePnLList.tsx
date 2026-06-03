@@ -1,21 +1,10 @@
-export interface CopyTradePnLRecord {
-  id: number
-  portfolio_id: string
-  nickname: string
-  order_id?: string
-  symbol: string
-  side: string
-  position_side: string
-  executed_qty: number
-  avg_price: number
-  close_price?: number
-  total_pnl: number
-  status: string
-  error_message?: string
-  lead_order_time: number
-  copy_time?: string
-  close_time?: string
-}
+import {
+  aggregateOpenPositions,
+  openPositionKey,
+  type CopyTradePnLRecord,
+} from './copyTradePositionUtils'
+
+export type { CopyTradePnLRecord }
 
 function formatTime(ts: number | string | undefined) {
   if (!ts) return '-'
@@ -193,10 +182,10 @@ function SectionHeader({ label, count, color }: { label: string; count: number; 
 
 export function CopyTradePnLList({ records }: { records?: CopyTradePnLRecord[] | null }) {
   const list = records ?? []
-  const openRecords = list.filter((r) => r.status === 'OPEN')
+  const openAggregated = aggregateOpenPositions(list)
   const closedRecords = list.filter((r) => r.status === 'CLOSED')
 
-  if (openRecords.length === 0 && closedRecords.length === 0) {
+  if (openAggregated.length === 0 && closedRecords.length === 0) {
     return <div className="text-center py-4 text-sm" style={{ color: '#5E6673' }}>暂无盈亏记录</div>
   }
 
@@ -223,12 +212,12 @@ export function CopyTradePnLList({ records }: { records?: CopyTradePnLRecord[] |
         <span className="text-center">状态</span>
       </div>
 
-      {openRecords.length > 0 && (
+      {openAggregated.length > 0 && (
         <div>
-          <SectionHeader label="当前持仓" count={openRecords.length} color="#0ECB81" />
+          <SectionHeader label="当前持仓" count={openAggregated.length} color="#0ECB81" />
           <div className="space-y-1.5">
-            {openRecords.map((rec) => (
-              <PnlRow key={rec.id} rec={rec} />
+            {openAggregated.map((rec) => (
+              <PnlRow key={openPositionKey(rec.symbol, rec.position_side)} rec={rec} />
             ))}
           </div>
         </div>

@@ -4,6 +4,10 @@ import { httpClient } from '../lib/httpClient'
 import { CopyTradeMonitorTab } from '../components/copy-trade/CopyTradeMonitorTab'
 import { CopyTradeCoinPnLChart } from '../components/copy-trade/CopyTradeCoinPnLChart'
 import { CopyTradePnLList } from '../components/copy-trade/CopyTradePnLList'
+import {
+  aggregateOpenPositions,
+  countUniqueOpenPositions,
+} from '../components/copy-trade/copyTradePositionUtils'
 
 interface CopyConfig {
   id: number
@@ -210,6 +214,8 @@ export function CopyTradeDashboard() {
   const safeRecords = records ?? []
   const safeConfigs = configs ?? []
   const activeConfigs = safeConfigs.filter(c => c.enabled)
+  const uniqueOpenCount = countUniqueOpenPositions(safeRecords)
+  const openAggregated = aggregateOpenPositions(safeRecords)
 
   return (
     <div>
@@ -218,7 +224,7 @@ export function CopyTradeDashboard() {
         <div>
           <h1 className="text-2xl font-bold" style={{ color: '#EAECEF' }}>跟单管理</h1>
           <p className="text-sm mt-1" style={{ color: '#848E9C' }}>
-            {activeConfigs.length} 个交易员已启用 · {safeRecords.filter(r => r.status === 'OPEN').length} 个持仓
+            {activeConfigs.length} 个交易员已启用 · {uniqueOpenCount} 个持仓
           </p>
         </div>
         <button
@@ -350,11 +356,12 @@ export function CopyTradeDashboard() {
               {/* 持仓中 */}
               {(() => {
                 const open = safeRecords.filter(r => r.status === 'OPEN')
+                const openUnique = countUniqueOpenPositions(open)
                 return open.length > 0 && <>
                   <div>
                     <div className="text-sm font-semibold mb-2 flex items-center gap-2" style={{ color: '#0ECB81' }}>
                       <span className="w-2 h-2 rounded-full bg-green-500 inline-block" style={{ background: '#0ECB81' }}></span>
-                      持仓中 ({open.length})
+                      持仓中 ({openUnique} 个持仓 · {open.length} 笔)
                     </div>
                     <div className="space-y-1.5">
                       {open.map((rec) => (
@@ -433,8 +440,13 @@ export function CopyTradeDashboard() {
                 <div className="p-4 rounded-lg" style={{ background: '#1E2329', border: '1px solid #2B3139' }}>
                   <div className="text-xs mb-1" style={{ color: '#848E9C' }}>总持仓</div>
                   <div className="text-2xl font-bold" style={{ color: '#EAECEF' }}>
-                    {openRecords.length}
+                    {openAggregated.length}
                   </div>
+                  {openRecords.length > openAggregated.length && (
+                    <div className="text-[10px] mt-1" style={{ color: '#5E6673' }}>
+                      共 {openRecords.length} 笔跟单记录
+                    </div>
+                  )}
                 </div>
                 <div className="p-4 rounded-lg" style={{ background: '#1E2329', border: '1px solid #2B3139' }}>
                   <div className="text-xs mb-1" style={{ color: '#848E9C' }}>未实现盈亏</div>
