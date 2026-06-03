@@ -68,7 +68,7 @@ function groupRecordsByTrader(records: CopyRecord[]): TraderRecordGroup[] {
 }
 
 export function CopyTradeDashboard() {
-  const { language } = useLanguage()
+  void useLanguage()
   const [configs, setConfigs] = useState<CopyConfig[]>([])
   const [records, setRecords] = useState<CopyRecord[]>([])
   const [leaderboard, setLeaderboard] = useState<any[]>([])

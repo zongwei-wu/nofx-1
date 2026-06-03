@@ -39,7 +39,7 @@ interface TraderData {
 }
 
 export function CopyTradingPage() {
-  const { language } = useLanguage()
+  void useLanguage()
   const [pnlTraders, setPnlTraders] = useState<TraderData[]>([])
   const [roiTraders, setRoiTraders] = useState<TraderData[]>([])
   const [loading, setLoading] = useState(true)
