@@ -13,6 +13,9 @@ var (
 
 	// telegramHook 保存hook引用，用于优雅关闭
 	telegramHook *TelegramHook
+
+	// feishuHook 飞书hook引用
+	feishuHook *FeishuHook
 )
 
 // ============================================================================
@@ -59,6 +62,13 @@ func Init(cfg *Config) error {
 		}
 	}
 
+	// 添加飞书 Hook（可选）
+	if cfg.Feishu != nil && cfg.Feishu.Enabled {
+		if err := setupFeishuHook(cfg.Feishu); err != nil {
+			Log.Warnf("初始化飞书推送失败，将继续使用普通日志: %v", err)
+		}
+	}
+
 	return nil
 }
 
@@ -72,6 +82,19 @@ func setupTelegramHook(telegramCfg *TelegramConfig) error {
 	Log.AddHook(hook)
 	telegramHook = hook
 	Log.Info("✅ Telegram日志推送已启用")
+	return nil
+}
+
+// setupFeishuHook 设置飞书 Hook
+func setupFeishuHook(feishuCfg *FeishuConfig) error {
+	hook, err := NewFeishuHook(feishuCfg)
+	if err != nil {
+		return err
+	}
+
+	Log.AddHook(hook)
+	feishuHook = hook
+	Log.Info("✅ 飞书日志推送已启用")
 	return nil
 }
 
@@ -119,6 +142,17 @@ func InitFromLogConfig(logConfig *config.LogConfig) error {
 		}
 	}
 
+	// 如果启用了飞书，添加配置
+	if logConfig.Feishu != nil && logConfig.Feishu.Enabled {
+		if webhookURL := logConfig.Feishu.WebhookURL; webhookURL != "" {
+			cfg.Feishu = &FeishuConfig{
+				Enabled:    true,
+				WebhookURL: webhookURL,
+				MinLevel:   logConfig.Feishu.MinLevel,
+			}
+		}
+	}
+
 	return Init(cfg)
 }
 
@@ -138,11 +172,15 @@ func InitFromParams(level string, telegramEnabled bool, botToken string, chatID 
 	return Init(cfg)
 }
 
-// Shutdown 优雅关闭logger（主要用于关闭Telegram发送器）
+// Shutdown 优雅关闭logger（主要用于关闭Telegram发送器和飞书发送器）
 func Shutdown() {
 	if telegramHook != nil {
 		telegramHook.Stop()
 		telegramHook = nil
+	}
+	if feishuHook != nil {
+		feishuHook.Stop()
+		feishuHook = nil
 	}
 }
 

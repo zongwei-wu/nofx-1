@@ -17,6 +17,7 @@ type LeverageConfig struct {
 type LogConfig struct {
 	Level    string          `json:"level"`    // 日志级别: debug, info, warn, error (默认: info)
 	Telegram *TelegramConfig `json:"telegram"` // Telegram推送配置（可选）
+	Feishu   *FeishuConfig   `json:"feishu"`   // 飞书推送配置（可选）
 }
 
 // TelegramConfig Telegram推送配置（简化版，只保留必需字段）
@@ -25,6 +26,13 @@ type TelegramConfig struct {
 	BotToken string `json:"bot_token"` // Bot Token
 	ChatID   int64  `json:"chat_id"`   // Chat ID
 	MinLevel string `json:"min_level"` // 最低日志级别，该级别及以上的日志会推送到Telegram（可选，默认: error）
+}
+
+// FeishuConfig 飞书推送配置
+type FeishuConfig struct {
+	Enabled    bool   `json:"enabled"`     // 是否启用（默认: false）
+	WebhookURL string `json:"webhook_url"` // 飞书机器人 Webhook 地址
+	MinLevel   string `json:"min_level"`   // 最低日志级别，该级别及以上的日志会推送到飞书（可选，默认: error）
 }
 
 // Config 总配置
