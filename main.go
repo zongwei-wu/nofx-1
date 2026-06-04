@@ -8,6 +8,7 @@ import (
 	"nofx/auth"
 	"nofx/config"
 	"nofx/crypto"
+	"nofx/logger"
 	"nofx/manager"
 	"nofx/market"
 	"nofx/pool"
@@ -170,6 +171,18 @@ func main() {
 	configFile, err := loadConfigFile()
 	if err != nil {
 		log.Fatalf("❌ 读取config.json失败: %v", err)
+	}
+
+	// 初始化logger（飞书/Telegram Hook）
+	if configFile.Log != nil {
+		logCfg := &logger.Config{
+			Level:    configFile.Log.Level,
+			Telegram: (*logger.TelegramConfig)(configFile.Log.Telegram),
+			Feishu:   (*logger.FeishuConfig)(configFile.Log.Feishu),
+		}
+		if err := logger.Init(logCfg); err != nil {
+			log.Printf("⚠️  初始化日志系统失败（不影响交易）: %v", err)
+		}
 	}
 
 	log.Printf("📋 初始化配置数据库: %s", dbPath)
