@@ -53,6 +53,22 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+function restoreSessionFromStorage(
+  setToken: (t: string | null) => void,
+  setUser: (u: User | null) => void
+) {
+  const savedToken = localStorage.getItem('auth_token')
+  const savedUser = localStorage.getItem('auth_user')
+  if (!savedToken || !savedUser) return
+  try {
+    setToken(savedToken)
+    setUser(JSON.parse(savedUser) as User)
+  } catch {
+    localStorage.removeItem('auth_token')
+    localStorage.removeItem('auth_user')
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
@@ -68,23 +84,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // 不再在管理员模式下模拟登录；统一检查本地存储
         const savedToken = localStorage.getItem('auth_token')
         const savedUser = localStorage.getItem('auth_user')
-        if (savedToken && savedUser) {
-          setToken(savedToken)
-          setUser(JSON.parse(savedUser))
-        }
-
+        restoreSessionFromStorage(setToken, setUser)
         setIsLoading(false)
       })
       .catch((err) => {
         console.error('Failed to fetch system config:', err)
-        // 发生错误时，继续检查本地存储
-        const savedToken = localStorage.getItem('auth_token')
-        const savedUser = localStorage.getItem('auth_user')
-
-        if (savedToken && savedUser) {
-          setToken(savedToken)
-          setUser(JSON.parse(savedUser))
-        }
+        restoreSessionFromStorage(setToken, setUser)
         setIsLoading(false)
       })
   }, [])

@@ -5,6 +5,7 @@ import { CopyTradeMonitorTab } from '../components/copy-trade/CopyTradeMonitorTa
 import { CopyTradeCoinPnLChart } from '../components/copy-trade/CopyTradeCoinPnLChart'
 import { CopyTradePnLList } from '../components/copy-trade/CopyTradePnLList'
 import { TradeEventPriceChart } from '../components/trade-events/TradeEventPriceChart'
+import { ChartErrorBoundary } from '../components/trade-events/ChartErrorBoundary'
 import {
   aggregateOpenPositions,
   countUniqueOpenPositions,
@@ -711,17 +712,19 @@ export function CopyTradeDashboard() {
               <div className="text-xs mb-4" style={{ color: '#5E6673' }}>
                 折线为市价 · 圆点为开/加/减/平 · 十字线悬停查看详情
               </div>
-              <TradeEventPriceChart
-                source="copy_trade"
-                symbols={[
-                  ...new Set(
-                    safeRecords
-                      .filter((r) => r.status === 'OPEN' || r.status === 'CLOSED')
-                      .map((r) => r.symbol)
-                      .filter(Boolean)
-                  ),
-                ]}
-              />
+              <ChartErrorBoundary>
+                <TradeEventPriceChart
+                  source="copy_trade"
+                  symbols={[
+                    ...new Set(
+                      safeRecords
+                        .filter((r) => r.status === 'OPEN' || r.status === 'CLOSED')
+                        .map((r) => r.symbol)
+                        .filter(Boolean)
+                    ),
+                  ]}
+                />
+              </ChartErrorBoundary>
             </div>
           ) : (
             <div className="p-4 rounded-lg mb-4" style={{ background: '#1E2329', border: '1px solid #2B3139' }}>

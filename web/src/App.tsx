@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { RouterProvider } from 'react-router-dom'
 import { LanguageProvider } from './contexts/LanguageContext'
 import { AuthProvider } from './contexts/AuthContext'
@@ -31,9 +32,14 @@ function LoadingScreen() {
 function AppContent() {
   const { isLoading } = useAuth()
   const { loading: configLoading } = useSystemConfig()
+  const [bootTimeout, setBootTimeout] = useState(false)
 
-  // Show loading spinner while checking auth or config
-  if (isLoading || configLoading) {
+  useEffect(() => {
+    const t = window.setTimeout(() => setBootTimeout(true), 10000)
+    return () => window.clearTimeout(t)
+  }, [])
+
+  if ((isLoading || configLoading) && !bootTimeout) {
     return <LoadingScreen />
   }
 

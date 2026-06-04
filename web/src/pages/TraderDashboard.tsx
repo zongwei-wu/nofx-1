@@ -4,6 +4,7 @@ import useSWR from 'swr'
 import { api } from '../lib/api'
 import { EquityChart } from '../components/EquityChart'
 import { TradeEventPriceChart } from '../components/trade-events/TradeEventPriceChart'
+import { ChartErrorBoundary } from '../components/trade-events/ChartErrorBoundary'
 import AILearning from '../components/AILearning'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -439,13 +440,13 @@ export default function TraderDashboard() {
             <p className="text-xs mb-4" style={{ color: '#5E6673' }}>
               基于 AI 决策日志 · 圆点标注开/加/减/平
             </p>
-            <TradeEventPriceChart
-              source="ai_trader"
-              traderId={selectedTrader.trader_id}
-              symbols={
-                positions?.map((p) => p.symbol).filter(Boolean) ?? []
-              }
-            />
+            <ChartErrorBoundary>
+              <TradeEventPriceChart
+                source="ai_trader"
+                traderId={selectedTrader.trader_id}
+                symbols={positions?.map((p) => p.symbol).filter(Boolean) ?? []}
+              />
+            </ChartErrorBoundary>
           </div>
 
           {/* Current Positions */}
