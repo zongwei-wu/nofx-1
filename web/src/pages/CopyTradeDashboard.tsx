@@ -4,6 +4,7 @@ import { httpClient } from '../lib/httpClient'
 import { CopyTradeMonitorTab } from '../components/copy-trade/CopyTradeMonitorTab'
 import { CopyTradeCoinPnLChart } from '../components/copy-trade/CopyTradeCoinPnLChart'
 import { CopyTradePnLList } from '../components/copy-trade/CopyTradePnLList'
+import { TradeEventPriceChart } from '../components/trade-events/TradeEventPriceChart'
 import {
   aggregateOpenPositions,
   countUniqueOpenPositions,
@@ -252,6 +253,7 @@ export function CopyTradeDashboard() {
   const [syncing, setSyncing] = useState(false)
   const [refreshingPnl, setRefreshingPnl] = useState(false)
   const [activeTab, setActiveTab] = useState<'traders' | 'records' | 'pnl' | 'monitor'>('traders')
+  const [pnlChartTab, setPnlChartTab] = useState<'price' | 'pnl'>('price')
   const [message, setMessage] = useState('')
   const [manualSyncTrigger, setManualSyncTrigger] = useState(false)
 
@@ -676,18 +678,64 @@ export function CopyTradeDashboard() {
             )
           })()}
 
-          {/* Per-coin hourly PnL line chart */}
-          <div className="p-4 rounded-lg mb-4" style={{ background: '#1E2329', border: '1px solid #2B3139' }}>
-            <div className="text-sm font-semibold mb-1" style={{ color: '#EAECEF' }}>
-              各币种盈亏走势
-            </div>
-            <div className="text-xs mb-4" style={{ color: '#5E6673' }}>
-              横轴：每小时 · 纵轴：盈亏金额（USDT）· 每条线代表一个币种
-            </div>
-            <CopyTradeCoinPnLChart
-              records={safeRecords.filter((r) => r.status === 'OPEN' || r.status === 'CLOSED')}
-            />
+          <div className="flex gap-1 mb-4 p-1 rounded-lg max-w-md" style={{ background: '#0B0E11' }}>
+            <button
+              type="button"
+              onClick={() => setPnlChartTab('price')}
+              className="flex-1 py-1.5 px-3 rounded text-xs font-semibold"
+              style={{
+                background: pnlChartTab === 'price' ? '#2B3139' : 'transparent',
+                color: pnlChartTab === 'price' ? '#F0B90B' : '#848E9C',
+              }}
+            >
+              价格与交易事件
+            </button>
+            <button
+              type="button"
+              onClick={() => setPnlChartTab('pnl')}
+              className="flex-1 py-1.5 px-3 rounded text-xs font-semibold"
+              style={{
+                background: pnlChartTab === 'pnl' ? '#2B3139' : 'transparent',
+                color: pnlChartTab === 'pnl' ? '#F0B90B' : '#848E9C',
+              }}
+            >
+              盈亏走势
+            </button>
           </div>
+
+          {pnlChartTab === 'price' ? (
+            <div className="p-4 rounded-lg mb-4" style={{ background: '#1E2329', border: '1px solid #2B3139' }}>
+              <div className="text-sm font-semibold mb-1" style={{ color: '#EAECEF' }}>
+                币种价格与跟单事件
+              </div>
+              <div className="text-xs mb-4" style={{ color: '#5E6673' }}>
+                折线为市价 · 圆点为开/加/减/平 · 十字线悬停查看详情
+              </div>
+              <TradeEventPriceChart
+                source="copy_trade"
+                symbols={[
+                  ...new Set(
+                    safeRecords
+                      .filter((r) => r.status === 'OPEN' || r.status === 'CLOSED')
+                      .map((r) => r.symbol)
+                      .filter(Boolean)
+                  ),
+                ]}
+              />
+            </div>
+          ) : (
+            <div className="p-4 rounded-lg mb-4" style={{ background: '#1E2329', border: '1px solid #2B3139' }}>
+              <div className="text-sm font-semibold mb-1" style={{ color: '#EAECEF' }}>
+                各币种盈亏走势
+              </div>
+              <div className="text-xs mb-4" style={{ color: '#5E6673' }}>
+                横轴：每小时 · 纵轴：盈亏金额（USDT）· 每条线代表一个币种
+              </div>
+              <CopyTradeCoinPnLChart
+                records={safeRecords.filter((r) => r.status === 'OPEN' || r.status === 'CLOSED')}
+              />
+            </div>
+          )}
 
           {/* Per-trade PnL List */}
           <div className="p-4 rounded-lg" style={{ background: '#1E2329', border: '1px solid #2B3139' }}>

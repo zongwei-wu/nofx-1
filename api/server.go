@@ -114,6 +114,7 @@ func (s *Server) setupRoutes() {
 		// 币安跟单数据（无需认证，代理Binance公开API）
 		api.GET("/copy-trading/leaderboard", s.handleCopyTradingLeaderboard)
 		api.GET("/copy-trading/orders", s.handleCopyTradingOrders)
+		api.GET("/market/klines", s.handleMarketKlines)
 
 		// 认证相关路由（无需认证）
 		api.POST("/register", s.handleRegister)
@@ -170,6 +171,7 @@ func (s *Server) setupRoutes() {
 			protected.POST("/copy-trade/refresh-pnl", s.handleRefreshCopyTradePnL)
 			protected.POST("/copy-trade/sync", s.handleSyncCopyTrade)
 			protected.POST("/copy-trade/copy-order", s.handleCopyOrder)
+			protected.GET("/trade-events", s.handleTradeEvents)
 		}
 	}
 }

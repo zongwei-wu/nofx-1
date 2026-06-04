@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import useSWR from 'swr'
 import { api } from '../lib/api'
 import { EquityChart } from '../components/EquityChart'
+import { TradeEventPriceChart } from '../components/trade-events/TradeEventPriceChart'
 import AILearning from '../components/AILearning'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -422,6 +423,29 @@ export default function TraderDashboard() {
           {/* Equity Chart */}
           <div className="animate-slide-in" style={{ animationDelay: '0.1s' }}>
             <EquityChart traderId={selectedTrader.trader_id} />
+          </div>
+
+          <div
+            className="binance-card p-6 animate-slide-in"
+            style={{ animationDelay: '0.12s' }}
+          >
+            <h2
+              className="text-xl font-bold mb-1 flex items-center gap-2"
+              style={{ color: '#EAECEF' }}
+            >
+              <TrendingUp className="w-5 h-5" style={{ color: '#F0B90B' }} />
+              持仓币种价格与交易事件
+            </h2>
+            <p className="text-xs mb-4" style={{ color: '#5E6673' }}>
+              基于 AI 决策日志 · 圆点标注开/加/减/平
+            </p>
+            <TradeEventPriceChart
+              source="ai_trader"
+              traderId={selectedTrader.trader_id}
+              symbols={
+                positions?.map((p) => p.symbol).filter(Boolean) ?? []
+              }
+            />
           </div>
 
           {/* Current Positions */}
