@@ -68,6 +68,7 @@ func (s *Server) startCopyTradeRun(userID, trigger string) (int64, error) {
 type copyTradeRunCounters struct {
 	tradersChecked int
 	opened         int
+	closed         int
 	skipped        int
 	failed         int
 }
@@ -329,7 +330,7 @@ func (s *Server) handleGetCopyTradeMonitor(c *gin.Context) {
 }
 
 func runStatusFromCounters(c copyTradeRunCounters) string {
-	if c.failed > 0 && c.opened == 0 {
+	if c.failed > 0 && c.opened == 0 && c.closed == 0 {
 		return "failed"
 	}
 	if c.failed > 0 {
@@ -339,8 +340,8 @@ func runStatusFromCounters(c copyTradeRunCounters) string {
 }
 
 func formatRunMessage(c copyTradeRunCounters) string {
-	return fmt.Sprintf("检查 %d 位交易员，开仓 %d，跳过 %d，失败 %d",
-		c.tradersChecked, c.opened, c.skipped, c.failed)
+	return fmt.Sprintf("检查 %d 位交易员，开仓 %d，平仓 %d，跳过 %d，失败 %d",
+		c.tradersChecked, c.opened, c.closed, c.skipped, c.failed)
 }
 
 type copyTradePnLRefreshResult struct {

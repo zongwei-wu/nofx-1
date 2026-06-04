@@ -2229,6 +2229,7 @@ func (s *Server) runAutoFollowForUser(userID string) {
 			IsOpen       bool
 		}
 		latest := make(map[string]*symOrder)
+		var newCloses []copyCloseOrder
 		latestTime := int64(lastOrderTime)
 		hasNewLeadClose := false
 
@@ -2240,28 +2241,48 @@ func (s *Server) runAutoFollowForUser(userID string) {
 				continue
 			}
 			open := isLeadOpenOrder(o.PositionSide, o.Side)
-			close := isLeadCloseOrder(o.PositionSide, o.Side)
-			if close {
+			if isLeadCloseOrder(o.PositionSide, o.Side) {
 				hasNewLeadClose = true
 				ourSt := s.ourStatusForSymbol(userID, portfolioID, o.Symbol)
 				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, o.Symbol, "lead_close",
 					o.Side, o.PositionSide, ourSt, leadActionDisplay(o.PositionSide, o.Side), o.OrderTime)
-			}
-			if copyOpenOnly && !open {
+				newCloses = append(newCloses, copyCloseOrder{
+					Symbol: o.Symbol, Side: o.Side, PositionSide: o.PositionSide,
+					ExecutedQty: o.ExecutedQty, AvgPrice: o.AvgPrice, OrderTime: o.OrderTime,
+				})
 				continue
+			}
+			if !open {
+				continue
+			}
+			if copyOpenOnly {
+				continue // 仅跟开仓配置下不跟新开仓（平仓已在上方单独处理）
 			}
 			existing, has := latest[o.Symbol]
 			if !has || o.OrderTime > existing.OrderTime {
 				latest[o.Symbol] = &symOrder{
 					Symbol: o.Symbol, Side: o.Side, PositionSide: o.PositionSide,
-					ExecutedQty: o.ExecutedQty, AvgPrice: o.AvgPrice, OrderTime: o.OrderTime, IsOpen: open,
+					ExecutedQty: o.ExecutedQty, AvgPrice: o.AvgPrice, OrderTime: o.OrderTime, IsOpen: true,
 				}
+			}
+		}
+
+		for _, co := range newCloses {
+			res := s.processCopyTradeClose(fTrader, userID, portfolioID, nickname, runID, co, "跟单-自动监控")
+			switch {
+			case res.success:
+				counters.closed++
+				time.Sleep(500 * time.Millisecond)
+			case res.failed:
+				counters.failed++
+			default:
+				counters.skipped++
 			}
 		}
 
 		if len(latest) == 0 {
 			if hasNewLeadClose {
-				counters.skipped++
+				// 仅有平仓时已在上面的 newCloses 循环处理
 			} else {
 				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, "", "holding", "", "", "NONE", "无新带单操作", 0)
 				counters.skipped++
@@ -2274,12 +2295,6 @@ func (s *Server) runAutoFollowForUser(userID string) {
 
 		for symbol, order := range latest {
 			ourSt := s.ourStatusForSymbol(userID, portfolioID, symbol)
-			if !order.IsOpen {
-				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "skipped",
-					order.Side, order.PositionSide, ourSt, "仅跟开仓，跳过非开仓信号", order.OrderTime)
-				counters.skipped++
-				continue
-			}
 
 			s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "lead_open",
 				order.Side, order.PositionSide, ourSt, leadActionDisplay(order.PositionSide, order.Side), order.OrderTime)
@@ -3090,8 +3105,13 @@ func (s *Server) handleSyncCopyTrade(c *gin.Context) {
 			if order.OrderTime <= cfg.LastOrderTime {
 				continue
 			}
-			if cfg.CopyOpenOnly && !isLeadOpenOrder(order.PositionSide, order.Side) {
+			isOpen := isLeadOpenOrder(order.PositionSide, order.Side)
+			isClose := isLeadCloseOrder(order.PositionSide, order.Side)
+			if !isOpen && !isClose {
 				continue
+			}
+			if cfg.CopyOpenOnly && !isOpen {
+				continue // 仅跟开仓：不跟平仓
 			}
 			key := fmt.Sprintf("%s_%d_%s_%s", order.Symbol, order.OrderTime, order.PositionSide, order.Side)
 			if seenKey[key] {
@@ -3106,6 +3126,20 @@ func (s *Server) handleSyncCopyTrade(c *gin.Context) {
 		}
 
 		for _, order := range allNewOrders {
+			if isLeadCloseOrder(order.PositionSide, order.Side) {
+				res := s.processCopyTradeClose(fTrader, userID, cfg.PortfolioID, cfg.Nickname, runID, copyCloseOrder{
+					Symbol: order.Symbol, Side: order.Side, PositionSide: order.PositionSide,
+					ExecutedQty: order.ExecutedQty, AvgPrice: order.AvgPrice, OrderTime: order.OrderTime,
+				}, "跟单-手动同步")
+				if res.success {
+					totalCopied++
+					syncCounters.closed++
+				} else if res.failed {
+					totalErrors++
+				}
+				continue
+			}
+
 			// 检查是否已记录
 			var count int
 			s.database.DB().QueryRow("SELECT COUNT(*) FROM copy_trade_records WHERE user_id=? AND lead_order_time=?",
@@ -3128,13 +3162,18 @@ func (s *Server) handleSyncCopyTrade(c *gin.Context) {
 			var tradeResult map[string]interface{}
 			var tradeErr error
 
-			if order.PositionSide == "LONG" && order.Side == "BUY" {
-				tradeResult, tradeErr = fTrader.OpenLong(order.Symbol, qty, 5)
-			} else if order.PositionSide == "SHORT" && order.Side == "SELL" {
-				tradeResult, tradeErr = fTrader.OpenShort(order.Symbol, qty, 5)
+			if isLeadOpenOrder(order.PositionSide, order.Side) {
+				if order.PositionSide == "LONG" && order.Side == "BUY" {
+					tradeResult, tradeErr = fTrader.OpenLong(order.Symbol, qty, 5)
+				} else if order.PositionSide == "SHORT" && order.Side == "SELL" {
+					tradeResult, tradeErr = fTrader.OpenShort(order.Symbol, qty, 5)
+				} else if order.PositionSide == "BOTH" && order.Side == "SELL" {
+					tradeResult, tradeErr = fTrader.OpenShort(order.Symbol, qty, 5)
+				} else {
+					log.Printf("  ℹ️  [%s] 跳过未知开仓: %s %s %s", cfg.Nickname, order.Symbol, order.Side, order.PositionSide)
+					continue
+				}
 			} else {
-				// 平仓操作 - 如果开启了只复制开仓则已过滤，否则记录但不执行
-				log.Printf("  ℹ️  [%s] 跳过平仓操作: %s %s %s", cfg.Nickname, order.Symbol, order.Side, order.PositionSide)
 				continue
 			}
 
