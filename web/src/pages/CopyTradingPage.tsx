@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { httpClient } from '../lib/httpClient'
+import { LeadRecentReturnsLineChart } from '../components/copy-trade/LeadRecentReturnsLineChart'
 
 interface OrderRecord {
   symbol: string
@@ -350,28 +351,7 @@ export function CopyTradingPage() {
                     <div className="text-xs font-semibold mb-2" style={{ color: '#848E9C' }}>
                       近期收益记录（最近30天）
                     </div>
-                    <div className="flex items-end gap-0.5 h-20" style={{ minHeight: '80px' }}>
-                      {trader.chartItems.slice(-20).map((item, i) => {
-                        const isPositive = item.value >= 0
-                        const maxAbs = Math.max(
-                          ...trader.chartItems!.slice(-20).map((c) => Math.abs(c.value)),
-                          1
-                        )
-                        const height = Math.abs(item.value) / maxAbs * 100
-                        return (
-                          <div
-                            key={i}
-                            className="flex-1 rounded-t transition-all hover:opacity-80 relative group"
-                            style={{
-                              height: `${Math.max(height, 2)}%`,
-                              background: isPositive ? '#0ECB81' : '#F6465D',
-                              opacity: 0.8,
-                            }}
-                            title={`${new Date(item.dateTime).toLocaleDateString()}: ${item.value.toFixed(2)}%`}
-                          />
-                        )
-                      })}
-                    </div>
+                    <LeadRecentReturnsLineChart chartItems={trader.chartItems} />
                   </div>
                 )}
 
