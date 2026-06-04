@@ -40,7 +40,7 @@ export function TradeEventPriceChart({
   const [klines, setKlines] = useState<KlinePoint[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [hoverEvent, setHoverEvent] = useState<TradeEvent | null>(null)
+  const [selectedEvent, setSelectedEvent] = useState<TradeEvent | null>(null)
 
   const authHeaders = useCallback(() => {
     const token = localStorage.getItem('auth_token')
@@ -104,6 +104,10 @@ export function TradeEventPriceChart({
     }
   }, [symbolsProp])
 
+  useEffect(() => {
+    setSelectedEvent(null)
+  }, [symbol, interval])
+
   const priceRows = useMemo(() => mapKlinesToChartRows(klines), [klines])
 
   const symEvents = useMemo(
@@ -133,6 +137,13 @@ export function TradeEventPriceChart({
     const pad = (max - min) * 0.05 || max * 0.01
     return [min - pad, max + pad]
   }, [priceRows, scatterPoints])
+
+  const eventDotRadius = useMemo(() => {
+    const n = scatterPoints.length
+    if (n > 40) return 3
+    if (n > 20) return 4
+    return 5
+  }, [scatterPoints.length])
 
   return (
     <div>
@@ -234,25 +245,26 @@ export function TradeEventPriceChart({
               dot={false}
               isAnimationActive={false}
             />
-            {scatterPoints.map((p, idx) => (
-              <ReferenceDot
-                key={`${p.timeSec}-${p.event.type}-${idx}`}
-                x={p.timeSec}
-                y={p.price}
-                r={7}
-                fill={p.color}
-                stroke="#1E2329"
-                strokeWidth={2}
-                isFront
-                label={{
-                  value: p.label,
-                  position: 'top',
-                  fill: p.color,
-                  fontSize: 9,
-                }}
-                onClick={() => setHoverEvent(p.event)}
-              />
-            ))}
+            {scatterPoints.map((p, idx) => {
+              const active = selectedEvent === p.event
+              return (
+                <ReferenceDot
+                  key={`${p.timeSec}-${p.event.type}-${idx}`}
+                  x={p.timeSec}
+                  y={p.price}
+                  r={active ? eventDotRadius + 3 : eventDotRadius}
+                  fill={p.color}
+                  stroke={active ? '#EAECEF' : '#1E2329'}
+                  strokeWidth={active ? 2 : 1}
+                  isFront
+                  ifOverflow="visible"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() =>
+                    setSelectedEvent((prev) => (prev === p.event ? null : p.event))
+                  }
+                />
+              )
+            })}
           </LineChart>
         </ResponsiveContainer>
       ) : (
@@ -264,55 +276,34 @@ export function TradeEventPriceChart({
         </div>
       )}
 
-      {scatterPoints.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-2">
-          {scatterPoints.map((p, idx) => (
-            <button
-              key={`${p.timeSec}-${idx}`}
-              type="button"
-              className="text-[10px] px-2 py-0.5 rounded"
-              style={{
-                background: '#2B3139',
-                color: p.color,
-                border:
-                  hoverEvent === p.event ? `1px solid ${p.color}` : '1px solid transparent',
-              }}
-              onClick={() => setHoverEvent(p.event)}
-            >
-              {p.label} {formatEventTime(p.event.time).slice(5, 16)}
-            </button>
-          ))}
-        </div>
-      )}
-
       <div
         className="mt-3 p-3 rounded-lg min-h-[72px] text-xs"
         style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
       >
-        {hoverEvent ? (
+        {selectedEvent ? (
           <>
             <div
               className="font-semibold mb-1"
               style={{
-                color: EVENT_TYPE_COLORS[hoverEvent.type as keyof typeof EVENT_TYPE_COLORS],
+                color: EVENT_TYPE_COLORS[selectedEvent.type as keyof typeof EVENT_TYPE_COLORS],
               }}
             >
-              {EVENT_TYPE_LABELS[hoverEvent.type as keyof typeof EVENT_TYPE_LABELS]} ·{' '}
-              {hoverEvent.symbol} · {hoverEvent.side}
+              {EVENT_TYPE_LABELS[selectedEvent.type as keyof typeof EVENT_TYPE_LABELS]} ·{' '}
+              {selectedEvent.symbol} · {selectedEvent.side}
             </div>
-            <div style={{ color: '#848E9C' }}>{formatEventTime(hoverEvent.time)}</div>
+            <div style={{ color: '#848E9C' }}>{formatEventTime(selectedEvent.time)}</div>
             <div style={{ color: '#EAECEF' }}>
-              数量 {hoverEvent.qty.toFixed(4)} · 价格 ${hoverEvent.price.toFixed(2)} ·{' '}
-              {hoverEvent.source}
+              数量 {selectedEvent.qty.toFixed(4)} · 价格 ${selectedEvent.price.toFixed(2)} ·{' '}
+              {selectedEvent.source}
             </div>
-            {hoverEvent.detail && (
+            {selectedEvent.detail && (
               <div className="mt-1" style={{ color: '#5E6673' }}>
-                {hoverEvent.detail}
+                {selectedEvent.detail}
               </div>
             )}
           </>
         ) : (
-          <span style={{ color: '#5E6673' }}>点击圆点或下方标签查看交易事件详情</span>
+          <span style={{ color: '#5E6673' }}>点击 K 线上的圆点查看交易事件详情</span>
         )}
       </div>
     </div>
