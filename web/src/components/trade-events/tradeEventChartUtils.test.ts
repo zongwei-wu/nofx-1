@@ -5,6 +5,8 @@ import {
   findEventNearTime,
   eventTradeAmount,
   scaleDotRadiusByAmount,
+  normalizeTradingSymbol,
+  symbolsMatch,
 } from './tradeEventChartUtils'
 import type { TradeEvent, KlinePoint } from './tradeEventTypes'
 
@@ -40,6 +42,11 @@ describe('tradeEventChartUtils', () => {
     expect(pts[0].label).toBe('开仓')
     expect(pts[0].amount).toBe(100)
     expect(pts[0].dotRadius).toBeGreaterThan(0)
+  })
+
+  it('normalizeTradingSymbol', () => {
+    expect(normalizeTradingSymbol('pumpbtc')).toBe('PUMPBTCUSDT')
+    expect(symbolsMatch('ETH', 'ETHUSDT')).toBe(true)
   })
 
   it('scaleDotRadiusByAmount — larger amount yields larger radius', () => {

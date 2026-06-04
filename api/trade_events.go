@@ -25,6 +25,17 @@ type TradeEvent struct {
 	Detail string  `json:"detail"`
 }
 
+func normalizeTradeSymbol(sym string) string {
+	sym = strings.ToUpper(strings.TrimSpace(sym))
+	if sym == "" {
+		return ""
+	}
+	if !strings.HasSuffix(sym, "USDT") {
+		sym += "USDT"
+	}
+	return sym
+}
+
 func tradeEventTypeLabel(t string) string {
 	switch t {
 	case "open":
@@ -72,7 +83,7 @@ func aiEventsFromDecisions(records []*logger.DecisionRecord, symbolFilter string
 			if !d.Success || d.Symbol == "" {
 				continue
 			}
-			sym := strings.ToUpper(d.Symbol)
+			sym := normalizeTradeSymbol(d.Symbol)
 			if symbolFilter != "" && sym != symbolFilter {
 				continue
 			}
@@ -168,7 +179,7 @@ func (s *Server) copyTradeEventsFromRecords(userID, portfolioID, symbolFilter st
 			&status, &leadTime, &copyTime, &closeTime, &closePrice); err != nil {
 			continue
 		}
-		sym = strings.ToUpper(sym)
+		sym = normalizeTradeSymbol(sym)
 		openMs := parseTimeToMs(copyTime)
 		if openMs == 0 {
 			openMs = leadTime
@@ -224,7 +235,7 @@ func leadOrderEvents(portfolioID, nickname string, orders []LeadOrder) []TradeEv
 	})
 
 	for _, o := range sorted {
-		sym := strings.ToUpper(o.Symbol)
+		sym := normalizeTradeSymbol(o.Symbol)
 		posSide := leadOrderPositionSide(o)
 		key := sym + "|" + posSide
 		prev := posQty[key]

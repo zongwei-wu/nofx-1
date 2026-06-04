@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
-  LineChart,
+  ComposedChart,
   Line,
+  Scatter,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceDot,
 } from 'recharts'
 import { httpClient } from '../../lib/httpClient'
 import type { TradeEvent, KlinePoint } from './tradeEventTypes'
@@ -17,7 +17,10 @@ import {
   mapEventsToScatterPoints,
   formatEventTime,
   eventTradeAmount,
+  normalizeTradingSymbol,
+  symbolsMatch,
 } from './tradeEventChartUtils'
+import { EventScatterDot } from './EventScatterDot'
 
 export interface TradeEventPriceChartProps {
   source: 'copy_trade' | 'ai_trader'
@@ -25,6 +28,23 @@ export interface TradeEventPriceChartProps {
   portfolioId?: string
   symbols?: string[]
   height?: number
+}
+
+function pickDefaultSymbol(
+  events: TradeEvent[],
+  preferred: string[],
+  current: string
+): string {
+  if (current && events.some((e) => symbolsMatch(e.symbol, current))) {
+    return normalizeTradingSymbol(current)
+  }
+  for (const s of preferred) {
+    const norm = normalizeTradingSymbol(s)
+    if (norm && events.some((e) => symbolsMatch(e.symbol, norm))) {
+      return norm
+    }
+  }
+  return events[0] ? normalizeTradingSymbol(events[0].symbol) : ''
 }
 
 export function TradeEventPriceChart({
@@ -61,11 +81,23 @@ export function TradeEventPriceChart({
         throw new Error(err.error || '加载事件失败')
       }
       const data = await res.json()
-      const list: TradeEvent[] = data.events || []
+      const list: TradeEvent[] = (data.events || []).map((e: TradeEvent) => ({
+        ...e,
+        symbol: normalizeTradingSymbol(e.symbol),
+      }))
       setEvents(list)
-      const syms: string[] = data.symbols || []
-      setSymbols((prev) => (symbolsProp?.length ? symbolsProp : syms.length ? syms : prev))
-      setSymbol((prev) => prev || syms[0] || symbolsProp?.[0] || '')
+      const syms: string[] = (data.symbols || []).map((s: string) => normalizeTradingSymbol(s))
+      const preferred = [
+        ...(symbolsProp || []).map(normalizeTradingSymbol),
+        ...syms,
+      ]
+      setSymbols((prev) => {
+        const merged = new Set([...preferred, ...prev, ...list.map((e) => e.symbol)])
+        return [...merged].filter(Boolean)
+      })
+      setSymbol((prev) =>
+        pickDefaultSymbol(list, preferred, prev || symbolsProp?.[0] || '')
+      )
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : '加载失败')
       setEvents([])
@@ -73,11 +105,12 @@ export function TradeEventPriceChart({
   }, [source, traderId, portfolioId, authHeaders, symbolsProp])
 
   const loadKlines = useCallback(async () => {
-    if (!symbol) return
+    const sym = normalizeTradingSymbol(symbol)
+    if (!sym) return
     setLoading(true)
     setError('')
     try {
-      const params = new URLSearchParams({ symbol, interval, limit: '200' })
+      const params = new URLSearchParams({ symbol: sym, interval, limit: '500' })
       const kRes = await httpClient.get(`/api/market/klines?${params}`)
       if (!kRes.ok) throw new Error('K线加载失败')
       const kData = await kRes.json()
@@ -99,11 +132,11 @@ export function TradeEventPriceChart({
   }, [loadKlines])
 
   useEffect(() => {
-    if (symbolsProp?.length) {
-      setSymbols(symbolsProp)
-      setSymbol((prev) => prev || symbolsProp[0] || '')
-    }
-  }, [symbolsProp])
+    if (!symbolsProp?.length) return
+    const normalized = symbolsProp.map(normalizeTradingSymbol).filter(Boolean)
+    setSymbols((prev) => [...new Set([...normalized, ...prev])])
+    setSymbol((prev) => pickDefaultSymbol(events, normalized, prev || normalized[0] || ''))
+  }, [symbolsProp, events])
 
   useEffect(() => {
     setSelectedEvent(null)
@@ -112,7 +145,7 @@ export function TradeEventPriceChart({
   const priceRows = useMemo(() => mapKlinesToChartRows(klines), [klines])
 
   const symEvents = useMemo(
-    () => events.filter((ev) => !symbol || ev.symbol === symbol),
+    () => events.filter((ev) => !symbol || symbolsMatch(ev.symbol, symbol)),
     [events, symbol]
   )
 
@@ -122,9 +155,15 @@ export function TradeEventPriceChart({
   )
 
   const symbolOptions = useMemo(() => {
-    const fromProps = symbols.filter(Boolean)
-    if (fromProps.length) return fromProps
-    return [...new Set(events.map((ev) => ev.symbol).filter(Boolean))]
+    const merged = new Set<string>()
+    for (const s of symbols) {
+      const n = normalizeTradingSymbol(s)
+      if (n) merged.add(n)
+    }
+    for (const e of events) {
+      if (e.symbol) merged.add(e.symbol)
+    }
+    return [...merged].sort()
   }, [symbols, events])
 
   const yDomain = useMemo((): [number, number] | undefined => {
@@ -149,12 +188,19 @@ export function TradeEventPriceChart({
     }
   }, [selectedEvent, scatterPoints])
 
+  const handleSelectEvent = useCallback(
+    (ev: TradeEvent | null, current: TradeEvent | null) => {
+      setSelectedEvent(current === ev ? null : ev)
+    },
+    []
+  )
+
   return (
     <div>
       <div className="flex flex-wrap items-center gap-3 mb-3">
         <select
           value={symbol}
-          onChange={(e) => setSymbol(e.target.value)}
+          onChange={(e) => setSymbol(normalizeTradingSymbol(e.target.value))}
           className="text-sm px-3 py-1.5 rounded"
           style={{ background: '#0B0E11', color: '#EAECEF', border: '1px solid #2B3139' }}
         >
@@ -205,73 +251,73 @@ export function TradeEventPriceChart({
       )}
 
       {symbol && priceRows.length > 0 ? (
-        <ResponsiveContainer width="100%" height={height}>
-          <LineChart data={priceRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#2B3139" />
-            <XAxis
-              dataKey="timeSec"
-              type="number"
-              domain={['dataMin', 'dataMax']}
-              tick={{ fill: '#848E9C', fontSize: 10 }}
-              tickFormatter={(v: number) =>
-                new Date(v * 1000).toLocaleString('zh-CN', {
-                  month: '2-digit',
-                  day: '2-digit',
-                  hour: '2-digit',
-                })
-              }
-            />
-            <YAxis
-              domain={yDomain ?? ['auto', 'auto']}
-              tick={{ fill: '#848E9C', fontSize: 10 }}
-              width={72}
-              tickFormatter={(v: number) => `$${Number(v).toLocaleString()}`}
-            />
-            <Tooltip
-              contentStyle={{
-                background: '#1E2329',
-                border: '1px solid #2B3139',
-                borderRadius: 8,
-                fontSize: 12,
-              }}
-              labelStyle={{ color: '#848E9C' }}
-              formatter={(value: number | string) => [
-                `$${Number(value).toFixed(2)}`,
-                '价格',
-              ]}
-              labelFormatter={(label) => formatEventTime(Number(label) * 1000)}
-            />
-            <Line
-              type="monotone"
-              dataKey="close"
-              stroke="#F0B90B"
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-            />
-            {scatterPoints.map((p, idx) => {
-              const active = selectedEvent === p.event
-              const r = active ? p.dotRadius + 2 : p.dotRadius
-              return (
-                <ReferenceDot
-                  key={`${p.timeSec}-${p.event.type}-${idx}`}
-                  x={p.timeSec}
-                  y={p.price}
-                  r={r}
-                  fill={p.color}
-                  stroke={active ? '#EAECEF' : '#1E2329'}
-                  strokeWidth={active ? 2 : 1}
-                  isFront
-                  ifOverflow="visible"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() =>
-                    setSelectedEvent((prev) => (prev === p.event ? null : p.event))
-                  }
+        <>
+          <ResponsiveContainer width="100%" height={height}>
+            <ComposedChart data={priceRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#2B3139" />
+              <XAxis
+                dataKey="timeSec"
+                type="number"
+                domain={['dataMin', 'dataMax']}
+                tick={{ fill: '#848E9C', fontSize: 10 }}
+                tickFormatter={(v: number) =>
+                  new Date(v * 1000).toLocaleString('zh-CN', {
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                  })
+                }
+              />
+              <YAxis
+                domain={yDomain ?? ['auto', 'auto']}
+                tick={{ fill: '#848E9C', fontSize: 10 }}
+                width={72}
+                tickFormatter={(v: number) => `$${Number(v).toLocaleString()}`}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: '#1E2329',
+                  border: '1px solid #2B3139',
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+                labelStyle={{ color: '#848E9C' }}
+                formatter={(value: number | string) => [
+                  `$${Number(value).toFixed(2)}`,
+                  '价格',
+                ]}
+                labelFormatter={(label) => formatEventTime(Number(label) * 1000)}
+              />
+              <Line
+                type="monotone"
+                dataKey="close"
+                stroke="#F0B90B"
+                strokeWidth={2}
+                dot={false}
+                isAnimationActive={false}
+              />
+              {scatterPoints.length > 0 && (
+                <Scatter
+                  data={scatterPoints}
+                  dataKey="price"
+                  isAnimationActive={false}
+                  shape={(props) => (
+                    <EventScatterDot
+                      {...props}
+                      selected={selectedEvent}
+                      onSelect={handleSelectEvent}
+                    />
+                  )}
                 />
-              )
-            })}
-          </LineChart>
-        </ResponsiveContainer>
+              )}
+            </ComposedChart>
+          </ResponsiveContainer>
+          {scatterPoints.length === 0 && (
+            <p className="text-xs mt-2 text-center" style={{ color: '#5E6673' }}>
+              当前币种暂无已执行的开仓/加仓/减仓/平仓记录（仅展示成功成交的 AI 决策）
+            </p>
+          )}
+        </>
       ) : (
         <div
           className="flex items-center justify-center text-sm"
