@@ -106,31 +106,14 @@ func emptyLeaderboardData() json.RawMessage {
 	return json.RawMessage(`{"highestPnlLeads":[],"highestRoiLeads":[]}`)
 }
 
-// binanceLeadListPayloadPNL 高盈亏 Tab（30 日 PNL 排序）
-func binanceLeadListPayloadPNL() map[string]interface{} {
+// binanceQueryListPayload 与币安跟单首页 query-list 请求体一致。
+// 高盈亏 dataType=PNL，高收益 dataType=ROI，其余字段与币安网页请求相同。
+func binanceQueryListPayload(dataType string) map[string]interface{} {
 	return map[string]interface{}{
 		"pageNumber":       1,
 		"pageSize":         20,
 		"timeRange":        "30D",
-		"dataType":         "PNL",
-		"favoriteOnly":     false,
-		"hideFull":         false,
-		"nickname":         "",
-		"order":            "DESC",
-		"userAsset":        0,
-		"portfolioType":    "ALL",
-		"useAiRecommended": true,
-		"PAGE_SIZE":        20,
-	}
-}
-
-// binanceLeadListPayloadROI 高收益 Tab（30 日 ROI 排序）
-func binanceLeadListPayloadROI() map[string]interface{} {
-	return map[string]interface{}{
-		"pageNumber":       1,
-		"pageSize":         20,
-		"timeRange":        "30D",
-		"dataType":         "ROI",
+		"dataType":         dataType,
 		"favoriteOnly":     false,
 		"hideFull":         false,
 		"nickname":         "",
@@ -152,8 +135,16 @@ func postBinanceCopyTradeBapi(path string, payload interface{}) (json.RawMessage
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,zh-TW;q=0.8")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	req.Header.Set("lang", "zh-CN")
+	req.Header.Set("clienttype", "web")
+	req.Header.Set("csrftoken", "d41d8cd98f00b204e9800998ecf8427e")
+	req.Header.Set("bnc-level", "0")
+	req.Header.Set("bnc-location", "CN")
+	req.Header.Set("bnc-time-zone", "Asia/Shanghai")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36")
 	req.Header.Set("Origin", binanceBapiBaseURL())
 	req.Header.Set("Referer", binanceBapiBaseURL()+"/zh-CN/copy-trading")
 
@@ -193,14 +184,10 @@ func postBinanceCopyTradeBapi(path string, payload interface{}) (json.RawMessage
 	return binanceResp.Data, nil
 }
 
-const binanceLeadPortfolioListPath = "/bapi/futures/v1/friendly/future/copy-trade/lead-portfolio/list"
+const binanceQueryListPath = "/bapi/futures/v1/friendly/future/copy-trade/home-page/query-list"
 
-func fetchBinanceLeadPortfolioListPNL() (json.RawMessage, error) {
-	return postBinanceCopyTradeBapi(binanceLeadPortfolioListPath, binanceLeadListPayloadPNL())
-}
-
-func fetchBinanceLeadPortfolioListROI() (json.RawMessage, error) {
-	return postBinanceCopyTradeBapi(binanceLeadPortfolioListPath, binanceLeadListPayloadROI())
+func fetchBinanceQueryList(dataType string) (json.RawMessage, error) {
+	return postBinanceCopyTradeBapi(binanceQueryListPath, binanceQueryListPayload(dataType))
 }
 
 func fetchBinanceRecommendLeadList() (json.RawMessage, error) {
@@ -213,6 +200,12 @@ func fetchBinanceRecommendLeadList() (json.RawMessage, error) {
 func leadsFromListData(data json.RawMessage) ([]interface{}, error) {
 	if len(data) == 0 {
 		return nil, fmt.Errorf("空数据")
+	}
+	var nested struct {
+		List []interface{} `json:"list"`
+	}
+	if err := json.Unmarshal(data, &nested); err == nil && len(nested.List) > 0 {
+		return nested.List, nil
 	}
 	var withList struct {
 		List []interface{} `json:"list"`
@@ -268,8 +261,8 @@ func buildLeaderboardJSON(pnlLeads, roiLeads []interface{}) (json.RawMessage, er
 }
 
 func fetchBinanceLeaderboard() (json.RawMessage, error) {
-	pnlRaw, pnlErr := fetchBinanceLeadPortfolioListPNL()
-	roiRaw, roiErr := fetchBinanceLeadPortfolioListROI()
+	pnlRaw, pnlErr := fetchBinanceQueryList("PNL")
+	roiRaw, roiErr := fetchBinanceQueryList("ROI")
 
 	var pnlLeads, roiLeads []interface{}
 	if pnlErr == nil {

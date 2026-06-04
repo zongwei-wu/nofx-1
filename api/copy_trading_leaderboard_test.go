@@ -5,23 +5,29 @@ import (
 	"testing"
 )
 
-func TestBinanceLeadListPayloadPNL(t *testing.T) {
-	p := binanceLeadListPayloadPNL()
+func TestBinanceQueryListPayloadPNL(t *testing.T) {
+	p := binanceQueryListPayload("PNL")
 	if p["dataType"] != "PNL" || p["timeRange"] != "30D" || p["pageSize"] != 20 {
 		t.Fatalf("unexpected payload: %+v", p)
 	}
-	if p["PAGE_SIZE"] != 20 || p["useAiRecommended"] != true {
-		t.Fatal("PNL payload fields mismatch")
+	if _, has := p["PAGE_SIZE"]; has {
+		t.Fatal("query-list payload should not include PAGE_SIZE")
+	}
+	if p["useAiRecommended"] != true {
+		t.Fatal("useAiRecommended should be true")
 	}
 }
 
-func TestBinanceLeadListPayloadROI(t *testing.T) {
-	p := binanceLeadListPayloadROI()
+func TestBinanceQueryListPayloadROI(t *testing.T) {
+	p := binanceQueryListPayload("ROI")
 	if p["dataType"] != "ROI" || p["timeRange"] != "30D" || p["pageSize"] != 20 {
 		t.Fatalf("unexpected payload: %+v", p)
 	}
+	if p["pageNumber"] != 1 || p["order"] != "DESC" || p["portfolioType"] != "ALL" {
+		t.Fatalf("unexpected payload: %+v", p)
+	}
 	if _, has := p["PAGE_SIZE"]; has {
-		t.Fatal("ROI payload should not include PAGE_SIZE")
+		t.Fatal("query-list payload should not include PAGE_SIZE")
 	}
 	if p["useAiRecommended"] != true {
 		t.Fatal("useAiRecommended should be true")
