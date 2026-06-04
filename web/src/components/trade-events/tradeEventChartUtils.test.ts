@@ -3,6 +3,8 @@ import {
   mapKlinesToChartRows,
   mapEventsToScatterPoints,
   findEventNearTime,
+  eventTradeAmount,
+  scaleDotRadiusByAmount,
 } from './tradeEventChartUtils'
 import type { TradeEvent, KlinePoint } from './tradeEventTypes'
 
@@ -36,6 +38,15 @@ describe('tradeEventChartUtils', () => {
     const pts = mapEventsToScatterPoints(events, priceRows)
     expect(pts[0].price).toBe(100)
     expect(pts[0].label).toBe('开仓')
+    expect(pts[0].amount).toBe(100)
+    expect(pts[0].dotRadius).toBeGreaterThan(0)
+  })
+
+  it('scaleDotRadiusByAmount — larger amount yields larger radius', () => {
+    const small = scaleDotRadiusByAmount(100, 100, 10000, 4, 12)
+    const large = scaleDotRadiusByAmount(10000, 100, 10000, 4, 12)
+    expect(large).toBeGreaterThan(small)
+    expect(eventTradeAmount({ symbol: 'X', time: 1, type: 'open', side: 'LONG', qty: 2, price: 50, source: '', detail: '' })).toBe(100)
   })
 
   it('findEventNearTime', () => {

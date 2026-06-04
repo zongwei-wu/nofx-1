@@ -16,6 +16,7 @@ import {
   mapKlinesToChartRows,
   mapEventsToScatterPoints,
   formatEventTime,
+  eventTradeAmount,
 } from './tradeEventChartUtils'
 
 export interface TradeEventPriceChartProps {
@@ -138,12 +139,15 @@ export function TradeEventPriceChart({
     return [min - pad, max + pad]
   }, [priceRows, scatterPoints])
 
-  const eventDotRadius = useMemo(() => {
-    const n = scatterPoints.length
-    if (n > 40) return 3
-    if (n > 20) return 4
-    return 5
-  }, [scatterPoints.length])
+  const selectedDetail = useMemo(() => {
+    if (!selectedEvent) return null
+    const chartPrice = scatterPoints.find((p) => p.event === selectedEvent)?.price ?? 0
+    const displayPrice = selectedEvent.price > 0 ? selectedEvent.price : chartPrice
+    return {
+      displayPrice,
+      amount: eventTradeAmount(selectedEvent, chartPrice),
+    }
+  }, [selectedEvent, scatterPoints])
 
   return (
     <div>
@@ -247,12 +251,13 @@ export function TradeEventPriceChart({
             />
             {scatterPoints.map((p, idx) => {
               const active = selectedEvent === p.event
+              const r = active ? p.dotRadius + 2 : p.dotRadius
               return (
                 <ReferenceDot
                   key={`${p.timeSec}-${p.event.type}-${idx}`}
                   x={p.timeSec}
                   y={p.price}
-                  r={active ? eventDotRadius + 3 : eventDotRadius}
+                  r={r}
                   fill={p.color}
                   stroke={active ? '#EAECEF' : '#1E2329'}
                   strokeWidth={active ? 2 : 1}
@@ -280,7 +285,7 @@ export function TradeEventPriceChart({
         className="mt-3 p-3 rounded-lg min-h-[72px] text-xs"
         style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
       >
-        {selectedEvent ? (
+        {selectedEvent && selectedDetail ? (
           <>
             <div
               className="font-semibold mb-1"
@@ -293,7 +298,9 @@ export function TradeEventPriceChart({
             </div>
             <div style={{ color: '#848E9C' }}>{formatEventTime(selectedEvent.time)}</div>
             <div style={{ color: '#EAECEF' }}>
-              数量 {selectedEvent.qty.toFixed(4)} · 价格 ${selectedEvent.price.toFixed(2)} ·{' '}
+              数量 {selectedEvent.qty.toFixed(4)} · 价格 $
+              {selectedDetail.displayPrice.toFixed(2)} · 金额 $
+              {selectedDetail.amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })} ·{' '}
               {selectedEvent.source}
             </div>
             {selectedEvent.detail && (

@@ -38,9 +38,38 @@ export interface EventScatterPoint {
   timeSec: number
   timeLabel: string
   price: number
+  /** 成交金额（USDT 名义价值）= qty × price */
+  amount: number
+  dotRadius: number
   event: TradeEvent
   color: string
   label: string
+}
+
+/** 单笔事件成交金额（开仓/加仓等为 qty×price） */
+export function eventTradeAmount(event: TradeEvent, chartPrice = 0): number {
+  const price = event.price > 0 ? event.price : chartPrice
+  if (price <= 0 || event.qty <= 0) return 0
+  return event.qty * price
+}
+
+export function scaleDotRadiusByAmount(
+  amount: number,
+  minAmount: number,
+  maxAmount: number,
+  minR: number,
+  maxR: number
+): number {
+  if (amount <= 0) return minR
+  if (maxAmount <= minAmount) return (minR + maxR) / 2
+  const t = Math.min(1, Math.max(0, (amount - minAmount) / (maxAmount - minAmount)))
+  return minR + Math.sqrt(t) * (maxR - minR)
+}
+
+export function dotRadiusBounds(pointCount: number): { minR: number; maxR: number } {
+  if (pointCount > 40) return { minR: 3, maxR: 8 }
+  if (pointCount > 20) return { minR: 3, maxR: 10 }
+  return { minR: 4, maxR: 12 }
 }
 
 export function resolveEventPrice(
@@ -65,20 +94,33 @@ export function mapEventsToScatterPoints(
   events: TradeEvent[],
   priceRows: PriceChartRow[]
 ): EventScatterPoint[] {
-  return events
-    .filter((e) => e.time > 0)
-    .map((e) => {
-      const timeSec = msToChartTime(e.time)
-      const type = e.type as TradeEventType
-      return {
-        timeSec,
-        timeLabel: formatChartTimeLabel(timeSec),
-        price: resolveEventPrice(e, priceRows),
-        event: e,
-        color: EVENT_TYPE_COLORS[type] || '#848E9C',
-        label: EVENT_TYPE_LABELS[type] || e.type,
-      }
-    })
+  const filtered = events.filter((e) => e.time > 0)
+  const bounds = dotRadiusBounds(filtered.length)
+
+  const draft = filtered.map((e) => {
+    const timeSec = msToChartTime(e.time)
+    const type = e.type as TradeEventType
+    const price = resolveEventPrice(e, priceRows)
+    return {
+      timeSec,
+      timeLabel: formatChartTimeLabel(timeSec),
+      price,
+      amount: eventTradeAmount(e, price),
+      dotRadius: bounds.minR,
+      event: e,
+      color: EVENT_TYPE_COLORS[type] || '#848E9C',
+      label: EVENT_TYPE_LABELS[type] || e.type,
+    }
+  })
+
+  const positiveAmounts = draft.map((p) => p.amount).filter((a) => a > 0)
+  const minAmount = positiveAmounts.length ? Math.min(...positiveAmounts) : 0
+  const maxAmount = positiveAmounts.length ? Math.max(...positiveAmounts) : 0
+
+  return draft.map((p) => ({
+    ...p,
+    dotRadius: scaleDotRadiusByAmount(p.amount, minAmount, maxAmount, bounds.minR, bounds.maxR),
+  }))
 }
 
 export function findEventNearTime(
