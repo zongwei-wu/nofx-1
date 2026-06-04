@@ -106,21 +106,38 @@ func emptyLeaderboardData() json.RawMessage {
 	return json.RawMessage(`{"highestPnlLeads":[],"highestRoiLeads":[]}`)
 }
 
-// binanceLeadListPayload 与币安跟单「投资组合列表」页请求体一致
-func binanceLeadListPayload(dataType string) map[string]interface{} {
+// binanceLeadListPayloadPNL 高盈亏 Tab（30 日 PNL 排序）
+func binanceLeadListPayloadPNL() map[string]interface{} {
 	return map[string]interface{}{
-		"pageNumber":        1,
-		"pageSize":          20,
-		"timeRange":         "30D",
-		"dataType":          dataType,
-		"favoriteOnly":      false,
-		"hideFull":          false,
-		"nickname":          "",
-		"order":             "DESC",
-		"userAsset":         0,
-		"portfolioType":     "ALL",
-		"useAiRecommended":  true,
-		"PAGE_SIZE":         20,
+		"pageNumber":       1,
+		"pageSize":         20,
+		"timeRange":        "30D",
+		"dataType":         "PNL",
+		"favoriteOnly":     false,
+		"hideFull":         false,
+		"nickname":         "",
+		"order":            "DESC",
+		"userAsset":        0,
+		"portfolioType":    "ALL",
+		"useAiRecommended": true,
+		"PAGE_SIZE":        20,
+	}
+}
+
+// binanceLeadListPayloadROI 高收益 Tab（30 日 ROI 排序）
+func binanceLeadListPayloadROI() map[string]interface{} {
+	return map[string]interface{}{
+		"pageNumber":       1,
+		"pageSize":         20,
+		"timeRange":        "30D",
+		"dataType":         "ROI",
+		"favoriteOnly":     false,
+		"hideFull":         false,
+		"nickname":         "",
+		"order":            "DESC",
+		"userAsset":        0,
+		"portfolioType":    "ALL",
+		"useAiRecommended": true,
 	}
 }
 
@@ -178,8 +195,12 @@ func postBinanceCopyTradeBapi(path string, payload interface{}) (json.RawMessage
 
 const binanceLeadPortfolioListPath = "/bapi/futures/v1/friendly/future/copy-trade/lead-portfolio/list"
 
-func fetchBinanceLeadPortfolioList(dataType string) (json.RawMessage, error) {
-	return postBinanceCopyTradeBapi(binanceLeadPortfolioListPath, binanceLeadListPayload(dataType))
+func fetchBinanceLeadPortfolioListPNL() (json.RawMessage, error) {
+	return postBinanceCopyTradeBapi(binanceLeadPortfolioListPath, binanceLeadListPayloadPNL())
+}
+
+func fetchBinanceLeadPortfolioListROI() (json.RawMessage, error) {
+	return postBinanceCopyTradeBapi(binanceLeadPortfolioListPath, binanceLeadListPayloadROI())
 }
 
 func fetchBinanceRecommendLeadList() (json.RawMessage, error) {
@@ -247,8 +268,8 @@ func buildLeaderboardJSON(pnlLeads, roiLeads []interface{}) (json.RawMessage, er
 }
 
 func fetchBinanceLeaderboard() (json.RawMessage, error) {
-	pnlRaw, pnlErr := fetchBinanceLeadPortfolioList("PNL")
-	roiRaw, roiErr := fetchBinanceLeadPortfolioList("ROI")
+	pnlRaw, pnlErr := fetchBinanceLeadPortfolioListPNL()
+	roiRaw, roiErr := fetchBinanceLeadPortfolioListROI()
 
 	var pnlLeads, roiLeads []interface{}
 	if pnlErr == nil {

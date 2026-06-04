@@ -6,9 +6,22 @@ import (
 )
 
 func TestBinanceLeadListPayloadPNL(t *testing.T) {
-	p := binanceLeadListPayload("PNL")
+	p := binanceLeadListPayloadPNL()
 	if p["dataType"] != "PNL" || p["timeRange"] != "30D" || p["pageSize"] != 20 {
 		t.Fatalf("unexpected payload: %+v", p)
+	}
+	if p["PAGE_SIZE"] != 20 || p["useAiRecommended"] != true {
+		t.Fatal("PNL payload fields mismatch")
+	}
+}
+
+func TestBinanceLeadListPayloadROI(t *testing.T) {
+	p := binanceLeadListPayloadROI()
+	if p["dataType"] != "ROI" || p["timeRange"] != "30D" || p["pageSize"] != 20 {
+		t.Fatalf("unexpected payload: %+v", p)
+	}
+	if _, has := p["PAGE_SIZE"]; has {
+		t.Fatal("ROI payload should not include PAGE_SIZE")
 	}
 	if p["useAiRecommended"] != true {
 		t.Fatal("useAiRecommended should be true")
