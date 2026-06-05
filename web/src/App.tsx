@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { RouterProvider } from 'react-router-dom'
 import { LanguageProvider } from './contexts/LanguageContext'
 import { AuthProvider } from './contexts/AuthContext'
+import { SymbolPreferencesProvider } from './contexts/SymbolPreferencesContext'
 import { ConfirmDialogProvider } from './components/ConfirmDialog'
 import { router } from './routes'
 import { useSystemConfig } from './hooks/useSystemConfig'
@@ -50,9 +51,11 @@ export default function App() {
   return (
     <LanguageProvider>
       <AuthProvider>
-        <ConfirmDialogProvider>
-          <AppContent />
-        </ConfirmDialogProvider>
+        <SymbolPreferencesProvider>
+          <ConfirmDialogProvider>
+            <AppContent />
+          </ConfirmDialogProvider>
+        </SymbolPreferencesProvider>
       </AuthProvider>
     </LanguageProvider>
   )

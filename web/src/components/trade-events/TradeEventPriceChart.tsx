@@ -21,6 +21,7 @@ import {
   symbolsMatch,
 } from './tradeEventChartUtils'
 import { EventScatterDot } from './EventScatterDot'
+import { useSymbolPreferences } from '../../contexts/SymbolPreferencesContext'
 
 export interface TradeEventPriceChartProps {
   source: 'copy_trade' | 'ai_trader'
@@ -62,6 +63,7 @@ export function TradeEventPriceChart({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [selectedEvent, setSelectedEvent] = useState<TradeEvent | null>(null)
+  const { sortSymbols } = useSymbolPreferences()
 
   const authHeaders = useCallback(() => {
     const token = localStorage.getItem('auth_token')
@@ -163,8 +165,8 @@ export function TradeEventPriceChart({
     for (const e of events) {
       if (e.symbol) merged.add(e.symbol)
     }
-    return [...merged].sort()
-  }, [symbols, events])
+    return sortSymbols([...merged])
+  }, [symbols, events, sortSymbols])
 
   const yDomain = useMemo((): [number, number] | undefined => {
     const prices = [

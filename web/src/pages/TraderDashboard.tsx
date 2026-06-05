@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import useSWR from 'swr'
 import { api } from '../lib/api'
@@ -8,6 +8,7 @@ import { ChartErrorBoundary } from '../components/trade-events/ChartErrorBoundar
 import AILearning from '../components/AILearning'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { useSymbolPreferences } from '../contexts/SymbolPreferencesContext'
 import { t, type Language } from '../i18n/translations'
 import {
   AlertTriangle,
@@ -123,6 +124,16 @@ export default function TraderDashboard() {
       dedupingInterval: 10000,
     }
   )
+
+  const { sortSymbols } = useSymbolPreferences()
+  const sortedPositions = useMemo(() => {
+    if (!positions?.length) return positions ?? []
+    const order = sortSymbols(positions.map((p) => p.symbol))
+    const rank = new Map(order.map((s, i) => [s, i]))
+    return [...positions].sort(
+      (a, b) => (rank.get(a.symbol) ?? 999) - (rank.get(b.symbol) ?? 999)
+    )
+  }, [positions, sortSymbols])
 
   const { data: decisions } = useSWR<DecisionRecord[]>(
     user && token && selectedTraderId
@@ -444,7 +455,7 @@ export default function TraderDashboard() {
               <TradeEventPriceChart
                 source="ai_trader"
                 traderId={selectedTrader.trader_id}
-                symbols={positions?.map((p) => p.symbol).filter(Boolean) ?? []}
+                symbols={sortedPositions.map((p) => p.symbol).filter(Boolean)}
               />
             </ChartErrorBoundary>
           </div>
@@ -510,7 +521,7 @@ export default function TraderDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {positions.map((pos, i) => (
+                    {sortedPositions.map((pos, i) => (
                       <tr
                         key={i}
                         className="border-b border-gray-800 last:border-0"

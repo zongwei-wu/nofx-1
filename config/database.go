@@ -45,6 +45,8 @@ type DatabaseInterface interface {
 	GetUserSignalSource(userID string) (*UserSignalSource, error)
 	UpdateUserSignalSource(userID, coinPoolURL, oiTopURL string) error
 	GetCustomCoins() []string
+	GetUserSymbolPreferences(userID string) (*UserSymbolPreferences, error)
+	UpsertUserSymbolPreferences(userID string, symbols []string, useCustomOrder bool) error
 	LoadBetaCodesFromFile(filePath string) error
 	ValidateBetaCode(code string) (bool, error)
 	UseBetaCode(code, userEmail string) error
@@ -372,6 +374,14 @@ func (d *Database) createTables() error {
 	)`)
 	d.db.Exec(`CREATE INDEX IF NOT EXISTS idx_copy_trade_ai_decisions_user ON copy_trade_ai_decisions(user_id, created_at DESC)`)
 
+	d.db.Exec(`CREATE TABLE IF NOT EXISTS user_symbol_preferences (
+		user_id TEXT PRIMARY KEY,
+		symbols TEXT NOT NULL DEFAULT '[]',
+		use_custom_order INTEGER NOT NULL DEFAULT 0,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+	)`)
+
 	return nil
 }
 
@@ -591,6 +601,14 @@ type TraderRecord struct {
 	IsCrossMargin        bool      `json:"is_cross_margin"`        // 是否为全仓模式（true=全仓，false=逐仓）
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
+}
+
+// UserSymbolPreferences 用户币种排序偏好
+type UserSymbolPreferences struct {
+	UserID         string    `json:"user_id"`
+	Symbols        []string  `json:"symbols"`
+	UseCustomOrder bool      `json:"use_custom_order"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 // UserSignalSource 用户信号源配置
@@ -1227,6 +1245,63 @@ func (d *Database) GetCustomCoins() []string {
 		}
 	}
 	return symbols
+}
+
+// GetUserSymbolPreferences 获取用户币种排序偏好
+func (d *Database) GetUserSymbolPreferences(userID string) (*UserSymbolPreferences, error) {
+	var symbolsJSON string
+	var useCustom int
+	var updatedAt time.Time
+	err := d.db.QueryRow(`
+		SELECT symbols, use_custom_order, updated_at
+		FROM user_symbol_preferences WHERE user_id = ?
+	`, userID).Scan(&symbolsJSON, &useCustom, &updatedAt)
+	if err == sql.ErrNoRows {
+		return &UserSymbolPreferences{
+			UserID:         userID,
+			Symbols:        []string{},
+			UseCustomOrder: false,
+		}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var symbols []string
+	if symbolsJSON != "" {
+		if err := json.Unmarshal([]byte(symbolsJSON), &symbols); err != nil {
+			return nil, fmt.Errorf("解析 symbols 失败: %w", err)
+		}
+	}
+	return &UserSymbolPreferences{
+		UserID:         userID,
+		Symbols:        symbols,
+		UseCustomOrder: useCustom != 0,
+		UpdatedAt:      updatedAt,
+	}, nil
+}
+
+// UpsertUserSymbolPreferences 保存用户币种排序偏好
+func (d *Database) UpsertUserSymbolPreferences(userID string, symbols []string, useCustomOrder bool) error {
+	if symbols == nil {
+		symbols = []string{}
+	}
+	payload, err := json.Marshal(symbols)
+	if err != nil {
+		return err
+	}
+	useCustom := 0
+	if useCustomOrder {
+		useCustom = 1
+	}
+	_, err = d.db.Exec(`
+		INSERT INTO user_symbol_preferences (user_id, symbols, use_custom_order, updated_at)
+		VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+		ON CONFLICT(user_id) DO UPDATE SET
+			symbols = excluded.symbols,
+			use_custom_order = excluded.use_custom_order,
+			updated_at = CURRENT_TIMESTAMP
+	`, userID, string(payload), useCustom)
+	return err
 }
 
 // Close 关闭数据库连接

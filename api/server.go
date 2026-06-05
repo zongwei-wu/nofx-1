@@ -172,6 +172,10 @@ func (s *Server) setupRoutes() {
 			protected.POST("/copy-trade/sync", s.handleSyncCopyTrade)
 			protected.POST("/copy-trade/copy-order", s.handleCopyOrder)
 			protected.GET("/trade-events", s.handleTradeEvents)
+			protected.GET("/symbol-preferences", s.handleGetSymbolPreferences)
+			protected.PUT("/symbol-preferences", s.handlePutSymbolPreferences)
+			protected.POST("/symbol-preferences/reset", s.handleResetSymbolPreferences)
+			protected.GET("/symbol-values", s.handleGetSymbolValues)
 		}
 	}
 }

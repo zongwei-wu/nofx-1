@@ -16,13 +16,21 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const location = useLocation()
 
   // 根据路径自动判断当前页面
-  const getCurrentPage = (): 'competition' | 'traders' | 'trader' | 'faq' | 'copy-trading' | 'copy-trade' => {
+  const getCurrentPage = ():
+    | 'competition'
+    | 'traders'
+    | 'trader'
+    | 'faq'
+    | 'copy-trading'
+    | 'copy-trade'
+    | 'symbols' => {
     if (location.pathname === '/faq') return 'faq'
     if (location.pathname === '/traders') return 'traders'
     if (location.pathname === '/dashboard') return 'trader'
     if (location.pathname === '/competition') return 'competition'
     if (location.pathname === '/copy-trading') return 'copy-trading'
     if (location.pathname === '/copy-trade') return 'copy-trade'
+    if (location.pathname === '/symbols') return 'symbols'
     return 'competition' // 默认
   }
 

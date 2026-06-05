@@ -11,6 +11,7 @@ import { AITradersPage } from '../pages/AITradersPage'
 import TraderDashboard from '../pages/TraderDashboard'
 import { CopyTradingPage } from '../pages/CopyTradingPage'
 import { CopyTradeDashboard } from '../pages/CopyTradeDashboard'
+import { SymbolManagementPage } from '../pages/SymbolManagementPage'
 
 export const router = createBrowserRouter([
   {
@@ -62,6 +63,10 @@ export const router = createBrowserRouter([
       {
         path: '/copy-trade',
         element: <CopyTradeDashboard />,
+      },
+      {
+        path: '/symbols',
+        element: <SymbolManagementPage />,
       },
     ],
   },

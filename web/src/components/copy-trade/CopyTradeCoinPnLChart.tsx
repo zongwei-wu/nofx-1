@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useSymbolPreferences } from '../../contexts/SymbolPreferencesContext'
 import {
   LineChart,
   Line,
@@ -152,21 +153,27 @@ interface CopyTradeCoinPnLChartProps {
 }
 
 export function CopyTradeCoinPnLChart({ records }: CopyTradeCoinPnLChartProps) {
+  const { sortSymbols } = useSymbolPreferences()
   const { chartData, coins } = useMemo(
     () => buildHourlyCoinPnlSeries(records),
     [records]
   )
 
+  const sortedCoins = useMemo(() => {
+    const withUsdt = coins.map((c) => (c.endsWith('USDT') ? c : `${c}USDT`))
+    return sortSymbols(withUsdt).map((s) => s.replace(/USDT$/i, ''))
+  }, [coins, sortSymbols])
+
   const latestByCoin = useMemo(() => {
     if (chartData.length === 0) return []
     const last = chartData[chartData.length - 1]
-    return coins.map((coin) => ({
+    return sortedCoins.map((coin) => ({
       coin,
       pnl: Number(last[coin] ?? 0),
     }))
-  }, [chartData, coins])
+  }, [chartData, sortedCoins])
 
-  if (chartData.length === 0 || coins.length === 0) {
+  if (chartData.length === 0 || sortedCoins.length === 0) {
     return (
       <div className="text-center py-8 text-sm" style={{ color: '#5E6673' }}>
         暂无盈亏数据
@@ -203,7 +210,7 @@ export function CopyTradeCoinPnLChart({ records }: CopyTradeCoinPnLChartProps) {
               iconType="line"
               wrapperStyle={{ fontSize: 12, color: '#848E9C' }}
             />
-            {coins.map((coin, i) => (
+            {sortedCoins.map((coin, i) => (
               <Line
                 key={coin}
                 type="monotone"

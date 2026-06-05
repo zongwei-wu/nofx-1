@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useSymbolPreferences } from '../contexts/SymbolPreferencesContext'
 import type { AIModel, Exchange, CreateTraderRequest } from '../types'
 import { useLanguage } from '../contexts/LanguageContext'
 import { t } from '../i18n/translations'
@@ -50,6 +51,7 @@ export function TraderConfigModal({
   onSave,
 }: TraderConfigModalProps) {
   const { language } = useLanguage()
+  const { sortSymbols } = useSymbolPreferences()
   const [formData, setFormData] = useState<TraderConfigData>({
     trader_name: '',
     ai_model: '',
@@ -154,6 +156,11 @@ export function TraderConfigModal({
     }
     fetchPromptTemplates()
   }, [])
+
+  const displayCoins = useMemo(
+    () => sortSymbols(availableCoins),
+    [availableCoins, sortSymbols]
+  )
 
   if (!isOpen) return null
 
@@ -575,7 +582,7 @@ export function TraderConfigModal({
                       点击选择币种：
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {availableCoins.map((coin) => (
+                      {displayCoins.map((coin) => (
                         <button
                           key={coin}
                           type="button"
