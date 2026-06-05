@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   ComposedChart,
   Line,
-  Scatter,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -22,8 +21,8 @@ import {
   pickDefaultChartSymbol,
   DEFAULT_CHART_SYMBOL,
 } from './tradeEventChartUtils'
-import { EventScatterDot } from './EventScatterDot'
 import { useSymbolPreferences } from '../../contexts/SymbolPreferencesContext'
+import { EventReferenceDot } from './EventScatterDot'
 
 export interface TradeEventPriceChartProps {
   source: 'copy_trade' | 'ai_trader'
@@ -250,7 +249,7 @@ export function TradeEventPriceChart({
       {symbol && priceRows.length > 0 ? (
         <>
           <ResponsiveContainer width="100%" height={height}>
-            <ComposedChart data={priceRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <ComposedChart margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#2B3139" />
               <XAxis
                 dataKey="timeSec"
@@ -286,6 +285,7 @@ export function TradeEventPriceChart({
                 labelFormatter={(label) => formatEventTime(Number(label) * 1000)}
               />
               <Line
+                data={priceRows}
                 type="monotone"
                 dataKey="close"
                 stroke="#F0B90B"
@@ -293,20 +293,14 @@ export function TradeEventPriceChart({
                 dot={false}
                 isAnimationActive={false}
               />
-              {scatterPoints.length > 0 && (
-                <Scatter
-                  data={scatterPoints}
-                  dataKey="price"
-                  isAnimationActive={false}
-                  shape={(props) => (
-                    <EventScatterDot
-                      {...props}
-                      selected={selectedEvent}
-                      onSelect={handleSelectEvent}
-                    />
-                  )}
+              {scatterPoints.map((p, i) => (
+                <EventReferenceDot
+                  key={`${p.event.time}-${p.event.type}-${i}`}
+                  point={p}
+                  selected={selectedEvent}
+                  onSelect={handleSelectEvent}
                 />
-              )}
+              ))}
             </ComposedChart>
           </ResponsiveContainer>
           {scatterPoints.length === 0 && (

@@ -3,6 +3,39 @@ import { EVENT_TYPE_COLORS, EVENT_TYPE_LABELS } from './tradeEventTypes'
 
 export const DEFAULT_CHART_SYMBOL = 'BTCUSDT'
 
+type PositionLike = { symbol?: string; position_amt?: number; positionAmt?: number }
+type DecisionActionLike = { symbol?: string; success?: boolean }
+type DecisionRecordLike = {
+  positions?: PositionLike[]
+  decisions?: DecisionActionLike[]
+}
+
+/** 合并当前持仓与决策日志中的历史持仓/成交币种 */
+export function collectChartSymbols(
+  currentSymbols: string[],
+  decisions: DecisionRecordLike[] = []
+): string[] {
+  const merged = new Set<string>()
+  for (const s of currentSymbols) {
+    const n = normalizeTradingSymbol(s)
+    if (n) merged.add(n)
+  }
+  for (const rec of decisions) {
+    for (const pos of rec.positions ?? []) {
+      const amt = pos.position_amt ?? pos.positionAmt ?? 0
+      if (amt === 0) continue
+      const n = normalizeTradingSymbol(pos.symbol)
+      if (n) merged.add(n)
+    }
+    for (const d of rec.decisions ?? []) {
+      if (d.success === false || !d.symbol) continue
+      const n = normalizeTradingSymbol(d.symbol)
+      if (n) merged.add(n)
+    }
+  }
+  return [...merged]
+}
+
 /** 默认选中比特币；若当前选项仍有效则保留用户选择 */
 export function pickDefaultChartSymbol(
   available: string[],
@@ -43,8 +76,11 @@ export function symbolsMatch(a?: string, b?: string): boolean {
   return normalizeTradingSymbol(a) === normalizeTradingSymbol(b)
 }
 
+/** 将事件/订单时间统一为 Unix 秒（兼容秒与毫秒） */
 export function msToChartTime(ms: number): number {
-  return ms < 1e12 ? ms : Math.floor(ms / 1000)
+  if (!ms || ms <= 0) return 0
+  if (ms >= 1e11) return Math.floor(ms / 1000)
+  return Math.floor(ms)
 }
 
 export function formatChartTimeLabel(timeSec: number): string {
@@ -180,10 +216,12 @@ export function mapEventsToScatterPoints(
   const minAmount = positiveAmounts.length ? Math.min(...positiveAmounts) : 0
   const maxAmount = positiveAmounts.length ? Math.max(...positiveAmounts) : 0
 
-  return draft.map((p) => ({
-    ...p,
-    dotRadius: scaleDotRadiusByAmount(p.amount, minAmount, maxAmount, bounds.minR, bounds.maxR),
-  }))
+  return draft
+    .map((p) => ({
+      ...p,
+      dotRadius: scaleDotRadiusByAmount(p.amount, minAmount, maxAmount, bounds.minR, bounds.maxR),
+    }))
+    .filter((p) => p.timeSec > 0 && p.price > 0)
 }
 
 export function findEventNearTime(

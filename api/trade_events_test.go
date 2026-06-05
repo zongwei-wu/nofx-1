@@ -38,6 +38,23 @@ func TestLeadOrderEventsAddReduce(t *testing.T) {
 	}
 }
 
+func TestCollectSymbolsFromAIRecords(t *testing.T) {
+	records := []*logger.DecisionRecord{{
+		Positions: []logger.PositionSnapshot{
+			{Symbol: "ETHUSDT", PositionAmt: 1},
+			{Symbol: "BTCUSDT", PositionAmt: 0},
+		},
+		Decisions: []logger.DecisionAction{
+			{Symbol: "SOLUSDT", Success: true},
+			{Symbol: "XRPUSDT", Success: false},
+		},
+	}}
+	syms := collectSymbolsFromAIRecords(records)
+	if len(syms) != 2 {
+		t.Fatalf("want 2 symbols got %v", syms)
+	}
+}
+
 func TestAIEventsFromDecisions(t *testing.T) {
 	records := []*logger.DecisionRecord{{
 		Timestamp: time.Unix(0, 0),

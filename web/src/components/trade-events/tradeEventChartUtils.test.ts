@@ -8,6 +8,7 @@ import {
   normalizeTradingSymbol,
   symbolsMatch,
   pickDefaultChartSymbol,
+  collectChartSymbols,
   DEFAULT_CHART_SYMBOL,
 } from './tradeEventChartUtils'
 import type { TradeEvent, KlinePoint } from './tradeEventTypes'
@@ -49,6 +50,18 @@ describe('tradeEventChartUtils', () => {
   it('normalizeTradingSymbol', () => {
     expect(normalizeTradingSymbol('pumpbtc')).toBe('PUMPBTCUSDT')
     expect(symbolsMatch('ETH', 'ETHUSDT')).toBe(true)
+  })
+
+  it('collectChartSymbols merges current and historical positions', () => {
+    const syms = collectChartSymbols(['BTCUSDT'], [
+      {
+        positions: [{ symbol: 'ETHUSDT', position_amt: 1 }],
+        decisions: [{ symbol: 'SOLUSDT', success: true }],
+      },
+    ])
+    expect(syms).toContain('BTCUSDT')
+    expect(syms).toContain('ETHUSDT')
+    expect(syms).toContain('SOLUSDT')
   })
 
   it('pickDefaultChartSymbol prefers BTC', () => {

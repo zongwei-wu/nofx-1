@@ -1,36 +1,43 @@
+import { ReferenceDot } from 'recharts'
 import type { EventScatterPoint } from './tradeEventChartUtils'
+import type { TradeEvent } from './tradeEventTypes'
 
-type ScatterDotProps = {
-  cx?: number
-  cy?: number
-  payload?: EventScatterPoint
-  active?: boolean
-  onSelect?: (event: EventScatterPoint['event'] | null, current: EventScatterPoint['event']) => void
-  selected?: EventScatterPoint['event'] | null
+type EventReferenceDotProps = {
+  point: EventScatterPoint
+  selected: TradeEvent | null
+  onSelect: (ev: TradeEvent | null, current: TradeEvent | null) => void
 }
 
-export function EventScatterDot({
-  cx,
-  cy,
-  payload,
-  onSelect,
-  selected,
-}: ScatterDotProps) {
-  if (cx == null || cy == null || !payload) return null
-  const active = selected === payload.event
-  const r = active ? payload.dotRadius + 2 : payload.dotRadius
+export function EventReferenceDot({ point, selected, onSelect }: EventReferenceDotProps) {
+  const active = selected === point.event
+  const r = active ? point.dotRadius + 2 : point.dotRadius
   return (
-    <circle
-      cx={cx}
-      cy={cy}
+    <ReferenceDot
+      x={point.timeSec}
+      y={point.price}
       r={r}
-      fill={payload.color}
+      fill={point.color}
       stroke={active ? '#EAECEF' : '#1E2329'}
       strokeWidth={active ? 2 : 1}
-      style={{ cursor: 'pointer', pointerEvents: 'all' }}
-      onClick={(e) => {
-        e.stopPropagation()
-        onSelect?.(payload.event, selected ?? null)
+      ifOverflow="visible"
+      isFront
+      shape={(props: { cx?: number; cy?: number }) => {
+        if (props.cx == null || props.cy == null) return <g />
+        return (
+          <circle
+            cx={props.cx}
+            cy={props.cy}
+            r={r}
+            fill={point.color}
+            stroke={active ? '#EAECEF' : '#1E2329'}
+            strokeWidth={active ? 2 : 1}
+            style={{ cursor: 'pointer', pointerEvents: 'all' }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onSelect(point.event, selected)
+            }}
+          />
+        )
       }}
     />
   )

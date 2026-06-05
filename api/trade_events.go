@@ -293,6 +293,70 @@ func dedupeEvents(events []TradeEvent) []TradeEvent {
 	return out
 }
 
+func collectSymbolsFromAIRecords(records []*logger.DecisionRecord) []string {
+	seen := make(map[string]bool)
+	for _, rec := range records {
+		for _, pos := range rec.Positions {
+			if sym := normalizeTradeSymbol(pos.Symbol); sym != "" && pos.PositionAmt != 0 {
+				seen[sym] = true
+			}
+		}
+		for _, d := range rec.Decisions {
+			if d.Success && d.Symbol != "" {
+				seen[normalizeTradeSymbol(d.Symbol)] = true
+			}
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for s := range seen {
+		out = append(out, s)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (s *Server) distinctCopyTradeSymbols(userID, portfolioID string) ([]string, error) {
+	q := `SELECT DISTINCT symbol FROM copy_trade_records WHERE user_id = ?`
+	args := []interface{}{userID}
+	if portfolioID != "" {
+		q += ` AND portfolio_id = ?`
+		args = append(args, portfolioID)
+	}
+	q += ` ORDER BY symbol`
+	rows, err := s.database.DB().Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var sym string
+		if rows.Scan(&sym) == nil {
+			if norm := normalizeTradeSymbol(sym); norm != "" {
+				out = append(out, norm)
+			}
+		}
+	}
+	return out, nil
+}
+
+func mergeSymbolLists(lists ...[]string) []string {
+	seen := make(map[string]bool)
+	for _, list := range lists {
+		for _, sym := range list {
+			if norm := normalizeTradeSymbol(sym); norm != "" {
+				seen[norm] = true
+			}
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for sym := range seen {
+		out = append(out, sym)
+	}
+	sort.Strings(out)
+	return out
+}
+
 func filterEventsByTime(events []TradeEvent, fromMs, toMs int64) []TradeEvent {
 	if fromMs == 0 && toMs == 0 {
 		return events
@@ -323,6 +387,8 @@ func (s *Server) handleTradeEvents(c *gin.Context) {
 
 	var events []TradeEvent
 
+	var symbolCandidates [][]string
+
 	switch source {
 	case "ai_trader":
 		_, traderID, err := s.getTraderFromQuery(c)
@@ -341,6 +407,7 @@ func (s *Server) handleTradeEvents(c *gin.Context) {
 			return
 		}
 		events = aiEventsFromDecisions(records, symbol)
+		symbolCandidates = append(symbolCandidates, collectSymbolsFromAIRecords(records))
 
 	case "copy_trade", "":
 		userID := c.GetString("user_id")
@@ -355,6 +422,9 @@ func (s *Server) handleTradeEvents(c *gin.Context) {
 			return
 		}
 		events = append(events, recEvents...)
+		if recSyms, err := s.distinctCopyTradeSymbols(userID, portfolioID); err == nil {
+			symbolCandidates = append(symbolCandidates, recSyms)
+		}
 
 		if portfolioID != "" {
 			var nickname string
@@ -399,15 +469,13 @@ func (s *Server) handleTradeEvents(c *gin.Context) {
 	events = dedupeEvents(events)
 	events = filterEventsByTime(events, fromMs, toMs)
 
-	symbols := make(map[string]bool)
+	eventSyms := make([]string, 0)
 	for _, e := range events {
-		symbols[e.Symbol] = true
+		if e.Symbol != "" {
+			eventSyms = append(eventSyms, e.Symbol)
+		}
 	}
-	symList := make([]string, 0, len(symbols))
-	for s := range symbols {
-		symList = append(symList, s)
-	}
-	sort.Strings(symList)
+	symList := mergeSymbolLists(append(symbolCandidates, eventSyms)...)
 
 	c.JSON(http.StatusOK, gin.H{
 		"events":  events,

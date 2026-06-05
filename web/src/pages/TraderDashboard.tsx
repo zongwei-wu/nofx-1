@@ -5,6 +5,7 @@ import { api } from '../lib/api'
 import { EquityChart } from '../components/EquityChart'
 import { TradeEventPriceChart } from '../components/trade-events/TradeEventPriceChart'
 import { ChartErrorBoundary } from '../components/trade-events/ChartErrorBoundary'
+import { collectChartSymbols } from '../components/trade-events/tradeEventChartUtils'
 import AILearning from '../components/AILearning'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -146,6 +147,11 @@ export default function TraderDashboard() {
       dedupingInterval: 20000,
     }
   )
+
+  const chartSymbols = useMemo(() => {
+    const current = (positions ?? []).map((p) => p.symbol).filter(Boolean)
+    return sortSymbols(collectChartSymbols(current, decisions ?? []))
+  }, [positions, decisions, sortSymbols])
 
   const { data: stats } = useSWR<Statistics>(
     user && token && selectedTraderId ? `statistics-${selectedTraderId}` : null,
@@ -455,7 +461,7 @@ export default function TraderDashboard() {
               <TradeEventPriceChart
                 source="ai_trader"
                 traderId={selectedTrader.trader_id}
-                symbols={sortedPositions.map((p) => p.symbol).filter(Boolean)}
+                symbols={chartSymbols}
               />
             </ChartErrorBoundary>
           </div>
