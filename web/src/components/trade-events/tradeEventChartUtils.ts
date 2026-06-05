@@ -1,6 +1,37 @@
 import type { TradeEvent, TradeEventType, KlinePoint } from './tradeEventTypes'
 import { EVENT_TYPE_COLORS, EVENT_TYPE_LABELS } from './tradeEventTypes'
 
+export const DEFAULT_CHART_SYMBOL = 'BTCUSDT'
+
+/** 默认选中比特币；若当前选项仍有效则保留用户选择 */
+export function pickDefaultChartSymbol(
+  available: string[],
+  preferred: string[],
+  current: string
+): string {
+  const pool = new Set(
+    [...available, ...preferred, DEFAULT_CHART_SYMBOL]
+      .map(normalizeTradingSymbol)
+      .filter(Boolean)
+  )
+  const list = [...pool]
+
+  if (current) {
+    const norm = normalizeTradingSymbol(current)
+    if (pool.has(norm)) return norm
+  }
+
+  const btc = normalizeTradingSymbol(DEFAULT_CHART_SYMBOL)
+  if (pool.has(btc)) return btc
+
+  for (const s of preferred) {
+    const norm = normalizeTradingSymbol(s)
+    if (pool.has(norm)) return norm
+  }
+
+  return list[0] || btc
+}
+
 /** 统一为 XXXUSDT，避免 PUMPBTC 与 PUMPBTCUSDT 过滤不一致 */
 export function normalizeTradingSymbol(symbol?: string): string {
   const u = (symbol || '').toUpperCase().trim()

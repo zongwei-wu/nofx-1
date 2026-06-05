@@ -7,6 +7,8 @@ import {
   scaleDotRadiusByAmount,
   normalizeTradingSymbol,
   symbolsMatch,
+  pickDefaultChartSymbol,
+  DEFAULT_CHART_SYMBOL,
 } from './tradeEventChartUtils'
 import type { TradeEvent, KlinePoint } from './tradeEventTypes'
 
@@ -47,6 +49,15 @@ describe('tradeEventChartUtils', () => {
   it('normalizeTradingSymbol', () => {
     expect(normalizeTradingSymbol('pumpbtc')).toBe('PUMPBTCUSDT')
     expect(symbolsMatch('ETH', 'ETHUSDT')).toBe(true)
+  })
+
+  it('pickDefaultChartSymbol prefers BTC', () => {
+    expect(
+      pickDefaultChartSymbol(['ETHUSDT', 'SOLUSDT'], ['ETHUSDT'], '')
+    ).toBe(DEFAULT_CHART_SYMBOL)
+    expect(
+      pickDefaultChartSymbol(['ETHUSDT'], ['ETHUSDT'], 'ETHUSDT')
+    ).toBe('ETHUSDT')
   })
 
   it('scaleDotRadiusByAmount — larger amount yields larger radius', () => {

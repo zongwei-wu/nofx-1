@@ -19,6 +19,8 @@ import {
   eventTradeAmount,
   normalizeTradingSymbol,
   symbolsMatch,
+  pickDefaultChartSymbol,
+  DEFAULT_CHART_SYMBOL,
 } from './tradeEventChartUtils'
 import { EventScatterDot } from './EventScatterDot'
 import { useSymbolPreferences } from '../../contexts/SymbolPreferencesContext'
@@ -31,23 +33,6 @@ export interface TradeEventPriceChartProps {
   height?: number
 }
 
-function pickDefaultSymbol(
-  events: TradeEvent[],
-  preferred: string[],
-  current: string
-): string {
-  if (current && events.some((e) => symbolsMatch(e.symbol, current))) {
-    return normalizeTradingSymbol(current)
-  }
-  for (const s of preferred) {
-    const norm = normalizeTradingSymbol(s)
-    if (norm && events.some((e) => symbolsMatch(e.symbol, norm))) {
-      return norm
-    }
-  }
-  return events[0] ? normalizeTradingSymbol(events[0].symbol) : ''
-}
-
 export function TradeEventPriceChart({
   source,
   traderId,
@@ -56,7 +41,7 @@ export function TradeEventPriceChart({
   height = 360,
 }: TradeEventPriceChartProps) {
   const [interval, setInterval] = useState<'1h' | '4h'>('1h')
-  const [symbol, setSymbol] = useState('')
+  const [symbol, setSymbol] = useState(DEFAULT_CHART_SYMBOL)
   const [symbols, setSymbols] = useState<string[]>(symbolsProp || [])
   const [events, setEvents] = useState<TradeEvent[]>([])
   const [klines, setKlines] = useState<KlinePoint[]>([])
@@ -98,7 +83,11 @@ export function TradeEventPriceChart({
         return [...merged].filter(Boolean)
       })
       setSymbol((prev) =>
-        pickDefaultSymbol(list, preferred, prev || symbolsProp?.[0] || '')
+        pickDefaultChartSymbol(
+          [...syms, ...list.map((e) => e.symbol)],
+          preferred,
+          prev
+        )
       )
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : '加载失败')
@@ -137,7 +126,13 @@ export function TradeEventPriceChart({
     if (!symbolsProp?.length) return
     const normalized = symbolsProp.map(normalizeTradingSymbol).filter(Boolean)
     setSymbols((prev) => [...new Set([...normalized, ...prev])])
-    setSymbol((prev) => pickDefaultSymbol(events, normalized, prev || normalized[0] || ''))
+    setSymbol((prev) =>
+      pickDefaultChartSymbol(
+        [...normalized, ...events.map((e) => e.symbol)],
+        normalized,
+        prev
+      )
+    )
   }, [symbolsProp, events])
 
   useEffect(() => {
@@ -157,7 +152,7 @@ export function TradeEventPriceChart({
   )
 
   const symbolOptions = useMemo(() => {
-    const merged = new Set<string>()
+    const merged = new Set<string>([DEFAULT_CHART_SYMBOL])
     for (const s of symbols) {
       const n = normalizeTradingSymbol(s)
       if (n) merged.add(n)
