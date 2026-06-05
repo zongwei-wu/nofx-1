@@ -1,0 +1,106 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "NOFX API",
+    "version": "1.0.0",
+    "description": "NOFX trading platform API"
+  },
+  "basePath": "/api",
+  "schemes": ["http", "https"],
+  "securityDefinitions": {
+    "BearerAuth": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "Bearer token, e.g. Bearer {token}"
+    }
+  },
+  "paths": {
+    "/copy-trade/settings": {
+      "get": {
+        "tags": ["CopyTrade"],
+        "summary": "获取跟单全局设置",
+        "description": "返回用户为跟单开单 AI 分析所选的全局 AI 交易员配置",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "schema": {
+              "$ref": "#/definitions/CopyTradeSettingsResponse"
+            }
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      },
+      "put": {
+        "tags": ["CopyTrade"],
+        "summary": "更新跟单全局设置",
+        "description": "设置用于跟单开单 AI 分析的全局 AI 交易员；传空字符串表示清除选择并回退默认模型",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UpdateCopyTradeSettingsRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "保存成功",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": { "type": "string" },
+                "ai_trader_id": { "type": "string" }
+              }
+            }
+          },
+          "400": {
+            "description": "参数错误或 AI 交易员不存在"
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "UpdateCopyTradeSettingsRequest": {
+      "type": "object",
+      "required": ["ai_trader_id"],
+      "properties": {
+        "ai_trader_id": {
+          "type": "string",
+          "description": "AI 交易员 ID，空字符串表示未选择"
+        }
+      }
+    },
+    "CopyTradeSettingsResponse": {
+      "type": "object",
+      "properties": {
+        "ai_trader_id": {
+          "type": "string",
+          "description": "已选择的 AI 交易员 ID"
+        },
+        "ai_trader_name": {
+          "type": "string",
+          "description": "已选择的 AI 交易员名称"
+        },
+        "ai_model_name": {
+          "type": "string",
+          "description": "关联 AI 模型名称"
+        },
+        "fallback_used": {
+          "type": "boolean",
+          "description": "未选择交易员时是否回退到默认已启用模型"
+        }
+      }
+    }
+  }
+}

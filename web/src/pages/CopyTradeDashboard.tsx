@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
 import { httpClient } from '../lib/httpClient'
+import { api } from '../lib/api'
+import type { TraderInfo } from '../types'
 import { CopyTradeMonitorTab } from '../components/copy-trade/CopyTradeMonitorTab'
 import { CopyTradeCoinPnLChart } from '../components/copy-trade/CopyTradeCoinPnLChart'
 import { CopyTradePnLList } from '../components/copy-trade/CopyTradePnLList'
@@ -245,11 +248,22 @@ function RecordsByTraderSection({
   )
 }
 
+interface CopyTradeSettings {
+  ai_trader_id: string
+  ai_trader_name?: string
+  ai_model_name?: string
+  fallback_used?: boolean
+}
+
 export function CopyTradeDashboard() {
   void useLanguage()
+  const navigate = useNavigate()
   const [configs, setConfigs] = useState<CopyConfig[]>([])
   const [records, setRecords] = useState<CopyRecord[]>([])
   const [leaderboard, setLeaderboard] = useState<any[]>([])
+  const [aiTraders, setAiTraders] = useState<TraderInfo[]>([])
+  const [copyTradeSettings, setCopyTradeSettings] = useState<CopyTradeSettings>({ ai_trader_id: '' })
+  const [savingAiTrader, setSavingAiTrader] = useState(false)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [refreshingPnl, setRefreshingPnl] = useState(false)
@@ -292,6 +306,15 @@ export function CopyTradeDashboard() {
           setLeaderboard(Array.from(unique.values()))
         }
       }
+
+      const [settingsRes, tradersList] = await Promise.all([
+        httpClient.get('/api/copy-trade/settings', headers),
+        api.getTraders().catch(() => [] as TraderInfo[]),
+      ])
+      if (settingsRes.ok) {
+        setCopyTradeSettings(await settingsRes.json())
+      }
+      setAiTraders(tradersList)
     } catch (e) {
       console.error(e)
     } finally {
@@ -385,8 +408,24 @@ export function CopyTradeDashboard() {
   const safeRecords = records ?? []
   const safeConfigs = configs ?? []
   const activeConfigs = safeConfigs.filter(c => c.enabled)
+  const hasAutoFollow = safeConfigs.some(c => c.enabled && c.auto_follow)
+  const showAiTraderWarning = hasAutoFollow && !copyTradeSettings.ai_trader_id
   const uniqueOpenCount = countUniqueOpenPositions(safeRecords)
   const openAggregated = aggregateOpenPositions(safeRecords)
+
+  const handleSaveAiTrader = async (aiTraderId: string) => {
+    setSavingAiTrader(true)
+    try {
+      await api.updateCopyTradeSettings(aiTraderId)
+      const settings = await api.getCopyTradeSettings()
+      setCopyTradeSettings(settings)
+      setMessage(aiTraderId ? 'AI 交易员设置已保存' : '已清除 AI 交易员设置，将使用默认模型')
+    } catch (e: any) {
+      setMessage('保存失败: ' + (e.message || '未知错误'))
+    } finally {
+      setSavingAiTrader(false)
+    }
+  }
 
   return (
     <div>
@@ -394,7 +433,7 @@ export function CopyTradeDashboard() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold" style={{ color: '#EAECEF' }}>跟单管理</h1>
         <p className="text-sm mt-1" style={{ color: '#848E9C' }}>
-          {activeConfigs.length} 个交易员已启用 · {uniqueOpenCount} 个持仓
+          {activeConfigs.length} 个带单员已启用 · {uniqueOpenCount} 个持仓
         </p>
       </div>
 
@@ -411,7 +450,7 @@ export function CopyTradeDashboard() {
           className="flex-1 py-2 px-4 rounded text-sm font-semibold transition-all"
           style={{ background: activeTab === 'traders' ? '#F0B90B' : 'transparent', color: activeTab === 'traders' ? '#0B0E11' : '#848E9C' }}
         >
-          交易员配置
+          带单员配置
         </button>
         <button
           onClick={() => setActiveTab('records')}
@@ -439,6 +478,70 @@ export function CopyTradeDashboard() {
       {activeTab === 'traders' && (
         <div className="space-y-3">
           <div
+            className="p-3 rounded-lg text-xs space-y-3"
+            style={{ background: '#1E2329', border: '1px solid #2B3139' }}
+          >
+            <div className="font-semibold text-sm" style={{ color: '#EAECEF' }}>
+              跟单 AI 分析交易员
+            </div>
+            <p style={{ color: '#848E9C' }}>
+              自动监控、排行榜单笔跟单开单时，由所选 AI 交易员绑定的模型进行风控分析。
+            </p>
+            {aiTraders.length === 0 ? (
+              <div className="space-y-2">
+                <p style={{ color: '#5E6673' }}>尚未创建 AI 交易员，请先前往配置页创建。</p>
+                <button
+                  type="button"
+                  onClick={() => navigate('/traders')}
+                  className="px-3 py-1.5 rounded text-xs font-semibold"
+                  style={{ background: '#F0B90B', color: '#0B0E11' }}
+                >
+                  前往创建 AI 交易员
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={copyTradeSettings.ai_trader_id}
+                  disabled={savingAiTrader}
+                  onChange={(e) => handleSaveAiTrader(e.target.value)}
+                  className="flex-1 min-w-[200px] px-3 py-2 rounded text-sm"
+                  style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }}
+                >
+                  <option value="">未选择（使用默认已启用模型）</option>
+                  {aiTraders.map((t) => (
+                    <option key={t.trader_id} value={t.trader_id}>
+                      {t.trader_name} · {t.ai_model.split('_').pop() || t.ai_model}
+                    </option>
+                  ))}
+                </select>
+                {savingAiTrader && (
+                  <span style={{ color: '#F0B90B' }}>保存中…</span>
+                )}
+              </div>
+            )}
+            {copyTradeSettings.ai_trader_id && copyTradeSettings.ai_model_name && (
+              <p style={{ color: '#5E6673' }}>
+                当前模型：{copyTradeSettings.ai_model_name}
+              </p>
+            )}
+            {!copyTradeSettings.ai_trader_id && copyTradeSettings.fallback_used && copyTradeSettings.ai_model_name && (
+              <p style={{ color: '#5E6673' }}>
+                当前回退使用：{copyTradeSettings.ai_model_name}
+              </p>
+            )}
+          </div>
+
+          {showAiTraderWarning && (
+            <div
+              className="p-3 rounded-lg text-xs"
+              style={{ background: 'rgba(240,185,11,0.1)', border: '1px solid rgba(240,185,11,0.2)', color: '#F0B90B' }}
+            >
+              已开启自动监控但未选择 AI 交易员，将回退使用第一个已启用的 AI 模型。建议明确选择用于跟单分析的交易员。
+            </div>
+          )}
+
+          <div
             className="p-3 rounded-lg text-xs space-y-2"
             style={{ background: '#1E2329', border: '1px solid #2B3139', color: '#848E9C' }}
           >
@@ -447,16 +550,16 @@ export function CopyTradeDashboard() {
             </div>
             <ul className="list-disc list-inside space-y-1 leading-relaxed">
               <li>
-                <span style={{ color: '#EAECEF' }}>点击交易员行</span>
+                <span style={{ color: '#EAECEF' }}>点击带单员行</span>
                 ：加入或移出跟单名单（启用 / 禁用），不会自动下单
               </li>
               <li>
                 <span style={{ color: '#EAECEF' }}>自动监控</span>
-                ：仅对已启用交易员生效，每 5 分钟 AI 分析并自动跟单
+                ：仅对已启用带单员生效，每 5 分钟由所选 AI 交易员分析并自动跟单
               </li>
               <li>
                 <span style={{ color: '#EAECEF' }}>手动跟单同步</span>
-                ：立即对所有已启用交易员执行一次同步（拉带单、对齐交易所持仓与记录）
+                ：立即对所有已启用带单员执行一次同步（拉带单、对齐交易所持仓与记录）
               </li>
             </ul>
           </div>
@@ -494,7 +597,7 @@ export function CopyTradeDashboard() {
               </div>
               <div className="text-[11px] mt-1 leading-relaxed" style={{ color: '#5E6673' }}>
                 勾选后立即执行一次，处理当前所有已启用带单员；与「自动监控」无关，不会定时重复。
-                {activeConfigs.length === 0 && '（请先启用至少一名交易员）'}
+                {activeConfigs.length === 0 && '（请先启用至少一名带单员）'}
               </div>
             </div>
           </label>
@@ -591,7 +694,7 @@ export function CopyTradeDashboard() {
         <div>
           {safeRecords.length === 0 ? (
             <div className="text-center py-10 text-sm" style={{ color: '#5E6673' }}>
-              暂无跟单记录，请先在「交易员配置」启用带单员并勾选「手动跟单同步」
+              暂无跟单记录，请先在「带单员配置」启用带单员并勾选「手动跟单同步」
             </div>
           ) : (
             <div className="space-y-8">

@@ -166,6 +166,8 @@ func (s *Server) setupRoutes() {
 			protected.GET("/copy-trade/configs", s.handleGetCopyTradeConfigs)
 			protected.POST("/copy-trade/configs", s.handleUpdateCopyTradeConfig)
 			protected.DELETE("/copy-trade/configs/:id", s.handleDeleteCopyTradeConfig)
+			protected.GET("/copy-trade/settings", s.handleGetCopyTradeSettings)
+			protected.PUT("/copy-trade/settings", s.handleUpdateCopyTradeSettings)
 			protected.GET("/copy-trade/records", s.handleGetCopyTradeRecords)
 			protected.GET("/copy-trade/monitor", s.handleGetCopyTradeMonitor)
 			protected.POST("/copy-trade/refresh-pnl", s.handleRefreshCopyTradePnL)
@@ -2152,19 +2154,13 @@ func (s *Server) runAutoFollowForUser(userID string) {
 		return
 	}
 
-	aiModels, _ := s.database.GetAIModels(userID)
-	var aiCfg *config.AIModelConfig
-	for _, m := range aiModels {
-		if m.Enabled {
-			aiCfg = m
-			break
-		}
-	}
-	if aiCfg == nil {
-		s.insertCopyTradeRunEvent(runID, userID, "", "", "", "no_ai", "", "", "NONE", "无可用AI模型", 0)
+	aiResult, aiErr := s.resolveCopyTradeAI(userID)
+	if aiErr != nil {
+		s.insertCopyTradeRunEvent(runID, userID, "", "", "", "no_ai", "", "", "NONE", aiErr.Error(), 0)
 		counters.failed++
 		return
 	}
+	aiCfg := aiResult.AICfg
 
 	fTrader := trader.NewFuturesTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, userID, exchangeCfg.Testnet)
 	balance, _ := fTrader.GetBalance()
@@ -3479,16 +3475,16 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 	}
 
 	// AI分析
-	aiModels, _ := s.database.GetAIModels(userID)
+	aiResult, aiErr := s.resolveCopyTradeAI(userID)
 	var aiCfg *config.AIModelConfig
-	for _, m := range aiModels {
-		if m.Enabled {
-			aiCfg = m
-			break
-		}
+	if aiErr == nil {
+		aiCfg = aiResult.AICfg
 	}
 
 	aiAnalysis := "AI分析不可用（无可用模型）"
+	if aiErr != nil {
+		aiAnalysis = aiErr.Error()
+	}
 	recommendedQty := req.ExecutedQty * 0.1 // 默认10%
 
 	if aiCfg != nil {

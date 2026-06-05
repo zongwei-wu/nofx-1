@@ -368,6 +368,32 @@ export const api = {
     if (!res.ok) throw new Error('保存用户信号源配置失败')
   },
 
+  async getCopyTradeSettings(): Promise<{
+    ai_trader_id: string
+    ai_trader_name?: string
+    ai_model_name?: string
+    fallback_used?: boolean
+  }> {
+    const res = await httpClient.get(
+      `${API_BASE}/copy-trade/settings`,
+      getAuthHeaders()
+    )
+    if (!res.ok) throw new Error('获取跟单设置失败')
+    return res.json()
+  },
+
+  async updateCopyTradeSettings(aiTraderId: string): Promise<void> {
+    const res = await httpClient.put(
+      `${API_BASE}/copy-trade/settings`,
+      { ai_trader_id: aiTraderId },
+      getAuthHeaders()
+    )
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error((data as { error?: string }).error || '保存跟单设置失败')
+    }
+  },
+
   // 获取服务器IP（需要认证，用于白名单配置）
   async getServerIP(): Promise<{
     public_ip: string

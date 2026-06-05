@@ -47,6 +47,8 @@ type DatabaseInterface interface {
 	GetCustomCoins() []string
 	GetUserSymbolPreferences(userID string) (*UserSymbolPreferences, error)
 	UpsertUserSymbolPreferences(userID string, symbols []string, useCustomOrder bool) error
+	GetCopyTradeSettings(userID string) (*CopyTradeSettings, error)
+	UpsertCopyTradeSettings(userID, aiTraderID string) error
 	LoadBetaCodesFromFile(filePath string) error
 	ValidateBetaCode(code string) (bool, error)
 	UseBetaCode(code, userEmail string) error
@@ -382,6 +384,12 @@ func (d *Database) createTables() error {
 		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 	)`)
 
+	d.db.Exec(`CREATE TABLE IF NOT EXISTS copy_trade_settings (
+		user_id TEXT PRIMARY KEY,
+		ai_trader_id TEXT NOT NULL DEFAULT '',
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
+
 	return nil
 }
 
@@ -601,6 +609,13 @@ type TraderRecord struct {
 	IsCrossMargin        bool      `json:"is_cross_margin"`        // 是否为全仓模式（true=全仓，false=逐仓）
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
+}
+
+// CopyTradeSettings 跟单全局设置
+type CopyTradeSettings struct {
+	UserID     string    `json:"user_id"`
+	AITraderID string    `json:"ai_trader_id"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 // UserSymbolPreferences 用户币种排序偏好
@@ -1245,6 +1260,42 @@ func (d *Database) GetCustomCoins() []string {
 		}
 	}
 	return symbols
+}
+
+// GetCopyTradeSettings 获取跟单全局设置
+func (d *Database) GetCopyTradeSettings(userID string) (*CopyTradeSettings, error) {
+	var aiTraderID string
+	var updatedAt time.Time
+	err := d.db.QueryRow(`
+		SELECT ai_trader_id, updated_at
+		FROM copy_trade_settings WHERE user_id = ?
+	`, userID).Scan(&aiTraderID, &updatedAt)
+	if err == sql.ErrNoRows {
+		return &CopyTradeSettings{
+			UserID:     userID,
+			AITraderID: "",
+		}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &CopyTradeSettings{
+		UserID:     userID,
+		AITraderID: aiTraderID,
+		UpdatedAt:  updatedAt,
+	}, nil
+}
+
+// UpsertCopyTradeSettings 保存跟单全局设置
+func (d *Database) UpsertCopyTradeSettings(userID, aiTraderID string) error {
+	_, err := d.db.Exec(`
+		INSERT INTO copy_trade_settings (user_id, ai_trader_id, updated_at)
+		VALUES (?, ?, CURRENT_TIMESTAMP)
+		ON CONFLICT(user_id) DO UPDATE SET
+			ai_trader_id = excluded.ai_trader_id,
+			updated_at = CURRENT_TIMESTAMP
+	`, userID, aiTraderID)
+	return err
 }
 
 // GetUserSymbolPreferences 获取用户币种排序偏好

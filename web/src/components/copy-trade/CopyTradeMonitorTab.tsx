@@ -15,7 +15,7 @@ const ACTION_LABELS: Record<string, string> = {
   open_failed: '开仓失败',
   fetch_failed: '拉单失败',
   no_exchange: '无交易所',
-  no_ai: '无AI模型',
+  no_ai: '无AI模型/未选交易员',
   lead_other: '其他操作',
 }
 
@@ -128,8 +128,16 @@ function CountdownBar({
   )
 }
 
+interface CopyTradeSettings {
+  ai_trader_id: string
+  ai_trader_name?: string
+  ai_model_name?: string
+  fallback_used?: boolean
+}
+
 export function CopyTradeMonitorTab() {
   const [data, setData] = useState<MonitorData | null>(null)
+  const [settings, setSettings] = useState<CopyTradeSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [expandedRunId, setExpandedRunId] = useState<number | null>(null)
@@ -137,15 +145,20 @@ export function CopyTradeMonitorTab() {
   const load = useCallback(async () => {
     try {
       const token = localStorage.getItem('auth_token')
-      const res = await httpClient.get('/api/copy-trade/monitor', {
-        Authorization: token ? `Bearer ${token}` : '',
-      })
+      const headers = { Authorization: token ? `Bearer ${token}` : '' }
+      const [res, settingsRes] = await Promise.all([
+        httpClient.get('/api/copy-trade/monitor', headers),
+        httpClient.get('/api/copy-trade/settings', headers),
+      ])
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         setError((err as { error?: string }).error || '加载失败')
         return
       }
       setData(await res.json())
+      if (settingsRes.ok) {
+        setSettings(await settingsRes.json())
+      }
       setError('')
     } catch (e) {
       setError('网络错误')
@@ -185,8 +198,19 @@ export function CopyTradeMonitorTab() {
 
   const lastRun = data.last_run as Record<string, unknown> | null
 
+  const showAiTraderHint = !settings?.ai_trader_id
+
   return (
     <div className="space-y-6">
+      {showAiTraderHint && (
+        <div
+          className="p-3 rounded-lg text-xs"
+          style={{ background: 'rgba(240,185,11,0.1)', border: '1px solid rgba(240,185,11,0.2)', color: '#F0B90B' }}
+        >
+          未在「带单员配置」中选择跟单 AI 分析交易员，开单分析将回退使用默认已启用模型。建议在带单员配置页明确选择。
+        </div>
+      )}
+
       {/* 执行摘要 */}
       <div className="p-4 rounded-lg" style={{ background: '#1E2329', border: '1px solid #2B3139' }}>
         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -249,7 +273,7 @@ export function CopyTradeMonitorTab() {
         </h2>
         {monitoredTraders.length === 0 ? (
           <div className="text-center py-8 text-sm rounded-lg" style={{ background: '#1E2329', color: '#5E6673' }}>
-            暂无自动监控的交易员。请在「交易员配置」中勾选「自动监控」。
+            暂无自动监控的带单员。请在「带单员配置」中勾选「自动监控」。
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
