@@ -2416,6 +2416,7 @@ func (s *Server) runAutoFollowForUser(userID string) {
 					InputPrompt: prompt, AIResponseRaw: resp, DecisionJSON: decisionJSON,
 					Feasible: aiFeasible, RecommendedQty: aiQty, Reasoning: aiReason, Suggestion: aiSuggestion,
 					ActionTaken: actionTaken, Success: false,
+					AITraderID: aiResult.AITraderID, AITraderName: aiResult.AITraderName,
 				})
 				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "ai_rejected",
 					order.Side, tradePosSide, ourSt, aiReason, order.OrderTime)
@@ -2442,6 +2443,7 @@ func (s *Server) runAutoFollowForUser(userID string) {
 					InputPrompt: prompt, AIResponseRaw: resp, DecisionJSON: decisionJSON,
 					Feasible: true, RecommendedQty: aiQty, Reasoning: aiReason, Suggestion: aiSuggestion,
 					ActionTaken: "open_failed", Success: false,
+					AITraderID: aiResult.AITraderID, AITraderName: aiResult.AITraderName,
 				})
 				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "open_failed",
 					order.Side, tradePosSide, ourSt, tradeErr.Error(), order.OrderTime)
@@ -2472,6 +2474,7 @@ func (s *Server) runAutoFollowForUser(userID string) {
 				InputPrompt: prompt, AIResponseRaw: resp, DecisionJSON: decisionJSON,
 				Feasible: true, RecommendedQty: actualQty, Reasoning: aiReason, Suggestion: aiSuggestion,
 				ActionTaken: "copied_open", Success: aiSuccess,
+				AITraderID: aiResult.AITraderID, AITraderName: aiResult.AITraderName,
 			})
 
 			s.database.DB().Exec(`
@@ -3428,6 +3431,27 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 		posSummary = "  无持仓\n"
 	}
 
+	copyAI, copyAIErr := s.resolveCopyTradeAI(userID)
+	aiTraderID := ""
+	aiTraderName := ""
+	var aiCfg *config.AIModelConfig
+	if copyAIErr == nil {
+		aiCfg = copyAI.AICfg
+		aiTraderID = copyAI.AITraderID
+		aiTraderName = copyAI.AITraderName
+	}
+
+	recordCopyDecision := func(p copyTradeAIDecisionParams) {
+		p.UserID = userID
+		p.RunID = 0
+		p.PortfolioID = req.PortfolioID
+		p.Nickname = req.Nickname
+		p.Symbol = req.Symbol
+		p.AITraderID = aiTraderID
+		p.AITraderName = aiTraderName
+		s.insertCopyTradeAIDecision(p)
+	}
+
 	// 如果skip_ai=true, 直接执行
 	if req.SkipAI {
 		aiQty := req.ExecutedQty
@@ -3439,6 +3463,12 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 			tradeResult, tradeErr = fTrader.OpenShort(req.Symbol, aiQty, 5)
 		}
 		if tradeErr != nil {
+			recordCopyDecision(copyTradeAIDecisionParams{
+				RecommendedQty: aiQty,
+				Reasoning:      tradeErr.Error(),
+				ActionTaken:    "open_failed",
+				Success:        false,
+			})
 			logger.NotifyTrade(logger.TradeNotifyParams{
 				Source: "跟单-单笔", Status: logger.TradeStatusFailed, Action: "跟单开仓",
 				Symbol: req.Symbol, Side: req.Side, PositionSide: tradePosSide, Qty: aiQty,
@@ -3458,6 +3488,12 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 				actualPrice = p
 			}
 		}
+		recordCopyDecision(copyTradeAIDecisionParams{
+			RecommendedQty: actualQty,
+			ActionTaken:    "copied_open",
+			Success:        true,
+			Feasible:       true,
+		})
 		s.database.DB().Exec(`
 			INSERT INTO copy_trade_records 
 			(user_id, portfolio_id, nickname, order_id, symbol, side, position_side,
@@ -3475,20 +3511,27 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 	}
 
 	// AI分析
-	aiResult, aiErr := s.resolveCopyTradeAI(userID)
-	var aiCfg *config.AIModelConfig
-	if aiErr == nil {
-		aiCfg = aiResult.AICfg
-	}
-
 	aiAnalysis := "AI分析不可用（无可用模型）"
-	if aiErr != nil {
-		aiAnalysis = aiErr.Error()
+	if copyAIErr != nil {
+		aiAnalysis = copyAIErr.Error()
 	}
-	recommendedQty := req.ExecutedQty * 0.1 // 默认10%
+	recommendedQty := req.ExecutedQty * 0.1
 
-	if aiCfg != nil {
-		// 创建AI客户端
+	var (
+		inputPrompt   string
+		aiResponseRaw string
+		decisionJSON  string
+		actionTaken   = "ai_error"
+		feasible      bool
+		reasoning     string
+		suggestion    string
+		decisionSuccess bool
+	)
+
+	if aiCfg == nil {
+		reasoning = aiAnalysis
+		actionTaken = "ai_error"
+	} else {
 		mcpClient := mcp.New()
 		if aiCfg.Provider == "deepseek" {
 			mcpClient = mcp.NewDeepSeekClient()
@@ -3504,8 +3547,7 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 			dir = "卖出开空"
 		}
 
-		// 限制AI的单次调用，防止超时
-		prompt := fmt.Sprintf(`你是一个专业的加密货币期货交易风控分析师。请分析以下跟单交易请求，给出仓位大小建议。
+		inputPrompt = fmt.Sprintf(`你是一个专业的加密货币期货交易风控分析师。请分析以下跟单交易请求，给出仓位大小建议。
 
 ## 当前账户状态
 - 账户总权益: %.2f USDT
@@ -3540,65 +3582,88 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 
 		systemPrompt := "你是一个专业的加密合约交易风控分析师，请基于账户状况给出合理的跟单仓位建议。回答要简洁专业。"
 
-		aiResponse, aiErr := mcpClient.CallWithMessages(systemPrompt, prompt)
-		if aiErr == nil && aiResponse != "" {
-			// 尝试解析JSON
-			var aiResult struct {
-				Feasible       bool    `json:"feasible"`
-				Reasoning      string  `json:"reasoning"`
-				RecommendedRatio float64 `json:"recommended_ratio"`
-				RecommendedQty float64 `json:"recommended_qty"`
-				MaxRiskUSD     float64 `json:"max_risk_usd"`
-				Suggestion     string  `json:"suggestion"`
-			}
-			// 尝试从AI响应中提取JSON
+		aiResponse, llmErr := mcpClient.CallWithMessages(systemPrompt, inputPrompt)
+		if llmErr != nil {
+			log.Printf("⚠️ AI分析失败: %v", llmErr)
+			aiAnalysis = fmt.Sprintf("AI分析不可用: %v", llmErr)
+			reasoning = aiAnalysis
+			actionTaken = "ai_error"
+		} else if aiResponse == "" {
+			aiAnalysis = "AI分析不可用: 空响应"
+			reasoning = aiAnalysis
+			actionTaken = "ai_error"
+		} else {
+			aiResponseRaw = aiResponse
 			cleaned := strings.TrimSpace(aiResponse)
 			if jsonStart := strings.Index(cleaned, "{"); jsonStart >= 0 {
 				if jsonEnd := strings.LastIndex(cleaned, "}"); jsonEnd > jsonStart {
-					cleaned = cleaned[jsonStart : jsonEnd+1]
+					decisionJSON = cleaned[jsonStart : jsonEnd+1]
+					cleaned = decisionJSON
 				}
 			}
-			if jsonErr := json.Unmarshal([]byte(cleaned), &aiResult); jsonErr == nil {
-				if !aiResult.Feasible {
-					rejectReason := aiResult.Reasoning
-					if aiResult.Suggestion != "" {
-						rejectReason = aiResult.Suggestion
-						if aiResult.Reasoning != "" {
-							rejectReason = aiResult.Suggestion + "\n" + aiResult.Reasoning
+			var parsedAI struct {
+				Feasible         bool    `json:"feasible"`
+				Reasoning        string  `json:"reasoning"`
+				RecommendedRatio float64 `json:"recommended_ratio"`
+				RecommendedQty   float64 `json:"recommended_qty"`
+				Suggestion       string  `json:"suggestion"`
+			}
+			if jsonErr := json.Unmarshal([]byte(cleaned), &parsedAI); jsonErr == nil {
+				feasible = parsedAI.Feasible
+				reasoning = parsedAI.Reasoning
+				suggestion = parsedAI.Suggestion
+				if !feasible {
+					rejectReason := parsedAI.Reasoning
+					if parsedAI.Suggestion != "" {
+						rejectReason = parsedAI.Suggestion
+						if parsedAI.Reasoning != "" {
+							rejectReason = parsedAI.Suggestion + "\n" + parsedAI.Reasoning
 						}
 					}
 					aiAnalysis = rejectReason
+					actionTaken = "ai_rejected"
 					logger.NotifyTrade(logger.TradeNotifyParams{
 						Source: "跟单-单笔", Status: logger.TradeStatusAIReject, Action: "跟单开仓",
 						Symbol: req.Symbol, Side: req.Side, PositionSide: tradePosSide,
 						TraderOrNickname: req.Nickname, Reason: rejectReason,
 					})
 				} else {
-					aiAnalysis = aiResult.Reasoning
-					if aiResult.Suggestion != "" {
-						aiAnalysis = aiResult.Suggestion + "\n" + aiResult.Reasoning
+					aiAnalysis = parsedAI.Reasoning
+					if parsedAI.Suggestion != "" {
+						aiAnalysis = parsedAI.Suggestion + "\n" + parsedAI.Reasoning
 					}
-					if aiResult.RecommendedQty > 0 {
-						recommendedQty = aiResult.RecommendedQty
-					} else if aiResult.RecommendedRatio > 0 {
-						recommendedQty = req.ExecutedQty * aiResult.RecommendedRatio
+					if parsedAI.RecommendedQty > 0 {
+						recommendedQty = parsedAI.RecommendedQty
+					} else if parsedAI.RecommendedRatio > 0 {
+						recommendedQty = req.ExecutedQty * parsedAI.RecommendedRatio
 					}
-					log.Printf("  🤖 AI分析: 可行=%v 建议比例=%.2f 建议数量=%.4f", aiResult.Feasible, aiResult.RecommendedRatio, recommendedQty)
+					actionTaken = "pending_confirm"
+					decisionSuccess = true
+					log.Printf("  🤖 AI分析: 可行=%v 建议比例=%.2f 建议数量=%.4f", parsedAI.Feasible, parsedAI.RecommendedRatio, recommendedQty)
 				}
 			} else {
-				// JSON解析失败，使用原始响应
 				aiAnalysis = aiResponse
 				if len(aiAnalysis) > 500 {
 					aiAnalysis = aiAnalysis[:500]
 				}
+				reasoning = "AI 响应 JSON 解析失败"
+				actionTaken = "parse_failed"
 			}
-		} else if aiErr != nil {
-			log.Printf("⚠️ AI分析失败: %v", aiErr)
-			aiAnalysis = fmt.Sprintf("AI分析不可用: %v", aiErr)
 		}
 	}
 
-	// 返回分析结果给前端确认
+	recordCopyDecision(copyTradeAIDecisionParams{
+		InputPrompt:    inputPrompt,
+		AIResponseRaw:  aiResponseRaw,
+		DecisionJSON:   decisionJSON,
+		Feasible:       feasible,
+		RecommendedQty: recommendedQty,
+		Reasoning:      reasoning,
+		Suggestion:     suggestion,
+		ActionTaken:    actionTaken,
+		Success:        decisionSuccess,
+	})
+
 	c.JSON(http.StatusOK, gin.H{
 		"need_confirm":    true,
 		"ai_analysis":     aiAnalysis,

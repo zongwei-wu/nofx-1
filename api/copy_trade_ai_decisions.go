@@ -12,20 +12,22 @@ import (
 
 // copyTradeAIDecisionParams 跟单 AI 风控分析写入参数
 type copyTradeAIDecisionParams struct {
-	UserID        string
-	RunID         int64
-	PortfolioID   string
-	Nickname      string
-	Symbol        string
-	InputPrompt   string
-	AIResponseRaw string
-	DecisionJSON  string
-	Feasible      bool
+	UserID         string
+	RunID          int64
+	PortfolioID    string
+	Nickname       string
+	Symbol         string
+	InputPrompt    string
+	AIResponseRaw  string
+	DecisionJSON   string
+	Feasible       bool
 	RecommendedQty float64
-	Reasoning     string
-	Suggestion    string
-	ActionTaken   string
-	Success       bool
+	Reasoning      string
+	Suggestion     string
+	ActionTaken    string
+	Success        bool
+	AITraderID     string
+	AITraderName   string
 }
 
 func (s *Server) insertCopyTradeAIDecision(p copyTradeAIDecisionParams) {
@@ -40,10 +42,12 @@ func (s *Server) insertCopyTradeAIDecision(p copyTradeAIDecisionParams) {
 	_, err := s.database.DB().Exec(`
 		INSERT INTO copy_trade_ai_decisions
 		(user_id, run_id, portfolio_id, nickname, symbol, input_prompt, ai_response_raw,
-		 decision_json, feasible, recommended_qty, reasoning, suggestion, action_taken, success)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 decision_json, feasible, recommended_qty, reasoning, suggestion, action_taken, success,
+		 ai_trader_id, ai_trader_name)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.UserID, p.RunID, p.PortfolioID, p.Nickname, p.Symbol, p.InputPrompt, p.AIResponseRaw,
-		p.DecisionJSON, feasible, p.RecommendedQty, p.Reasoning, p.Suggestion, p.ActionTaken, success)
+		p.DecisionJSON, feasible, p.RecommendedQty, p.Reasoning, p.Suggestion, p.ActionTaken, success,
+		p.AITraderID, p.AITraderName)
 	if err != nil {
 		log.Printf("⚠️ 写入跟单 AI 决策失败: %v", err)
 	}
@@ -65,13 +69,16 @@ type copyTradeAIDecisionRow struct {
 	Suggestion     string
 	ActionTaken    string
 	Success        bool
+	AITraderID     string
+	AITraderName   string
 	CreatedAt      time.Time
 }
 
 func (s *Server) getLatestCopyTradeAIDecisions(userID string, limit int) ([]copyTradeAIDecisionRow, error) {
 	rows, err := s.database.DB().Query(`
 		SELECT id, user_id, run_id, portfolio_id, nickname, symbol, input_prompt, ai_response_raw,
-		       decision_json, feasible, recommended_qty, reasoning, suggestion, action_taken, success, created_at
+		       decision_json, feasible, recommended_qty, reasoning, suggestion, action_taken, success,
+		       ai_trader_id, ai_trader_name, created_at
 		FROM copy_trade_ai_decisions
 		WHERE user_id = ?
 		ORDER BY id DESC
@@ -88,7 +95,8 @@ func (s *Server) getLatestCopyTradeAIDecisions(userID string, limit int) ([]copy
 		var createdAt sql.NullString
 		if err := rows.Scan(&r.ID, &r.UserID, &r.RunID, &r.PortfolioID, &r.Nickname, &r.Symbol,
 			&r.InputPrompt, &r.AIResponseRaw, &r.DecisionJSON, &feasible, &r.RecommendedQty,
-			&r.Reasoning, &r.Suggestion, &r.ActionTaken, &success, &createdAt); err != nil {
+			&r.Reasoning, &r.Suggestion, &r.ActionTaken, &success,
+			&r.AITraderID, &r.AITraderName, &createdAt); err != nil {
 			continue
 		}
 		r.Feasible = feasible != 0
@@ -116,14 +124,19 @@ type decisionRecordResponse struct {
 
 func copyTradeRowToDecisionResponse(row copyTradeAIDecisionRow) decisionRecordResponse {
 	action := "copy_reject"
-	if row.ActionTaken == "copied_open" {
+	switch row.ActionTaken {
+	case "copied_open":
 		if row.Symbol != "" {
 			action = "copy_follow"
 		}
-	} else if row.ActionTaken == "open_failed" {
+	case "open_failed":
 		action = "copy_follow_failed"
-	} else if row.ActionTaken == "ai_error" {
+	case "ai_error", "parse_failed":
 		action = "copy_ai_error"
+	case "pending_confirm", "pending_open":
+		action = "copy_pending"
+	case "ai_rejected":
+		action = "copy_reject"
 	}
 
 	cotTrace := row.AIResponseRaw
@@ -137,11 +150,11 @@ func copyTradeRowToDecisionResponse(row copyTradeAIDecisionRow) decisionRecordRe
 	decisionJSON := row.DecisionJSON
 	if decisionJSON == "" && row.Reasoning != "" {
 		b, _ := json.Marshal(map[string]interface{}{
-			"feasible":          row.Feasible,
-			"reasoning":         row.Reasoning,
-			"suggestion":        row.Suggestion,
-			"recommended_qty":   row.RecommendedQty,
-			"action_taken":      row.ActionTaken,
+			"feasible":        row.Feasible,
+			"reasoning":       row.Reasoning,
+			"suggestion":      row.Suggestion,
+			"recommended_qty": row.RecommendedQty,
+			"action_taken":    row.ActionTaken,
 		})
 		decisionJSON = string(b)
 	}
@@ -149,6 +162,20 @@ func copyTradeRowToDecisionResponse(row copyTradeAIDecisionRow) decisionRecordRe
 	execLog := []string{fmt.Sprintf("跟单风控: %s", row.ActionTaken)}
 	if row.Reasoning != "" {
 		execLog = append(execLog, row.Reasoning)
+	}
+
+	meta := map[string]interface{}{
+		"nickname":     row.Nickname,
+		"portfolio_id": row.PortfolioID,
+		"action_taken": row.ActionTaken,
+		"feasible":     row.Feasible,
+		"run_id":       row.RunID,
+	}
+	if row.AITraderID != "" {
+		meta["ai_trader_id"] = row.AITraderID
+	}
+	if row.AITraderName != "" {
+		meta["ai_trader_name"] = row.AITraderName
 	}
 
 	return decisionRecordResponse{
@@ -179,14 +206,8 @@ func copyTradeRowToDecisionResponse(row copyTradeAIDecisionRow) decisionRecordRe
 				return row.ActionTaken
 			}(),
 		},
-		Source: "copy_trade",
-		CopyTradeMeta: map[string]interface{}{
-			"nickname":      row.Nickname,
-			"portfolio_id":  row.PortfolioID,
-			"action_taken":  row.ActionTaken,
-			"feasible":      row.Feasible,
-			"run_id":        row.RunID,
-		},
+		Source:        "copy_trade",
+		CopyTradeMeta: meta,
 	}
 }
 

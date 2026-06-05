@@ -799,6 +799,12 @@ function DecisionCard({
                   · {decision.copy_trade_meta.nickname}
                 </span>
               )}
+              {decision.copy_trade_meta?.ai_trader_name && (
+                <span style={{ color: '#848E9C' }}>
+                  {' '}
+                  · {decision.copy_trade_meta.ai_trader_name}
+                </span>
+              )}
               {decision.decisions?.[0]?.symbol && (
                 <span className="font-mono text-sm ml-1" style={{ color: '#848E9C' }}>
                   {decision.decisions[0].symbol.replace('USDT', '')}

@@ -88,6 +88,8 @@ export interface DecisionRecord {
     action_taken: string
     feasible?: boolean
     run_id?: number
+    ai_trader_id?: string
+    ai_trader_name?: string
   }
 }
 

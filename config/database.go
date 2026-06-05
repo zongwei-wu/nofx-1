@@ -372,9 +372,13 @@ func (d *Database) createTables() error {
 		suggestion TEXT NOT NULL DEFAULT '',
 		action_taken TEXT NOT NULL DEFAULT '',
 		success INTEGER NOT NULL DEFAULT 0,
+		ai_trader_id TEXT NOT NULL DEFAULT '',
+		ai_trader_name TEXT NOT NULL DEFAULT '',
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 	d.db.Exec(`CREATE INDEX IF NOT EXISTS idx_copy_trade_ai_decisions_user ON copy_trade_ai_decisions(user_id, created_at DESC)`)
+	d.db.Exec(`ALTER TABLE copy_trade_ai_decisions ADD COLUMN ai_trader_id TEXT NOT NULL DEFAULT ''`)
+	d.db.Exec(`ALTER TABLE copy_trade_ai_decisions ADD COLUMN ai_trader_name TEXT NOT NULL DEFAULT ''`)
 
 	d.db.Exec(`CREATE TABLE IF NOT EXISTS user_symbol_preferences (
 		user_id TEXT PRIMARY KEY,
