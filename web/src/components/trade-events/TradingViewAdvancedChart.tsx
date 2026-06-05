@@ -2,6 +2,8 @@ import { memo, useEffect, useRef } from 'react'
 import {
   toTradingViewInterval,
   toTradingViewSymbol,
+  DEFAULT_TV_CHART_HEIGHT,
+  TV_COPYRIGHT_HEIGHT,
   type ChartInterval,
 } from './tradingViewUtils'
 
@@ -14,12 +16,27 @@ export interface TradingViewAdvancedChartProps {
   height?: number
 }
 
+function enforceChartHeight(root: HTMLElement, chartHeight: number) {
+  const widget = root.querySelector('.tradingview-widget-container__widget')
+  const iframe = root.querySelector('iframe')
+  if (widget instanceof HTMLElement) {
+    widget.style.height = `${chartHeight}px`
+    widget.style.minHeight = `${chartHeight}px`
+  }
+  if (iframe instanceof HTMLElement) {
+    iframe.style.height = `${chartHeight}px`
+    iframe.style.minHeight = `${chartHeight}px`
+    iframe.style.width = '100%'
+  }
+}
+
 function TradingViewAdvancedChartInner({
   symbol,
   interval,
-  height = 520,
+  height = DEFAULT_TV_CHART_HEIGHT,
 }: TradingViewAdvancedChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const totalHeight = height + TV_COPYRIGHT_HEIGHT
 
   useEffect(() => {
     const container = containerRef.current
@@ -29,11 +46,15 @@ function TradingViewAdvancedChartInner({
 
     const widgetHost = document.createElement('div')
     widgetHost.className = 'tradingview-widget-container__widget'
-    widgetHost.style.height = 'calc(100% - 32px)'
+    widgetHost.style.height = `${height}px`
+    widgetHost.style.minHeight = `${height}px`
     widgetHost.style.width = '100%'
 
     const copyright = document.createElement('div')
     copyright.className = 'tradingview-widget-copyright'
+    copyright.style.height = `${TV_COPYRIGHT_HEIGHT}px`
+    copyright.style.lineHeight = `${TV_COPYRIGHT_HEIGHT}px`
+    copyright.style.fontSize = '11px'
     copyright.innerHTML =
       '<a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">' +
       '<span style="color:#848E9C">TradingView</span></a>'
@@ -43,7 +64,9 @@ function TradingViewAdvancedChartInner({
     script.async = true
     script.src = WIDGET_SCRIPT
     script.textContent = JSON.stringify({
-      autosize: true,
+      autosize: false,
+      width: '100%',
+      height,
       symbol: toTradingViewSymbol(symbol),
       interval: toTradingViewInterval(interval),
       timezone: 'Asia/Shanghai',
@@ -64,16 +87,27 @@ function TradingViewAdvancedChartInner({
     container.appendChild(copyright)
     container.appendChild(script)
 
+    const applyHeight = () => enforceChartHeight(container, height)
+    script.onload = () => {
+      applyHeight()
+      window.setTimeout(applyHeight, 300)
+      window.setTimeout(applyHeight, 1200)
+    }
+
+    const observer = new MutationObserver(applyHeight)
+    observer.observe(container, { childList: true, subtree: true, attributes: true })
+
     return () => {
+      observer.disconnect()
       container.innerHTML = ''
     }
-  }, [symbol, interval])
+  }, [symbol, interval, height])
 
   if (!symbol) {
     return (
       <div
         className="flex items-center justify-center text-sm rounded-lg"
-        style={{ height, color: '#5E6673', background: '#0B0E11' }}
+        style={{ height: totalHeight, color: '#5E6673', background: '#0B0E11' }}
       >
         请选择币种
       </div>
@@ -82,15 +116,25 @@ function TradingViewAdvancedChartInner({
 
   return (
     <div
-      ref={containerRef}
-      className="tradingview-widget-container rounded-lg overflow-hidden"
       style={{
-        height,
+        height: totalHeight,
+        minHeight: totalHeight,
         width: '100%',
-        background: '#0B0E11',
-        border: '1px solid #2B3139',
       }}
-    />
+    >
+      <div
+        ref={containerRef}
+        className="tradingview-widget-container rounded-lg"
+        style={{
+          height: totalHeight,
+          minHeight: totalHeight,
+          width: '100%',
+          background: '#0B0E11',
+          border: '1px solid #2B3139',
+          overflow: 'hidden',
+        }}
+      />
+    </div>
   )
 }
 

@@ -11,7 +11,7 @@ import {
   DEFAULT_CHART_SYMBOL,
 } from './tradeEventChartUtils'
 import { TradingViewAdvancedChart } from './TradingViewAdvancedChart'
-import type { ChartInterval } from './tradingViewUtils'
+import { DEFAULT_TV_CHART_HEIGHT, TV_COPYRIGHT_HEIGHT, type ChartInterval } from './tradingViewUtils'
 import { useSymbolPreferences } from '../../contexts/SymbolPreferencesContext'
 
 export interface TradeEventPriceChartProps {
@@ -27,7 +27,7 @@ export function TradeEventPriceChart({
   traderId,
   portfolioId,
   symbols: symbolsProp,
-  height = 520,
+  height = DEFAULT_TV_CHART_HEIGHT,
 }: TradeEventPriceChartProps) {
   const [interval, setInterval] = useState<ChartInterval>('1h')
   const [symbol, setSymbol] = useState(DEFAULT_CHART_SYMBOL)
@@ -196,7 +196,12 @@ export function TradeEventPriceChart({
       ) : (
         <div
           className="flex items-center justify-center text-sm rounded-lg"
-          style={{ height, color: '#5E6673', background: '#0B0E11', border: '1px solid #2B3139' }}
+          style={{
+            height: height + TV_COPYRIGHT_HEIGHT,
+            color: '#5E6673',
+            background: '#0B0E11',
+            border: '1px solid #2B3139',
+          }}
         >
           请选择币种
         </div>
