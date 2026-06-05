@@ -26,8 +26,10 @@ import {
 interface EquityPoint {
   timestamp: string
   total_equity: number
-  pnl: number
-  pnl_pct: number
+  total_pnl?: number
+  total_pnl_pct?: number
+  pnl?: number
+  pnl_pct?: number
   cycle_number: number
 }
 
@@ -116,26 +118,39 @@ export function EquityChart({ traderId }: EquityChartProps) {
 
   // 计算初始余额（优先从 account 获取配置的初始余额，备选从历史数据反推）
   const initialBalance =
-    account?.initial_balance || // 从交易员配置读取真实初始余额
+    account?.initial_balance ||
     (validHistory[0]
-      ? validHistory[0].total_equity - validHistory[0].pnl
-      : undefined) || // 备选：淨值 - 盈亏
-    1000 // 默认值（与创建交易员时的默认配置一致）
+      ? validHistory[0].total_equity -
+        (validHistory[0].total_pnl ??
+          validHistory[0].pnl ??
+          0)
+      : undefined) ||
+    1000
 
-  // 转换数据格式
+  // 转换数据格式（X 轴用时间戳，避免「时:分」重复导致折线无法绘制）
   const chartData = displayHistory.map((point) => {
-    const pnl = point.total_equity - initialBalance
-    const pnlPct = ((pnl / initialBalance) * 100).toFixed(2)
+    const pnl =
+      point.total_pnl ??
+      point.pnl ??
+      point.total_equity - initialBalance
+    const pnlPct =
+      point.total_pnl_pct ??
+      point.pnl_pct ??
+      (initialBalance > 0 ? (pnl / initialBalance) * 100 : 0)
     return {
-      time: new Date(point.timestamp).toLocaleTimeString('zh-CN', {
+      ts: new Date(point.timestamp).getTime(),
+      time: new Date(point.timestamp).toLocaleString('zh-CN', {
+        month: '2-digit',
+        day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
       }),
-      value: displayMode === 'dollar' ? point.total_equity : parseFloat(pnlPct),
+      value:
+        displayMode === 'dollar' ? point.total_equity : Number(pnlPct.toFixed(2)),
       cycle: point.cycle_number,
       raw_equity: point.total_equity,
       raw_pnl: pnl,
-      raw_pnl_pct: parseFloat(pnlPct),
+      raw_pnl_pct: Number(pnlPct.toFixed(2)),
     }
   })
 
@@ -143,24 +158,25 @@ export function EquityChart({ traderId }: EquityChartProps) {
   const isProfit = currentValue.raw_pnl >= 0
 
   // 计算Y轴范围
-  const calculateYDomain = () => {
+  const calculateYDomain = (): [number, number] => {
+    const values = chartData
+      .map((d) => d.value)
+      .filter((v) => Number.isFinite(v))
+    if (values.length === 0) {
+      return displayMode === 'dollar' ? [0, 1000] : [-5, 5]
+    }
     if (displayMode === 'percent') {
-      // 百分比模式：找到最大最小值，留20%余量
-      const values = chartData.map((d) => d.value)
       const minVal = Math.min(...values)
       const maxVal = Math.max(...values)
-      const range = Math.max(Math.abs(maxVal), Math.abs(minVal))
-      const padding = Math.max(range * 0.2, 1) // 至少留1%余量
-      return [Math.floor(minVal - padding), Math.ceil(maxVal + padding)]
-    } else {
-      // 美元模式：以初始余额为基准，上下留10%余量
-      const values = chartData.map((d) => d.value)
-      const minVal = Math.min(...values, initialBalance)
-      const maxVal = Math.max(...values, initialBalance)
-      const range = maxVal - minVal
-      const padding = Math.max(range * 0.15, initialBalance * 0.01) // 至少留1%余量
-      return [Math.floor(minVal - padding), Math.ceil(maxVal + padding)]
+      const range = Math.max(Math.abs(maxVal), Math.abs(minVal), 1)
+      const padding = Math.max(range * 0.2, 0.5)
+      return [minVal - padding, maxVal + padding]
     }
+    const minVal = Math.min(...values, initialBalance)
+    const maxVal = Math.max(...values, initialBalance)
+    const range = maxVal - minVal
+    const padding = Math.max(range * 0.15, initialBalance * 0.01, 1)
+    return [minVal - padding, maxVal + padding]
   }
 
   // 自定义Tooltip - Binance Style
@@ -173,7 +189,7 @@ export function EquityChart({ traderId }: EquityChartProps) {
           style={{ background: '#1E2329', border: '1px solid #2B3139' }}
         >
           <div className="text-xs mb-1" style={{ color: '#848E9C' }}>
-            Cycle #{data.cycle}
+            {data.time} · Cycle #{data.cycle}
           </div>
           <div className="font-bold mono" style={{ color: '#EAECEF' }}>
             {data.raw_equity.toFixed(2)} USDT
@@ -318,21 +334,23 @@ export function EquityChart({ traderId }: EquityChartProps) {
             data={chartData}
             margin={{ top: 10, right: 20, left: 5, bottom: 30 }}
           >
-            <defs>
-              <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#F0B90B" stopOpacity={0.8} />
-                <stop offset="95%" stopColor="#FCD535" stopOpacity={0.2} />
-              </linearGradient>
-            </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#2B3139" />
             <XAxis
-              dataKey="time"
+              dataKey="ts"
+              type="number"
+              domain={['dataMin', 'dataMax']}
               stroke="#5E6673"
               tick={{ fill: '#848E9C', fontSize: 11 }}
               tickLine={{ stroke: '#2B3139' }}
-              interval={Math.floor(chartData.length / 10)}
-              angle={-15}
-              textAnchor="end"
+              tickFormatter={(ts: number) =>
+                new Date(ts).toLocaleString('zh-CN', {
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                })
+              }
+              interval="preserveStartEnd"
+              minTickGap={48}
               height={60}
             />
             <YAxis
@@ -359,18 +377,19 @@ export function EquityChart({ traderId }: EquityChartProps) {
               }}
             />
             <Line
-              type="natural"
+              type="monotone"
               dataKey="value"
-              stroke="url(#colorGradient)"
-              strokeWidth={3}
-              dot={chartData.length > 50 ? false : { fill: '#F0B90B', r: 3 }}
+              stroke="#F0B90B"
+              strokeWidth={2}
+              dot={chartData.length > 80 ? false : { fill: '#F0B90B', r: 2 }}
               activeDot={{
-                r: 6,
+                r: 5,
                 fill: '#FCD535',
                 stroke: '#F0B90B',
                 strokeWidth: 2,
               }}
-              connectNulls={true}
+              connectNulls
+              isAnimationActive={false}
             />
           </LineChart>
         </ResponsiveContainer>
