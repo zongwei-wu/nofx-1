@@ -1,27 +1,17 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import {
-  ComposedChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts'
 import { httpClient } from '../../lib/httpClient'
-import type { TradeEvent, KlinePoint } from './tradeEventTypes'
+import type { TradeEvent } from './tradeEventTypes'
 import { EVENT_TYPE_LABELS, EVENT_TYPE_COLORS } from './tradeEventTypes'
 import {
-  mapKlinesToChartRows,
-  mapEventsToScatterPoints,
   formatEventTime,
   eventTradeAmount,
   normalizeTradingSymbol,
   symbolsMatch,
   pickDefaultChartSymbol,
   DEFAULT_CHART_SYMBOL,
-  type EventScatterPoint,
 } from './tradeEventChartUtils'
+import { TradingViewAdvancedChart } from './TradingViewAdvancedChart'
+import type { ChartInterval } from './tradingViewUtils'
 import { useSymbolPreferences } from '../../contexts/SymbolPreferencesContext'
 
 export interface TradeEventPriceChartProps {
@@ -39,11 +29,10 @@ export function TradeEventPriceChart({
   symbols: symbolsProp,
   height = 360,
 }: TradeEventPriceChartProps) {
-  const [interval, setInterval] = useState<'1h' | '4h'>('1h')
+  const [interval, setInterval] = useState<ChartInterval>('1h')
   const [symbol, setSymbol] = useState(DEFAULT_CHART_SYMBOL)
   const [symbols, setSymbols] = useState<string[]>(symbolsProp || [])
   const [events, setEvents] = useState<TradeEvent[]>([])
-  const [klines, setKlines] = useState<KlinePoint[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [selectedEvent, setSelectedEvent] = useState<TradeEvent | null>(null)
@@ -55,6 +44,7 @@ export function TradeEventPriceChart({
   }, [])
 
   const loadEvents = useCallback(async () => {
+    setLoading(true)
     setError('')
     try {
       const params = new URLSearchParams({ source })
@@ -91,35 +81,14 @@ export function TradeEventPriceChart({
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : '加载失败')
       setEvents([])
-    }
-  }, [source, traderId, portfolioId, authHeaders, symbolsProp])
-
-  const loadKlines = useCallback(async () => {
-    const sym = normalizeTradingSymbol(symbol)
-    if (!sym) return
-    setLoading(true)
-    setError('')
-    try {
-      const params = new URLSearchParams({ symbol: sym, interval, limit: '500' })
-      const kRes = await httpClient.get(`/api/market/klines?${params}`)
-      if (!kRes.ok) throw new Error('K线加载失败')
-      const kData = await kRes.json()
-      setKlines(kData.klines || [])
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'K线加载失败')
-      setKlines([])
     } finally {
       setLoading(false)
     }
-  }, [symbol, interval])
+  }, [source, traderId, portfolioId, authHeaders, symbolsProp])
 
   useEffect(() => {
     loadEvents()
   }, [loadEvents])
-
-  useEffect(() => {
-    loadKlines()
-  }, [loadKlines])
 
   useEffect(() => {
     if (!symbolsProp?.length) return
@@ -138,30 +107,15 @@ export function TradeEventPriceChart({
     setSelectedEvent(null)
   }, [symbol, interval])
 
-  const priceRows = useMemo(() => mapKlinesToChartRows(klines), [klines])
-
   const symEvents = useMemo(
     () => events.filter((ev) => !symbol || symbolsMatch(ev.symbol, symbol)),
     [events, symbol]
   )
 
-  const scatterPoints = useMemo(
-    () => mapEventsToScatterPoints(symEvents, priceRows),
-    [symEvents, priceRows]
+  const sortedEvents = useMemo(
+    () => [...symEvents].sort((a, b) => b.time - a.time).slice(0, 50),
+    [symEvents]
   )
-
-  const chartRows = useMemo(() => {
-    const eventsByTime = new Map<number, EventScatterPoint[]>()
-    for (const p of scatterPoints) {
-      const list = eventsByTime.get(p.timeSec) ?? []
-      list.push(p)
-      eventsByTime.set(p.timeSec, list)
-    }
-    return priceRows.map((row) => ({
-      ...row,
-      eventPoints: eventsByTime.get(row.timeSec) ?? [],
-    }))
-  }, [priceRows, scatterPoints])
 
   const symbolOptions = useMemo(() => {
     const merged = new Set<string>([DEFAULT_CHART_SYMBOL])
@@ -175,27 +129,14 @@ export function TradeEventPriceChart({
     return sortSymbols([...merged])
   }, [symbols, events, sortSymbols])
 
-  const yDomain = useMemo((): [number, number] | undefined => {
-    const prices = [
-      ...priceRows.map((r) => r.close),
-      ...scatterPoints.map((p) => p.price),
-    ].filter((p) => p > 0)
-    if (prices.length === 0) return undefined
-    const min = Math.min(...prices)
-    const max = Math.max(...prices)
-    const pad = (max - min) * 0.05 || max * 0.01
-    return [min - pad, max + pad]
-  }, [priceRows, scatterPoints])
-
   const selectedDetail = useMemo(() => {
     if (!selectedEvent) return null
-    const chartPrice = scatterPoints.find((p) => p.event === selectedEvent)?.price ?? 0
-    const displayPrice = selectedEvent.price > 0 ? selectedEvent.price : chartPrice
+    const displayPrice = selectedEvent.price > 0 ? selectedEvent.price : 0
     return {
       displayPrice,
-      amount: eventTradeAmount(selectedEvent, chartPrice),
+      amount: eventTradeAmount(selectedEvent, displayPrice),
     }
-  }, [selectedEvent, scatterPoints])
+  }, [selectedEvent])
 
   return (
     <div>
@@ -215,7 +156,7 @@ export function TradeEventPriceChart({
         </select>
         <select
           value={interval}
-          onChange={(e) => setInterval(e.target.value as '1h' | '4h')}
+          onChange={(e) => setInterval(e.target.value as ChartInterval)}
           className="text-sm px-3 py-1.5 rounded"
           style={{ background: '#0B0E11', color: '#EAECEF', border: '1px solid #2B3139' }}
         >
@@ -224,14 +165,12 @@ export function TradeEventPriceChart({
         </select>
         <button
           type="button"
-          onClick={() => {
-            loadEvents()
-            loadKlines()
-          }}
+          onClick={() => loadEvents()}
+          disabled={loading}
           className="text-xs px-3 py-1.5 rounded font-semibold"
           style={{ background: '#2B3139', color: '#F0B90B' }}
         >
-          刷新
+          {loading ? '刷新中…' : '刷新'}
         </button>
         <div className="flex gap-2 text-[10px]" style={{ color: '#848E9C' }}>
           {(['open', 'add', 'reduce', 'close'] as const).map((t) => (
@@ -252,100 +191,14 @@ export function TradeEventPriceChart({
         </p>
       )}
 
-      {symbol && priceRows.length > 0 ? (
-        <div onClick={() => setSelectedEvent(null)}>
-          <ResponsiveContainer width="100%" height={height}>
-            <ComposedChart data={chartRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2B3139" />
-              <XAxis
-                dataKey="timeSec"
-                type="number"
-                domain={['dataMin', 'dataMax']}
-                tick={{ fill: '#848E9C', fontSize: 10 }}
-                tickFormatter={(v: number) =>
-                  new Date(v * 1000).toLocaleString('zh-CN', {
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                  })
-                }
-              />
-              <YAxis
-                domain={yDomain ?? ['auto', 'auto']}
-                tick={{ fill: '#848E9C', fontSize: 10 }}
-                width={72}
-                tickFormatter={(v: number) => `$${Number(v).toLocaleString()}`}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: '#1E2329',
-                  border: '1px solid #2B3139',
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-                labelStyle={{ color: '#848E9C' }}
-                formatter={(value: number | string) => [
-                  `$${Number(value).toFixed(2)}`,
-                  '价格',
-                ]}
-                labelFormatter={(label) => formatEventTime(Number(label) * 1000)}
-              />
-              <Line
-                type="monotone"
-                dataKey="close"
-                stroke="#F0B90B"
-                strokeWidth={2}
-                isAnimationActive={false}
-                dot={(props) => {
-                  const { cx, cy, payload } = props as {
-                    cx?: number
-                    cy?: number
-                    payload?: { eventPoints?: EventScatterPoint[] }
-                  }
-                  const pts = payload?.eventPoints
-                  if (!pts?.length || cx == null || cy == null) return <g />
-                  return (
-                    <g>
-                      {pts.map((p, i) => {
-                        const active = selectedEvent === p.event
-                        const r = active ? p.dotRadius + 2 : p.dotRadius
-                        const offsetX =
-                          pts.length > 1
-                            ? (i - (pts.length - 1) / 2) * (r * 2 + 2)
-                            : 0
-                        return (
-                          <circle
-                            key={`${p.rawTimeSec}-${p.event.type}-${i}`}
-                            cx={cx + offsetX}
-                            cy={cy}
-                            r={r}
-                            fill={p.color}
-                            stroke={active ? '#EAECEF' : '#1E2329'}
-                            strokeWidth={active ? 2 : 1}
-                            style={{ cursor: 'pointer', pointerEvents: 'all' }}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setSelectedEvent((cur) =>
-                                cur === p.event ? null : p.event
-                              )
-                            }}
-                          />
-                        )
-                      })}
-                    </g>
-                  )
-                }}
-                activeDot={false}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+      {symbol ? (
+        <TradingViewAdvancedChart symbol={symbol} interval={interval} height={height} />
       ) : (
         <div
-          className="flex items-center justify-center text-sm"
-          style={{ height, color: '#5E6673', background: '#0B0E11', borderRadius: 8 }}
+          className="flex items-center justify-center text-sm rounded-lg"
+          style={{ height, color: '#5E6673', background: '#0B0E11', border: '1px solid #2B3139' }}
         >
-          {loading ? '加载中…' : symbol ? '暂无K线数据' : '请选择币种'}
+          请选择币种
         </div>
       )}
 
@@ -357,72 +210,114 @@ export function TradeEventPriceChart({
           className="px-3 py-2 text-xs font-semibold"
           style={{ background: '#1E2329', color: '#848E9C', borderBottom: '1px solid #2B3139' }}
         >
-          事件详情
+          交易事件
           {symEvents.length > 0 && (
             <span className="ml-2" style={{ color: '#F0B90B' }}>
               {symEvents.length} 条
             </span>
           )}
         </div>
-        <div className="px-3 py-4 text-xs">
-          {selectedEvent && selectedDetail ? (
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className="font-semibold text-sm"
-                  style={{
-                    color:
-                      EVENT_TYPE_COLORS[selectedEvent.type as keyof typeof EVENT_TYPE_COLORS] ||
-                      '#848E9C',
-                  }}
-                >
-                  {EVENT_TYPE_LABELS[selectedEvent.type as keyof typeof EVENT_TYPE_LABELS] ||
-                    selectedEvent.type}
-                </span>
-                <span style={{ color: '#EAECEF' }}>
-                  {selectedEvent.symbol?.replace(/USDT$/i, '')}
-                </span>
-                <span style={{ color: '#848E9C' }}>
-                  {selectedEvent.side === 'SHORT' ? '空' : '多'}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1" style={{ color: '#848E9C' }}>
-                <span>
-                  时间：{formatEventTime(selectedEvent.time)}
-                </span>
-                <span>
-                  数量：{selectedEvent.qty}
-                </span>
-                <span>
-                  价格：$
-                  {selectedDetail.displayPrice >= 100
-                    ? selectedDetail.displayPrice.toFixed(2)
-                    : selectedDetail.displayPrice.toFixed(4)}
-                </span>
-                <span>
-                  金额：$
-                  {selectedDetail.amount >= 100
-                    ? selectedDetail.amount.toFixed(2)
-                    : selectedDetail.amount.toFixed(4)}
-                </span>
-                {selectedEvent.source && (
-                  <span>来源：{selectedEvent.source}</span>
-                )}
-              </div>
-              {selectedEvent.detail && (
-                <p className="pt-1" style={{ color: '#5E6673' }}>
-                  {selectedEvent.detail}
-                </p>
-              )}
+
+        {selectedEvent && selectedDetail && (
+          <div
+            className="px-3 py-3 text-xs border-b"
+            style={{ borderColor: '#2B3139', background: '#1E2329' }}
+          >
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <span
+                className="font-semibold text-sm"
+                style={{
+                  color:
+                    EVENT_TYPE_COLORS[selectedEvent.type as keyof typeof EVENT_TYPE_COLORS] ||
+                    '#848E9C',
+                }}
+              >
+                {EVENT_TYPE_LABELS[selectedEvent.type as keyof typeof EVENT_TYPE_LABELS] ||
+                  selectedEvent.type}
+              </span>
+              <span style={{ color: '#EAECEF' }}>
+                {selectedEvent.symbol?.replace(/USDT$/i, '')}
+              </span>
+              <span style={{ color: '#848E9C' }}>
+                {selectedEvent.side === 'SHORT' ? '空' : '多'}
+              </span>
             </div>
-          ) : symEvents.length === 0 ? (
-            <p className="text-center" style={{ color: '#5E6673' }}>
+            <div
+              className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1"
+              style={{ color: '#848E9C' }}
+            >
+              <span>时间：{formatEventTime(selectedEvent.time)}</span>
+              <span>数量：{selectedEvent.qty}</span>
+              <span>
+                价格：$
+                {selectedDetail.displayPrice > 0
+                  ? selectedDetail.displayPrice >= 100
+                    ? selectedDetail.displayPrice.toFixed(2)
+                    : selectedDetail.displayPrice.toFixed(4)
+                  : '—'}
+              </span>
+              <span>
+                金额：$
+                {selectedDetail.amount > 0
+                  ? selectedDetail.amount >= 100
+                    ? selectedDetail.amount.toFixed(2)
+                    : selectedDetail.amount.toFixed(4)
+                  : '—'}
+              </span>
+              {selectedEvent.source && <span>来源：{selectedEvent.source}</span>}
+            </div>
+            {selectedEvent.detail && (
+              <p className="pt-2" style={{ color: '#5E6673' }}>
+                {selectedEvent.detail}
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="max-h-[200px] overflow-y-auto">
+          {sortedEvents.length === 0 ? (
+            <p className="text-xs py-6 text-center" style={{ color: '#5E6673' }}>
               当前币种暂无已执行的交易记录
             </p>
           ) : (
-            <p className="text-center" style={{ color: '#5E6673' }}>
-              点击 K 线上的圆点查看开/加/减/平详情
-            </p>
+            sortedEvents.map((ev, i) => {
+              const color =
+                EVENT_TYPE_COLORS[ev.type as keyof typeof EVENT_TYPE_COLORS] || '#848E9C'
+              const label =
+                EVENT_TYPE_LABELS[ev.type as keyof typeof EVENT_TYPE_LABELS] || ev.type
+              const active = selectedEvent === ev
+              const timeStr = formatEventTime(ev.time)
+              return (
+                <div
+                  key={`${ev.time}-${ev.type}-${i}`}
+                  className="flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer"
+                  style={{
+                    borderBottom:
+                      i < sortedEvents.length - 1 ? '1px solid #2B3139' : 'none',
+                    background: active ? 'rgba(240, 185, 11, 0.08)' : 'transparent',
+                  }}
+                  onClick={() => setSelectedEvent(active ? null : ev)}
+                >
+                  <span
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ background: color }}
+                  />
+                  <span style={{ color: '#848E9C', minWidth: 120 }}>{timeStr}</span>
+                  <span style={{ color, fontWeight: 600, minWidth: 32 }}>{label}</span>
+                  <span style={{ color: '#848E9C', fontSize: 10 }}>
+                    {ev.side === 'SHORT' ? '空' : '多'}
+                  </span>
+                  <span className="ml-auto" style={{ color: '#EAECEF' }}>
+                    {ev.price > 0
+                      ? `$${Number(ev.price).toFixed(ev.price >= 100 ? 2 : 4)}`
+                      : '—'}
+                    <span className="ml-2" style={{ color: '#5E6673' }}>
+                      ×{ev.qty}
+                    </span>
+                  </span>
+                </div>
+              )
+            })
           )}
         </div>
       </div>
