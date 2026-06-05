@@ -17,7 +17,7 @@ export interface TradingViewAdvancedChartProps {
 function TradingViewAdvancedChartInner({
   symbol,
   interval,
-  height = 360,
+  height = 520,
 }: TradingViewAdvancedChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 

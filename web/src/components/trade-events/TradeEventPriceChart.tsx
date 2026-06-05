@@ -27,7 +27,7 @@ export function TradeEventPriceChart({
   traderId,
   portfolioId,
   symbols: symbolsProp,
-  height = 360,
+  height = 520,
 }: TradeEventPriceChartProps) {
   const [interval, setInterval] = useState<ChartInterval>('1h')
   const [symbol, setSymbol] = useState(DEFAULT_CHART_SYMBOL)
