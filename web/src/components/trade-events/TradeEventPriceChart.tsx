@@ -13,16 +13,12 @@ import type { TradeEvent, KlinePoint } from './tradeEventTypes'
 import { EVENT_TYPE_LABELS, EVENT_TYPE_COLORS } from './tradeEventTypes'
 import {
   mapKlinesToChartRows,
-  mapEventsToScatterPoints,
-  formatEventTime,
-  eventTradeAmount,
   normalizeTradingSymbol,
   symbolsMatch,
   pickDefaultChartSymbol,
   DEFAULT_CHART_SYMBOL,
 } from './tradeEventChartUtils'
 import { useSymbolPreferences } from '../../contexts/SymbolPreferencesContext'
-import { EventReferenceDot } from './EventScatterDot'
 
 export interface TradeEventPriceChartProps {
   source: 'copy_trade' | 'ai_trader'
@@ -145,11 +141,6 @@ export function TradeEventPriceChart({
     [events, symbol]
   )
 
-  const scatterPoints = useMemo(
-    () => mapEventsToScatterPoints(symEvents, priceRows),
-    [symEvents, priceRows]
-  )
-
   const symbolOptions = useMemo(() => {
     const merged = new Set<string>([DEFAULT_CHART_SYMBOL])
     for (const s of symbols) {
@@ -163,33 +154,13 @@ export function TradeEventPriceChart({
   }, [symbols, events, sortSymbols])
 
   const yDomain = useMemo((): [number, number] | undefined => {
-    const prices = [
-      ...priceRows.map((r) => r.close),
-      ...scatterPoints.map((p) => p.price),
-    ].filter((p) => p > 0)
+    const prices = priceRows.map((r) => r.close).filter((p) => p > 0)
     if (prices.length === 0) return undefined
     const min = Math.min(...prices)
     const max = Math.max(...prices)
     const pad = (max - min) * 0.05 || max * 0.01
     return [min - pad, max + pad]
-  }, [priceRows, scatterPoints])
-
-  const selectedDetail = useMemo(() => {
-    if (!selectedEvent) return null
-    const chartPrice = scatterPoints.find((p) => p.event === selectedEvent)?.price ?? 0
-    const displayPrice = selectedEvent.price > 0 ? selectedEvent.price : chartPrice
-    return {
-      displayPrice,
-      amount: eventTradeAmount(selectedEvent, chartPrice),
-    }
-  }, [selectedEvent, scatterPoints])
-
-  const handleSelectEvent = useCallback(
-    (ev: TradeEvent | null, current: TradeEvent | null) => {
-      setSelectedEvent(current === ev ? null : ev)
-    },
-    []
-  )
+  }, [priceRows])
 
   return (
     <div>
@@ -249,7 +220,7 @@ export function TradeEventPriceChart({
       {symbol && priceRows.length > 0 ? (
         <>
           <ResponsiveContainer width="100%" height={height}>
-            <ComposedChart margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <ComposedChart data={priceRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#2B3139" />
               <XAxis
                 dataKey="timeSec"
@@ -285,7 +256,6 @@ export function TradeEventPriceChart({
                 labelFormatter={(label) => formatEventTime(Number(label) * 1000)}
               />
               <Line
-                data={priceRows}
                 type="monotone"
                 dataKey="close"
                 stroke="#F0B90B"
@@ -293,21 +263,8 @@ export function TradeEventPriceChart({
                 dot={false}
                 isAnimationActive={false}
               />
-              {scatterPoints.map((p, i) => (
-                <EventReferenceDot
-                  key={`${p.event.time}-${p.event.type}-${i}`}
-                  point={p}
-                  selected={selectedEvent}
-                  onSelect={handleSelectEvent}
-                />
-              ))}
             </ComposedChart>
           </ResponsiveContainer>
-          {scatterPoints.length === 0 && (
-            <p className="text-xs mt-2 text-center" style={{ color: '#5E6673' }}>
-              当前币种暂无已执行的开仓/加仓/减仓/平仓记录（仅展示成功成交的 AI 决策）
-            </p>
-          )}
         </>
       ) : (
         <div
@@ -318,38 +275,75 @@ export function TradeEventPriceChart({
         </div>
       )}
 
+      {/* Event Timeline */}
       <div
-        className="mt-3 p-3 rounded-lg min-h-[72px] text-xs"
+        className="mt-3 rounded-lg overflow-hidden"
         style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
       >
-        {selectedEvent && selectedDetail ? (
-          <>
-            <div
-              className="font-semibold mb-1"
-              style={{
-                color: EVENT_TYPE_COLORS[selectedEvent.type as keyof typeof EVENT_TYPE_COLORS],
-              }}
-            >
-              {EVENT_TYPE_LABELS[selectedEvent.type as keyof typeof EVENT_TYPE_LABELS]} ·{' '}
-              {selectedEvent.symbol} · {selectedEvent.side}
-            </div>
-            <div style={{ color: '#848E9C' }}>{formatEventTime(selectedEvent.time)}</div>
-            <div style={{ color: '#EAECEF' }}>
-              数量 {selectedEvent.qty.toFixed(4)} · 价格 $
-              {selectedDetail.displayPrice.toFixed(2)} · 金额 $
-              {selectedDetail.amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 })} ·{' '}
-              {selectedEvent.source}
-            </div>
-            {selectedEvent.detail && (
-              <div className="mt-1" style={{ color: '#5E6673' }}>
-                {selectedEvent.detail}
-              </div>
-            )}
-          </>
-        ) : (
-          <span style={{ color: '#5E6673' }}>点击 K 线上的圆点查看交易事件详情</span>
-        )}
+        <div
+          className="px-3 py-2 text-xs font-semibold"
+          style={{ background: '#1E2329', color: '#848E9C', borderBottom: '1px solid #2B3139' }}
+        >
+          📋 交易事件
+          {symEvents.length > 0 && (
+            <span className="ml-2" style={{ color: '#F0B90B' }}>
+              {symEvents.length} 条
+            </span>
+          )}
+        </div>
+        <div className="max-h-[180px] overflow-y-auto">
+          {symEvents.length === 0 ? (
+            <p className="text-xs py-6 text-center" style={{ color: '#5E6673' }}>
+              当前币种暂无已执行的交易记录
+            </p>
+          ) : (
+            symEvents
+              .sort((a, b) => b.time - a.time)
+              .slice(0, 50)
+              .map((ev, i) => {
+                const color = EVENT_TYPE_COLORS[ev.type as keyof typeof EVENT_TYPE_COLORS] || '#848E9C'
+                const label = EVENT_TYPE_LABELS[ev.type as keyof typeof EVENT_TYPE_LABELS] || ev.type
+                const side = ev.side === 'SHORT' ? '🔴 空' : '🟢 多'
+                const timeStr = new Date(ev.time < 1e12 ? ev.time * 1000 : ev.time).toLocaleString('zh-CN', {
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+                return (
+                  <div
+                    key={`${ev.time}-${ev.type}-${i}`}
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs hover:brightness-110 cursor-pointer"
+                    style={{
+                      borderBottom: i < symEvents.length - 1 ? '1px solid #2B3139' : 'none',
+                      background: 'transparent',
+                    }}
+                    onClick={() => setSelectedEvent(selectedEvent === ev ? null : ev)}
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ background: color }}
+                    />
+                    <span style={{ color: '#848E9C', minWidth: 48 }}>{timeStr}</span>
+                    <span className="font-semibold" style={{ color: '#EAECEF', minWidth: 60 }}>
+                      {ev.symbol?.replace(/USDT$/i, '')}
+                    </span>
+                    <span style={{ color, fontWeight: 600, minWidth: 32 }}>{label}</span>
+                    <span style={{ color: '#848E9C', fontSize: 10 }}>{side}</span>
+                    <span className="ml-auto" style={{ color: '#EAECEF' }}>
+                      <span style={{ color: '#848E9C' }}>@{' '}</span>
+                      {ev.price > 0 ? `$${Number(ev.price).toFixed(ev.price >= 100 ? 2 : 4)}` : '—'}
+                      <span className="ml-2" style={{ color: '#5E6673' }}>
+                        ×{ev.qty}
+                      </span>
+                    </span>
+                  </div>
+                )
+              })
+          )}
+        </div>
       </div>
     </div>
   )
 }
+

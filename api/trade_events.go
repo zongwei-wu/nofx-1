@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -421,11 +422,14 @@ func (s *Server) handleTradeEvents(c *gin.Context) {
 			return
 		}
 		portfolioID := strings.TrimSpace(c.Query("portfolio_id"))
+		log.Printf("[trade-events] copy_trade userID=%s portfolioID=%s symbol=%s", userID, portfolioID, symbol)
 		recEvents, err := s.copyTradeEventsFromRecords(userID, portfolioID, symbol)
 		if err != nil {
+			log.Printf("[trade-events] copy_trade error: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+		log.Printf("[trade-events] copy_trade returned %d events", len(recEvents))
 		events = append(events, recEvents...)
 		if recSyms, err := s.distinctCopyTradeSymbols(userID, portfolioID); err == nil {
 			symbolCandidates = append(symbolCandidates, recSyms)
