@@ -21,10 +21,10 @@ type TelegramConfig struct {
 
 // FeishuConfig 飞书推送配置（通过 Webhook 机器人）
 type FeishuConfig struct {
-	Enabled     bool   `json:"enabled"`      // 是否启用（默认: false）
-	WebhookURL  string `json:"webhook_url"`  // 飞书机器人 Webhook 地址
-	MinLevel    string `json:"min_level"`    // 最低日志级别，该级别及以上的日志会推送到飞书（可选，默认: error）
-	TradeNotify bool   `json:"trade_notify"` // 是否推送交易通知（默认: false）
+	Enabled     bool   `json:"enabled"`     // 是否启用（默认: false）
+	WebhookURL  string `json:"webhook_url"` // 飞书机器人 Webhook 地址
+	MinLevel    string `json:"min_level"`   // 最低日志级别（可选，默认: error）
+	TradeNotify bool   `json:"trade_notify"` // 是否启用交易事件通知
 }
 
 // SetDefaults 设置默认值

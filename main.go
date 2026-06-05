@@ -176,14 +176,28 @@ func main() {
 	// 初始化logger（飞书/Telegram Hook）
 	if configFile.Log != nil {
 		logCfg := &logger.Config{
-			Level:    configFile.Log.Level,
-			Telegram: (*logger.TelegramConfig)(configFile.Log.Telegram),
-			Feishu:   (*logger.FeishuConfig)(configFile.Log.Feishu),
+			Level: configFile.Log.Level,
 		}
-		if err := logger.Init(logCfg); err != nil {
-			log.Printf("⚠️  初始化日志系统失败（不影响交易）: %v", err)
+		if configFile.Log.Telegram != nil {
+			logCfg.Telegram = &logger.TelegramConfig{
+				Enabled:  configFile.Log.Telegram.Enabled,
+				BotToken: configFile.Log.Telegram.BotToken,
+				ChatID:   configFile.Log.Telegram.ChatID,
+				MinLevel: configFile.Log.Telegram.MinLevel,
+			}
 		}
+		if configFile.Log.Feishu != nil {
+			logCfg.Feishu = &logger.FeishuConfig{
+				Enabled:     configFile.Log.Feishu.Enabled,
+				WebhookURL:  configFile.Log.Feishu.WebhookURL,
+				MinLevel:    configFile.Log.Feishu.MinLevel,
+				TradeNotify: configFile.Log.Feishu.TradeNotify,
+			}
+		}
+	if err := logger.Init(logCfg); err != nil {
+		log.Printf("⚠️  初始化日志系统失败（不影响交易）: %v", err)
 	}
+}
 
 	log.Printf("📋 初始化配置数据库: %s", dbPath)
 	database, err := config.NewDatabase(dbPath)

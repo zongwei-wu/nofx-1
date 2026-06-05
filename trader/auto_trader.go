@@ -752,6 +752,22 @@ func (at *AutoTrader) executeOpenLongWithRecord(decision *decision.Decision, act
 		actionRecord.OrderID = orderID
 	}
 
+	// 飞书交易通知
+	logger.NotifyTrade(logger.TradeNotifyParams{
+		Source:           "AI自动交易",
+		Status:           logger.TradeStatusSuccess,
+		Action:           "开多仓",
+		Symbol:           decision.Symbol,
+		Side:             "LONG",
+		PositionSide:     "LONG",
+		Qty:              quantity,
+		Price:            marketData.CurrentPrice,
+		Leverage:         decision.Leverage,
+		OrderID:          actionRecord.OrderID,
+		TraderOrNickname: at.name,
+		Reason:           decision.Reasoning,
+	})
+
 	log.Printf("  ✓ 开仓成功，订单ID: %v, 数量: %.4f", order["orderId"], quantity)
 
 	// 记录开仓时间
@@ -832,6 +848,22 @@ func (at *AutoTrader) executeOpenShortWithRecord(decision *decision.Decision, ac
 		actionRecord.OrderID = orderID
 	}
 
+	// 飞书交易通知
+	logger.NotifyTrade(logger.TradeNotifyParams{
+		Source:           "AI自动交易",
+		Status:           logger.TradeStatusSuccess,
+		Action:           "开空仓",
+		Symbol:           decision.Symbol,
+		Side:             "SHORT",
+		PositionSide:     "SHORT",
+		Qty:              quantity,
+		Price:            marketData.CurrentPrice,
+		Leverage:         decision.Leverage,
+		OrderID:          actionRecord.OrderID,
+		TraderOrNickname: at.name,
+		Reason:           decision.Reasoning,
+	})
+
 	log.Printf("  ✓ 开仓成功，订单ID: %v, 数量: %.4f", order["orderId"], quantity)
 
 	// 记录开仓时间
@@ -871,6 +903,20 @@ func (at *AutoTrader) executeCloseLongWithRecord(decision *decision.Decision, ac
 		actionRecord.OrderID = orderID
 	}
 
+	// 飞书交易通知
+	logger.NotifyTrade(logger.TradeNotifyParams{
+		Source:           "AI自动交易",
+		Status:           logger.TradeStatusSuccess,
+		Action:           "平多仓",
+		Symbol:           decision.Symbol,
+		Side:             "LONG",
+		PositionSide:     "LONG",
+		Price:            marketData.CurrentPrice,
+		OrderID:          actionRecord.OrderID,
+		TraderOrNickname: at.name,
+		Reason:           decision.Reasoning,
+	})
+
 	log.Printf("  ✓ 平仓成功")
 	return nil
 }
@@ -896,6 +942,20 @@ func (at *AutoTrader) executeCloseShortWithRecord(decision *decision.Decision, a
 	if orderID, ok := order["orderId"].(int64); ok {
 		actionRecord.OrderID = orderID
 	}
+
+	// 飞书交易通知
+	logger.NotifyTrade(logger.TradeNotifyParams{
+		Source:           "AI自动交易",
+		Status:           logger.TradeStatusSuccess,
+		Action:           "平空仓",
+		Symbol:           decision.Symbol,
+		Side:             "SHORT",
+		PositionSide:     "SHORT",
+		Price:            marketData.CurrentPrice,
+		OrderID:          actionRecord.OrderID,
+		TraderOrNickname: at.name,
+		Reason:           decision.Reasoning,
+	})
 
 	log.Printf("  ✓ 平仓成功")
 	return nil
