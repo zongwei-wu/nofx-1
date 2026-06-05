@@ -455,7 +455,7 @@ export default function TraderDashboard() {
               持仓币种价格与交易事件
             </h2>
             <p className="text-xs mb-4" style={{ color: '#5E6673' }}>
-              基于 AI 决策日志 · 圆点标注开/加/减/平
+              基于 AI 决策日志 · 圆点标注开/加/减/平 · 点击圆点查看详情
             </p>
             <ChartErrorBoundary>
               <TradeEventPriceChart

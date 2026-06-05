@@ -813,7 +813,7 @@ export function CopyTradeDashboard() {
                 币种价格与跟单事件
               </div>
               <div className="text-xs mb-4" style={{ color: '#5E6673' }}>
-                折线为市价 · 圆点为开/加/减/平 · 十字线悬停查看详情
+                折线为市价 · 圆点为开/加/减/平 · 点击圆点查看详情
               </div>
               <ChartErrorBoundary>
                 <TradeEventPriceChart
