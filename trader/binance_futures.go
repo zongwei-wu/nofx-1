@@ -133,6 +133,19 @@ func syncBinanceServerTime(client *futures.Client) {
 	log.Printf("⏱ 已同步币安服务器时间，偏移 %dms", offset)
 }
 
+// InvalidateAccountCache 清除账户与持仓缓存，强制下次读取走 API
+func (t *FuturesTrader) InvalidateAccountCache() {
+	t.balanceCacheMutex.Lock()
+	t.cachedBalance = nil
+	t.balanceCacheTime = time.Time{}
+	t.balanceCacheMutex.Unlock()
+
+	t.positionsCacheMutex.Lock()
+	t.cachedPositions = nil
+	t.positionsCacheTime = time.Time{}
+	t.positionsCacheMutex.Unlock()
+}
+
 // GetBalance 获取账户余额（带缓存）
 func (t *FuturesTrader) GetBalance() (map[string]interface{}, error) {
 	// 先检查缓存是否有效

@@ -2163,33 +2163,6 @@ func (s *Server) runAutoFollowForUser(userID string) {
 	aiCfg := aiResult.AICfg
 
 	fTrader := trader.NewFuturesTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, userID, exchangeCfg.Testnet)
-	balance, _ := fTrader.GetBalance()
-	positions, _ := fTrader.GetPositions()
-
-	totalEquity := 0.0
-	availableBalance := 0.0
-	if balance != nil {
-		if wb, ok := balance["totalWalletBalance"].(float64); ok {
-			totalEquity = wb
-		}
-		if ab, ok := balance["availableBalance"].(float64); ok {
-			availableBalance = ab
-		}
-	}
-
-	posSummary := ""
-	openCount := 0
-	if positions != nil {
-		for _, p := range positions {
-			sym, _ := p["symbol"].(string)
-			amt, _ := p["positionAmt"].(string)
-			upnl, _ := p["unRealizedProfit"].(string)
-			if sym != "" && amt != "" && amt != "0" {
-				posSummary += fmt.Sprintf("  - %s 数量=%s 未实现盈亏=%s\n", sym, amt, upnl)
-				openCount++
-			}
-		}
-	}
 
 	cfgRows, err := s.database.DB().Query(`
 		SELECT id, portfolio_id, nickname, max_copy_size, size_multiplier, copy_open_only, last_order_time
@@ -2357,20 +2330,14 @@ func (s *Server) runAutoFollowForUser(userID string) {
 			}
 			mcpClient.SetAPIKey(aiCfg.APIKey, aiCfg.CustomAPIURL, aiCfg.CustomModelName)
 
-			prompt := fmt.Sprintf(`你是一个专业的加密货币期货交易风控分析师。请分析以下跟单交易请求。
+			accountCtx := fetchCopyTradeAIAccountContext(fTrader)
+			marketSection := fetchCopyTradeAIMarketSection(symbol)
+			prompt := buildCopyTradeRiskPrompt(accountCtx, marketSection, copyTradeAIPromptParams{
+				Symbol: symbol, Direction: dir, LeadNickname: nickname,
+				LeadPrice: order.AvgPrice, LeadQty: qty,
+			})
 
-账户总权益: %.2f USDT
-可用余额: %.2f USDT
-当前持仓数: %d
-持仓: %s
-
-跟单: %s %s 价格$%.2f 数量%.4f张
-
-请以JSON输出: {"feasible":true/false,"reasoning":"理由","recommended_ratio":0.1,"recommended_qty":0.5,"suggestion":"建议"}`,
-				totalEquity, availableBalance, openCount, posSummary,
-				symbol, dir, order.AvgPrice, qty)
-
-			resp, aiErr := mcpClient.CallWithMessages("你是一个加密合约风控分析师。输出JSON。", prompt)
+			resp, aiErr := mcpClient.CallWithMessages("你是一个加密合约风控分析师。结合最新K线与账户资产输出JSON。", prompt)
 			aiQty := qty
 			aiFeasible := true
 			aiReason := ""
@@ -2395,18 +2362,18 @@ func (s *Server) runAutoFollowForUser(userID string) {
 						cleaned = decisionJSON
 					}
 				}
-				var aiResult struct {
+				var parsedAI struct {
 					Feasible       bool    `json:"feasible"`
 					RecommendedQty float64 `json:"recommended_qty"`
 					Reasoning      string  `json:"reasoning"`
 					Suggestion     string  `json:"suggestion"`
 				}
-				if json.Unmarshal([]byte(cleaned), &aiResult) == nil {
-					aiFeasible = aiResult.Feasible
-					aiReason = aiResult.Reasoning
-					aiSuggestion = aiResult.Suggestion
-					if aiResult.RecommendedQty > 0 {
-						aiQty = aiResult.RecommendedQty
+				if json.Unmarshal([]byte(cleaned), &parsedAI) == nil {
+					aiFeasible = parsedAI.Feasible
+					aiReason = parsedAI.Reasoning
+					aiSuggestion = parsedAI.Suggestion
+					if parsedAI.RecommendedQty > 0 {
+						aiQty = parsedAI.RecommendedQty
 					}
 					if !aiFeasible {
 						actionTaken = "ai_rejected"
@@ -3407,39 +3374,6 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 
 	fTrader := trader.NewFuturesTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, userID, exchangeCfg.Testnet)
 
-	// 获取账户信息
-	balance, _ := fTrader.GetBalance()
-	positions, _ := fTrader.GetPositions()
-
-	totalEquity := 0.0
-	availableBalance := 0.0
-	if balance != nil {
-		if wb, ok := balance["totalWalletBalance"].(float64); ok {
-			totalEquity = wb
-		}
-		if ab, ok := balance["availableBalance"].(float64); ok {
-			availableBalance = ab
-		}
-	}
-
-	// 构建已有持仓文本
-	posSummary := ""
-	openCount := 0
-	if positions != nil {
-		for _, p := range positions {
-			sym, _ := p["symbol"].(string)
-			amt, _ := p["positionAmt"].(string)
-			upnl, _ := p["unRealizedProfit"].(string)
-			if sym != "" && amt != "" && amt != "0" {
-				posSummary += fmt.Sprintf("  - %s 数量=%s 未实现盈亏=%s\n", sym, amt, upnl)
-				openCount++
-			}
-		}
-	}
-	if posSummary == "" {
-		posSummary = "  无持仓\n"
-	}
-
 	copyAI, copyAIErr := s.resolveCopyTradeAI(userID)
 	aiTraderID := ""
 	aiTraderName := ""
@@ -3556,40 +3490,14 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 			dir = "卖出开空"
 		}
 
-		inputPrompt = fmt.Sprintf(`你是一个专业的加密货币期货交易风控分析师。请分析以下跟单交易请求，给出仓位大小建议。
+		accountCtx := fetchCopyTradeAIAccountContext(fTrader)
+		marketSection := fetchCopyTradeAIMarketSection(req.Symbol)
+		inputPrompt = buildCopyTradeRiskPromptDetailed(accountCtx, marketSection, copyTradeAIPromptParams{
+			Symbol: req.Symbol, Direction: dir, LeadNickname: req.Nickname,
+			LeadPrice: req.AvgPrice, LeadQty: req.ExecutedQty,
+		})
 
-## 当前账户状态
-- 账户总权益: %.2f USDT
-- 可用余额: %.2f USDT
-- 当前持仓数量: %d
-- 当前持仓详情:
-%s
-## 跟单请求
-- 带单员: %s
-- 交易对: %s
-- 操作: %s
-- 带单员开仓价格: $%.2f
-- 带单员开仓数量: %.4f张
-
-## 分析要求
-1. 分析当前账户的可用资金是否足够开仓
-2. 考虑当前持仓集中度风险
-3. 建议一个合理的跟单仓位比例（相对于带单员仓位）
-4. 如果风险过高，建议不跟单
-
-请以JSON格式输出，包含以下字段：
-{
-  "feasible": true/false,
-  "reasoning": "详细分析理由",
-  "recommended_ratio": 0.1,
-  "recommended_qty": 0.5,
-  "max_risk_usd": 100.0,
-  "suggestion": "简短建议"
-}`,
-			totalEquity, availableBalance, openCount, posSummary,
-			req.Nickname, req.Symbol, dir, req.AvgPrice, req.ExecutedQty)
-
-		systemPrompt := "你是一个专业的加密合约交易风控分析师，请基于账户状况给出合理的跟单仓位建议。回答要简洁专业。"
+		systemPrompt := "你是一个专业的加密合约交易风控分析师，请结合最新K线与账户资产给出合理的跟单仓位建议。回答要简洁专业。"
 
 		aiResponse, llmErr := mcpClient.CallWithMessages(systemPrompt, inputPrompt)
 		if llmErr != nil {
@@ -3673,14 +3581,15 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 		Success:        decisionSuccess,
 	})
 
+	confirmAccount := fetchCopyTradeAIAccountContext(fTrader)
 	c.JSON(http.StatusOK, gin.H{
 		"need_confirm":    true,
 		"ai_analysis":     aiAnalysis,
 		"recommended_qty": recommendedQty,
 		"account": gin.H{
-			"total_equity":   totalEquity,
-			"available":      availableBalance,
-			"open_positions": openCount,
+			"total_equity":   confirmAccount.TotalEquity,
+			"available":      confirmAccount.AvailableBalance,
+			"open_positions": confirmAccount.OpenCount,
 		},
 		"trade": gin.H{
 			"symbol":       req.Symbol,
