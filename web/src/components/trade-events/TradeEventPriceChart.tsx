@@ -20,8 +20,8 @@ import {
   symbolsMatch,
   pickDefaultChartSymbol,
   DEFAULT_CHART_SYMBOL,
+  type EventScatterPoint,
 } from './tradeEventChartUtils'
-import { EventReferenceDot } from './EventScatterDot'
 import { useSymbolPreferences } from '../../contexts/SymbolPreferencesContext'
 
 export interface TradeEventPriceChartProps {
@@ -150,6 +150,19 @@ export function TradeEventPriceChart({
     [symEvents, priceRows]
   )
 
+  const chartRows = useMemo(() => {
+    const eventsByTime = new Map<number, EventScatterPoint[]>()
+    for (const p of scatterPoints) {
+      const list = eventsByTime.get(p.timeSec) ?? []
+      list.push(p)
+      eventsByTime.set(p.timeSec, list)
+    }
+    return priceRows.map((row) => ({
+      ...row,
+      eventPoints: eventsByTime.get(row.timeSec) ?? [],
+    }))
+  }, [priceRows, scatterPoints])
+
   const symbolOptions = useMemo(() => {
     const merged = new Set<string>([DEFAULT_CHART_SYMBOL])
     for (const s of symbols) {
@@ -242,7 +255,7 @@ export function TradeEventPriceChart({
       {symbol && priceRows.length > 0 ? (
         <div onClick={() => setSelectedEvent(null)}>
           <ResponsiveContainer width="100%" height={height}>
-            <ComposedChart data={priceRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <ComposedChart data={chartRows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#2B3139" />
               <XAxis
                 dataKey="timeSec"
@@ -282,17 +295,48 @@ export function TradeEventPriceChart({
                 dataKey="close"
                 stroke="#F0B90B"
                 strokeWidth={2}
-                dot={false}
                 isAnimationActive={false}
+                dot={(props) => {
+                  const { cx, cy, payload } = props as {
+                    cx?: number
+                    cy?: number
+                    payload?: { eventPoints?: EventScatterPoint[] }
+                  }
+                  const pts = payload?.eventPoints
+                  if (!pts?.length || cx == null || cy == null) return <g />
+                  return (
+                    <g>
+                      {pts.map((p, i) => {
+                        const active = selectedEvent === p.event
+                        const r = active ? p.dotRadius + 2 : p.dotRadius
+                        const offsetX =
+                          pts.length > 1
+                            ? (i - (pts.length - 1) / 2) * (r * 2 + 2)
+                            : 0
+                        return (
+                          <circle
+                            key={`${p.rawTimeSec}-${p.event.type}-${i}`}
+                            cx={cx + offsetX}
+                            cy={cy}
+                            r={r}
+                            fill={p.color}
+                            stroke={active ? '#EAECEF' : '#1E2329'}
+                            strokeWidth={active ? 2 : 1}
+                            style={{ cursor: 'pointer', pointerEvents: 'all' }}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedEvent((cur) =>
+                                cur === p.event ? null : p.event
+                              )
+                            }}
+                          />
+                        )
+                      })}
+                    </g>
+                  )
+                }}
+                activeDot={false}
               />
-              {scatterPoints.map((p, i) => (
-                <EventReferenceDot
-                  key={`${p.rawTimeSec}-${p.event.type}-${p.event.side}-${i}`}
-                  point={p}
-                  selected={selectedEvent}
-                  onSelect={(ev, current) => setSelectedEvent(current === ev ? null : ev)}
-                />
-              ))}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
