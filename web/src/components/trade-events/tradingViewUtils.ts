@@ -3,7 +3,7 @@ import { normalizeTradingSymbol } from './tradeEventChartUtils'
 export type ChartInterval = '1h' | '4h'
 
 /** TradingView 图表主体高度（不含版权脚注） */
-export const DEFAULT_TV_CHART_HEIGHT = 680
+export const DEFAULT_TV_CHART_HEIGHT = 520
 export const TV_COPYRIGHT_HEIGHT = 28
 
 const INTERVAL_MAP: Record<ChartInterval, string> = {
