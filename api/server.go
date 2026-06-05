@@ -2232,23 +2232,31 @@ func (s *Server) runAutoFollowForUser(userID string) {
 			ExecutedQty  float64
 			AvgPrice     float64
 			OrderTime    int64
-			IsOpen       bool
 		}
-		latest := make(map[string]*symOrder)
+		var newOpens []symOrder
 		var newCloses []copyCloseOrder
-		latestTime := int64(lastOrderTime)
-		hasNewLeadClose := false
+		seenOrderKey := make(map[string]bool)
+		watermark := lastOrderTime
+		bumpWatermark := func(orderTime int64) {
+			if orderTime > watermark {
+				watermark = orderTime
+			}
+		}
 
 		for _, o := range cached.Data.List {
-			if o.OrderTime > latestTime {
-				latestTime = o.OrderTime
-			}
 			if o.OrderTime <= lastOrderTime {
 				continue
 			}
-			open := isLeadOpenOrder(o.PositionSide, o.Side)
 			if isLeadCloseOrder(o.PositionSide, o.Side) {
-				hasNewLeadClose = true
+				if copyOpenOnly {
+					bumpWatermark(o.OrderTime)
+					continue
+				}
+				key := fmt.Sprintf("close_%s_%d_%s_%s", o.Symbol, o.OrderTime, o.PositionSide, o.Side)
+				if seenOrderKey[key] {
+					continue
+				}
+				seenOrderKey[key] = true
 				ourSt := s.ourStatusForSymbol(userID, portfolioID, o.Symbol)
 				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, o.Symbol, "lead_close",
 					o.Side, o.PositionSide, ourSt, leadActionDisplay(o.PositionSide, o.Side), o.OrderTime)
@@ -2258,19 +2266,18 @@ func (s *Server) runAutoFollowForUser(userID string) {
 				})
 				continue
 			}
-			if !open {
+			if !isLeadOpenOrder(o.PositionSide, o.Side) {
 				continue
 			}
-			if copyOpenOnly {
-				continue // 仅跟开仓配置下不跟新开仓（平仓已在上方单独处理）
+			key := fmt.Sprintf("open_%s_%d_%s_%s", o.Symbol, o.OrderTime, o.PositionSide, o.Side)
+			if seenOrderKey[key] {
+				continue
 			}
-			existing, has := latest[o.Symbol]
-			if !has || o.OrderTime > existing.OrderTime {
-				latest[o.Symbol] = &symOrder{
-					Symbol: o.Symbol, Side: o.Side, PositionSide: o.PositionSide,
-					ExecutedQty: o.ExecutedQty, AvgPrice: o.AvgPrice, OrderTime: o.OrderTime, IsOpen: true,
-				}
-			}
+			seenOrderKey[key] = true
+			newOpens = append(newOpens, symOrder{
+				Symbol: o.Symbol, Side: o.Side, PositionSide: o.PositionSide,
+				ExecutedQty: o.ExecutedQty, AvgPrice: o.AvgPrice, OrderTime: o.OrderTime,
+			})
 		}
 
 		for _, co := range newCloses {
@@ -2278,28 +2285,29 @@ func (s *Server) runAutoFollowForUser(userID string) {
 			switch {
 			case res.success:
 				counters.closed++
+				bumpWatermark(co.OrderTime)
 				time.Sleep(500 * time.Millisecond)
 			case res.failed:
 				counters.failed++
 			default:
 				counters.skipped++
+				bumpWatermark(co.OrderTime)
 			}
 		}
 
-		if len(latest) == 0 {
-			if hasNewLeadClose {
-				// 仅有平仓时已在上面的 newCloses 循环处理
-			} else {
+		if len(newOpens) == 0 {
+			if len(newCloses) == 0 {
 				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, "", "holding", "", "", "NONE", "无新带单操作", 0)
 				counters.skipped++
 			}
-			if latestTime > lastOrderTime {
-				s.database.DB().Exec("UPDATE copy_trade_config SET last_order_time=? WHERE id=?", latestTime, id)
+			if watermark > lastOrderTime {
+				s.database.DB().Exec("UPDATE copy_trade_config SET last_order_time=? WHERE id=?", watermark, id)
 			}
 			continue
 		}
 
-		for symbol, order := range latest {
+		for _, order := range newOpens {
+			symbol := order.Symbol
 			ourSt := s.ourStatusForSymbol(userID, portfolioID, symbol)
 
 			s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "lead_open",
@@ -2312,6 +2320,7 @@ func (s *Server) runAutoFollowForUser(userID string) {
 				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "already_copied",
 					order.Side, order.PositionSide, ourSt, "该带单订单已跟过", order.OrderTime)
 				counters.skipped++
+				bumpWatermark(order.OrderTime)
 				continue
 			}
 
@@ -2486,12 +2495,13 @@ func (s *Server) runAutoFollowForUser(userID string) {
 				Qty: actualQty, Price: actualPrice, TraderOrNickname: nickname,
 			})
 			counters.opened++
+			bumpWatermark(order.OrderTime)
 			log.Printf("  ✓ [自动跟单] %s %s %s %.4f张 @ $%.2f", nickname, symbol, tradePosSide, actualQty, actualPrice)
 			time.Sleep(500 * time.Millisecond)
 		}
 
-		if latestTime > lastOrderTime {
-			s.database.DB().Exec("UPDATE copy_trade_config SET last_order_time=? WHERE id=?", latestTime, id)
+		if watermark > lastOrderTime {
+			s.database.DB().Exec("UPDATE copy_trade_config SET last_order_time=? WHERE id=?", watermark, id)
 		}
 	}
 
