@@ -143,6 +143,11 @@ func parseTimeToMs(v interface{}) int64 {
 		if parsed, err := time.Parse(time.RFC3339, t); err == nil {
 			return parsed.UnixMilli()
 		}
+	case time.Time:
+		if t.IsZero() {
+			return 0
+		}
+		return t.UnixMilli()
 	}
 	return 0
 }
