@@ -11,6 +11,7 @@ const ACTION_LABELS: Record<string, string> = {
   ai_rejected: 'AI拒绝',
   skipped: '已跳过',
   already_copied: '已跟过',
+  stale_skipped: '已超时跳过',
   qty_too_small: '数量过小',
   open_failed: '开仓失败',
   fetch_failed: '拉单失败',
@@ -28,6 +29,7 @@ const ACTION_COLORS: Record<string, string> = {
   holding: '#5E6673',
   ai_rejected: '#F6465D',
   skipped: '#848E9C',
+  stale_skipped: '#848E9C',
   open_failed: '#F6465D',
   fetch_failed: '#F6465D',
 }

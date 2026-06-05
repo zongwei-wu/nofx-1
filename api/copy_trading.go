@@ -14,6 +14,9 @@ import (
 
 const copyTradeTimerIntervalSec = 300
 
+// copyTradeAutoFollowMaxOrderAge 自动监控跟单：带单操作超过此时长则跳过
+const copyTradeAutoFollowMaxOrderAge = 30 * time.Minute
+
 // LeadOrder 币安跟单带单员成交记录
 type LeadOrder struct {
 	Symbol       string  `json:"symbol"`
@@ -401,6 +404,24 @@ func getLeadOrdersForMonitor(portfolioID string, forceRefresh bool) (*LeadOrderH
 		}
 	}
 	return refreshOrderCache(portfolioID, 20)
+}
+
+func leadOrderTimeToTime(orderTime int64) time.Time {
+	if orderTime <= 0 {
+		return time.Time{}
+	}
+	if orderTime > 1e12 {
+		return time.UnixMilli(orderTime)
+	}
+	return time.Unix(orderTime, 0)
+}
+
+func isLeadOrderStaleForAutoFollow(orderTime int64, now time.Time) bool {
+	orderAt := leadOrderTimeToTime(orderTime)
+	if orderAt.IsZero() {
+		return false
+	}
+	return now.Sub(orderAt) > copyTradeAutoFollowMaxOrderAge
 }
 
 func isLeadOpenOrder(positionSide, side string) bool {

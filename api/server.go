@@ -2239,8 +2239,17 @@ func (s *Server) runAutoFollowForUser(userID string) {
 			}
 		}
 
+		autoFollowNow := time.Now()
 		for _, o := range cached.Data.List {
 			if o.OrderTime <= lastOrderTime {
+				continue
+			}
+			if isLeadOrderStaleForAutoFollow(o.OrderTime, autoFollowNow) {
+				bumpWatermark(o.OrderTime)
+				ourSt := s.ourStatusForSymbol(userID, portfolioID, o.Symbol)
+				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, o.Symbol, "stale_skipped",
+					o.Side, o.PositionSide, ourSt, "带单操作已超过30分钟，跳过跟单", o.OrderTime)
+				counters.skipped++
 				continue
 			}
 			if isLeadCloseOrder(o.PositionSide, o.Side) {
