@@ -42,10 +42,11 @@ async function fetchWithAuth<T>(url: string, token: string | null): Promise<T> {
 }
 
 export function SymbolPreferencesProvider({ children }: { children: ReactNode }) {
-  const { token, user } = useAuth()
+  const { token, user, isLoading: authLoading } = useAuth()
+  const authReady = !authLoading && !!user && !!token
 
   const { data: prefs, mutate: mutatePrefs, isLoading: prefsLoading } = useSWR(
-    user && token ? ['symbol-preferences', token] : null,
+    authReady ? ['symbol-preferences', token] : null,
     () =>
       fetchWithAuth<{
         symbols: string[]
@@ -56,7 +57,7 @@ export function SymbolPreferencesProvider({ children }: { children: ReactNode })
   )
 
   const { data: valuesData, mutate: mutateValues, isLoading: valuesLoading } = useSWR(
-    user && token ? ['symbol-values', token] : null,
+    authReady ? ['symbol-values', token] : null,
     () => fetchWithAuth<{ values: Record<string, number> }>('/api/symbol-values', token),
     { refreshInterval: 30000, revalidateOnFocus: false }
   )

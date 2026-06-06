@@ -20,16 +20,36 @@ export class HttpClient {
     HttpClient.isHandling401 = false
   }
 
+  private extractBearerToken(headers?: Record<string, string>): string | undefined {
+    const auth = headers?.Authorization ?? headers?.authorization
+    if (!auth?.startsWith('Bearer ')) return undefined
+    return auth.slice(7).trim() || undefined
+  }
+
   /**
    * Response interceptor - handles common HTTP errors
    *
    * @param response - Fetch Response object
+   * @param requestToken - Bearer token used for this request (ignore stale 401 after re-login)
    * @returns Response if successful
    * @throws Error with user-friendly message
    */
-  private async handleResponse(response: Response): Promise<Response> {
+  private async handleResponse(
+    response: Response,
+    requestToken?: string
+  ): Promise<Response> {
     // Handle 401 Unauthorized - Token expired or invalid
     if (response.status === 401) {
+      const currentToken = localStorage.getItem('auth_token')
+      // 忽略过期请求：用户已用新 token 重新登录，旧请求返回 401 不应清除新会话
+      if (
+        requestToken &&
+        currentToken &&
+        requestToken !== currentToken
+      ) {
+        throw new Error('登录已过期，请重新登录')
+      }
+
       // Prevent duplicate 401 handling when multiple API calls fail simultaneously
       if (HttpClient.isHandling401) {
         throw new Error('登录已过期，请重新登录')
@@ -88,11 +108,12 @@ export class HttpClient {
    * GET request
    */
   async get(url: string, headers?: Record<string, string>): Promise<Response> {
+    const requestToken = this.extractBearerToken(headers)
     const response = await fetch(url, {
       method: 'GET',
       headers,
     })
-    return this.handleResponse(response)
+    return this.handleResponse(response, requestToken)
   }
 
   /**
@@ -103,6 +124,7 @@ export class HttpClient {
     body?: any,
     headers?: Record<string, string>
   ): Promise<Response> {
+    const requestToken = this.extractBearerToken(headers)
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -111,7 +133,7 @@ export class HttpClient {
       },
       body: body ? JSON.stringify(body) : undefined,
     })
-    return this.handleResponse(response)
+    return this.handleResponse(response, requestToken)
   }
 
   /**
@@ -122,6 +144,7 @@ export class HttpClient {
     body?: any,
     headers?: Record<string, string>
   ): Promise<Response> {
+    const requestToken = this.extractBearerToken(headers)
     const response = await fetch(url, {
       method: 'PUT',
       headers: {
@@ -130,7 +153,7 @@ export class HttpClient {
       },
       body: body ? JSON.stringify(body) : undefined,
     })
-    return this.handleResponse(response)
+    return this.handleResponse(response, requestToken)
   }
 
   /**
@@ -140,19 +163,22 @@ export class HttpClient {
     url: string,
     headers?: Record<string, string>
   ): Promise<Response> {
+    const requestToken = this.extractBearerToken(headers)
     const response = await fetch(url, {
       method: 'DELETE',
       headers,
     })
-    return this.handleResponse(response)
+    return this.handleResponse(response, requestToken)
   }
 
   /**
    * Generic request method for custom configurations
    */
   async request(url: string, options: RequestInit = {}): Promise<Response> {
+    const hdrs = options.headers as Record<string, string> | undefined
+    const requestToken = this.extractBearerToken(hdrs)
     const response = await fetch(url, options)
-    return this.handleResponse(response)
+    return this.handleResponse(response, requestToken)
   }
 }
 

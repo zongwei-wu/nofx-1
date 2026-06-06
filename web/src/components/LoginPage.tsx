@@ -67,9 +67,15 @@ export function LoginPage() {
         setUserID(result.userID)
         setStep('otp')
       } else {
-        // Dismiss the "login expired" toast on successful login (no OTP required)
         if (expiredToastId) {
           toast.dismiss(expiredToastId)
+        }
+        const returnUrl = sessionStorage.getItem('returnUrl')
+        if (returnUrl) {
+          sessionStorage.removeItem('returnUrl')
+          navigate(returnUrl, { replace: true })
+        } else {
+          navigate('/competition', { replace: true })
         }
       }
     } else {

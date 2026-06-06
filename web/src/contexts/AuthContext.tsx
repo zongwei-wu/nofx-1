@@ -57,26 +57,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-function restoreSessionFromStorage(
-  setToken: (t: string | null) => void,
-  setUser: (u: User | null) => void,
-  setFeatures: (f: string[]) => void
-) {
-  const savedToken = localStorage.getItem('auth_token')
-  const savedUser = localStorage.getItem('auth_user')
-  if (!savedToken || !savedUser) return
-  try {
-    setToken(savedToken)
-    setUser(JSON.parse(savedUser) as User)
-    const savedFeatures = localStorage.getItem('auth_features')
-    if (savedFeatures) {
-      setFeatures(JSON.parse(savedFeatures) as string[])
-    }
-  } catch {
-    localStorage.removeItem('auth_token')
-    localStorage.removeItem('auth_user')
-    localStorage.removeItem('auth_features')
-  }
+function clearStoredAuth() {
+  localStorage.removeItem('auth_token')
+  localStorage.removeItem('auth_user')
+  localStorage.removeItem('auth_features')
 }
 
 type AuthSessionPayload = {
@@ -108,30 +92,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('auth_features', JSON.stringify(featureList))
   }
 
-  const fetchMe = async (authToken: string) => {
-    const response = await fetch('/api/me', {
-      headers: { Authorization: `Bearer ${authToken}` },
-    })
-    if (!response.ok) return
-    const data = await response.json()
+  const applyMePayload = (data: {
+    user_id?: string
+    email?: string
+    plan?: string
+    features?: string[]
+  }) => {
     if (data.features) {
       setFeatures(data.features)
       localStorage.setItem('auth_features', JSON.stringify(data.features))
     }
-    if (data.plan) {
-      setUser((prev) => (prev ? { ...prev, plan: data.plan } : prev))
-      const savedUser = localStorage.getItem('auth_user')
-      if (savedUser) {
-        try {
-          const parsed = JSON.parse(savedUser) as User
-          localStorage.setItem(
-            'auth_user',
-            JSON.stringify({ ...parsed, plan: data.plan })
-          )
-        } catch {
-          /* ignore */
-        }
+    setUser((prev) => {
+      const next: User = {
+        id: data.user_id ?? prev?.id ?? '',
+        email: data.email ?? prev?.email ?? '',
+        plan: data.plan ?? prev?.plan,
       }
+      localStorage.setItem('auth_user', JSON.stringify(next))
+      return next
+    })
+  }
+
+  const fetchMe = async (authToken: string): Promise<boolean> => {
+    const response = await fetch('/api/me', {
+      headers: { Authorization: `Bearer ${authToken}` },
+    })
+    if (response.status === 401) {
+      return false
+    }
+    if (!response.ok) return true
+    const data = await response.json()
+    applyMePayload(data)
+    return true
+  }
+
+  const restoreSession = async () => {
+    const savedToken = localStorage.getItem('auth_token')
+    const savedUser = localStorage.getItem('auth_user')
+    if (!savedToken || !savedUser) return
+
+    const response = await fetch('/api/me', {
+      headers: { Authorization: `Bearer ${savedToken}` },
+    })
+    if (response.status === 401) {
+      clearStoredAuth()
+      return
+    }
+
+    try {
+      setToken(savedToken)
+      const parsedUser = JSON.parse(savedUser) as User
+      setUser(parsedUser)
+      const savedFeatures = localStorage.getItem('auth_features')
+      if (savedFeatures) {
+        setFeatures(JSON.parse(savedFeatures) as string[])
+      }
+      if (response.ok) {
+        const data = await response.json()
+        applyMePayload(data)
+      }
+    } catch {
+      clearStoredAuth()
+      setToken(null)
+      setUser(null)
+      setFeatures([])
     }
   }
 
@@ -149,20 +173,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     getSystemConfig()
       .then(async () => {
-        restoreSessionFromStorage(setToken, setUser, setFeatures)
-        const savedToken = localStorage.getItem('auth_token')
-        if (savedToken) {
-          await fetchMe(savedToken)
-        }
+        await restoreSession()
         setIsLoading(false)
       })
       .catch(async (err) => {
         console.error('Failed to fetch system config:', err)
-        restoreSessionFromStorage(setToken, setUser, setFeatures)
-        const savedToken = localStorage.getItem('auth_token')
-        if (savedToken) {
-          await fetchMe(savedToken)
-        }
+        await restoreSession()
         setIsLoading(false)
       })
   }, [])
@@ -205,6 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             message: data.message,
           }
         }
+        reset401Flag()
         applyAuthSession(data)
         return { success: true, message: data.message }
       } else {
@@ -417,9 +434,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
     setToken(null)
     setFeatures([])
-    localStorage.removeItem('auth_token')
-    localStorage.removeItem('auth_user')
-    localStorage.removeItem('auth_features')
+    clearStoredAuth()
   }
 
   return (
