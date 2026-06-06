@@ -2081,17 +2081,19 @@ func (s *Server) startAutoFollowTimer() {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 
-	// 启动后先执行一次
+	// 启动后首次执行：不应用30分钟过期检查，处理停机期间遗漏的带单操作
 	log.Println("⏰ 自动跟单定时器已启动（每5分钟）")
-	s.autoFollow()
+	log.Println("📋 首次启动：跳过30分钟过期检查，处理停机期间遗漏的带单")
+	s.autoFollow(true)
 
 	for range ticker.C {
-		s.autoFollow()
+		s.autoFollow(false)
 	}
 }
 
 // autoFollow 自动跟单：读取开启了auto_follow的配置，调用AI分析后执行，并写入监控日志
-func (s *Server) autoFollow() {
+// isFirstRun: 首次启动时不应用30分钟过期检查
+func (s *Server) autoFollow(isFirstRun bool) {
 	log.Println("⏰ 执行自动跟单检查...")
 	globalCopyTradeRunState.markAutoFollowStarted()
 
@@ -2118,12 +2120,12 @@ func (s *Server) autoFollow() {
 	}
 
 	for _, userID := range userIDs {
-		s.runAutoFollowForUser(userID)
+		s.runAutoFollowForUser(userID, isFirstRun)
 	}
 	globalCopyTradeRunState.markAutoFollowFinished()
 }
 
-func (s *Server) runAutoFollowForUser(userID string) {
+func (s *Server) runAutoFollowForUser(userID string, isFirstRun bool) {
 	runID, err := s.startCopyTradeRun(userID, "auto")
 	if err != nil {
 		log.Printf("⚠️ [自动跟单] 创建 run 失败 user=%s: %v", userID, err)
@@ -2217,7 +2219,7 @@ func (s *Server) runAutoFollowForUser(userID string) {
 			if o.OrderTime <= lastOrderTime {
 				continue
 			}
-			if isLeadOrderStaleForAutoFollow(o.OrderTime, autoFollowNow) {
+			if isLeadOrderStaleForAutoFollow(o.OrderTime, autoFollowNow) && !isFirstRun {
 				bumpWatermark(o.OrderTime)
 				ourSt := s.ourStatusForSymbol(userID, portfolioID, o.Symbol)
 				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, o.Symbol, "stale_skipped",
