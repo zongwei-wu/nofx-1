@@ -1,5 +1,11 @@
-import { useEffect, useRef } from 'react'
-import { createChart, type IChartApi, type ISeriesApi, type Time } from 'lightweight-charts'
+import { useEffect, useRef, useMemo } from 'react'
+import {
+  createChart,
+  ColorType,
+  type IChartApi,
+  type ISeriesApi,
+  type Time,
+} from 'lightweight-charts'
 import type { KlinePoint, TradeEvent } from './tradeEventTypes'
 import {
   mapKlinesToCandlestickData,
@@ -35,147 +41,183 @@ export function LightweightTradeChart({
   const chartRef = useRef<IChartApi | null>(null)
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
   const eventsRef = useRef(events)
+  const onSelectRef = useRef(onSelectEvent)
   eventsRef.current = events
+  onSelectRef.current = onSelectEvent
 
-  const priceRows = mapKlinesToChartRows(klines)
-  const scatterPoints = mapEventsToScatterPoints(events, priceRows)
-  const candleData = mapKlinesToCandlestickData(klines)
-  const markers = mapScatterPointsToMarkers(scatterPoints, selectedEvent)
+  const candleData = useMemo(() => mapKlinesToCandlestickData(klines), [klines])
+  const markers = useMemo(() => {
+    const priceRows = mapKlinesToChartRows(klines)
+    const scatterPoints = mapEventsToScatterPoints(events, priceRows)
+    return mapScatterPointsToMarkers(scatterPoints, selectedEvent)
+  }, [klines, events, selectedEvent])
 
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
 
-    const chart = createChart(container, {
-      width: container.clientWidth,
-      height,
-      layout: {
-        background: { color: '#0B0E11' },
-        textColor: '#848E9C',
-      },
-      grid: {
-        vertLines: { color: '#2B3139' },
-        horzLines: { color: '#2B3139' },
-      },
-      rightPriceScale: {
-        borderColor: '#2B3139',
-      },
-      timeScale: {
-        borderColor: '#2B3139',
-        timeVisible: true,
-        secondsVisible: false,
-      },
-      crosshair: {
-        vertLine: { color: '#5E6673' },
-        horzLine: { color: '#5E6673' },
-      },
-    })
+    let disposed = false
+    let resizeObserver: ResizeObserver | null = null
+    let clickHandler: ((param: { time?: Time }) => void) | null = null
+    let rafId = 0
 
-    const series = chart.addCandlestickSeries({
-      upColor: '#0ECB81',
-      downColor: '#F6465D',
-      borderUpColor: '#0ECB81',
-      borderDownColor: '#F6465D',
-      wickUpColor: '#0ECB81',
-      wickDownColor: '#F6465D',
-    })
-
-    chartRef.current = chart
-    seriesRef.current = series
-
-    const ro = new ResizeObserver(() => {
-      if (container.clientWidth > 0) {
-        chart.applyOptions({ width: container.clientWidth })
+    const destroyChart = () => {
+      if (chartRef.current && clickHandler) {
+        chartRef.current.unsubscribeClick(clickHandler)
       }
-    })
-    ro.observe(container)
-
-    const threshold = markerClickThresholdSec(interval)
-    const clickHandler = (param: { time?: Time }) => {
-      if (!param.time) {
-        onSelectEvent(null)
-        return
-      }
-      const timeSec = Number(param.time)
-      const matched = findEventNearTime(eventsRef.current, timeSec, threshold)
-      onSelectEvent(matched)
-    }
-    chart.subscribeClick(clickHandler)
-
-    return () => {
-      ro.disconnect()
-      chart.unsubscribeClick(clickHandler)
-      chart.remove()
+      chartRef.current?.remove()
       chartRef.current = null
       seriesRef.current = null
     }
-  }, [height, interval, onSelectEvent])
 
-  useEffect(() => {
-    const series = seriesRef.current
-    if (!series) return
+    const applyChartData = () => {
+      const series = seriesRef.current
+      const chart = chartRef.current
+      if (!series || !chart || candleData.length === 0) return
 
-    if (candleData.length === 0) {
-      series.setData([])
-      series.setMarkers([])
-      return
+      series.setData(
+        candleData.map((c) => ({
+          time: c.time as Time,
+          open: c.open,
+          high: c.high,
+          low: c.low,
+          close: c.close,
+        }))
+      )
+      series.setMarkers(
+        markers.map((m) => ({
+          time: m.time as Time,
+          position: m.position,
+          color: m.color,
+          shape: m.shape,
+          text: m.text,
+        }))
+      )
+      chart.timeScale().fitContent()
     }
 
-    series.setData(
-      candleData.map((c) => ({
-        time: c.time as Time,
-        open: c.open,
-        high: c.high,
-        low: c.low,
-        close: c.close,
-      }))
-    )
+    if (candleData.length === 0) {
+      destroyChart()
+      return () => {
+        disposed = true
+        cancelAnimationFrame(rafId)
+      }
+    }
 
-    series.setMarkers(
-      markers.map((m) => ({
-        time: m.time as Time,
-        position: m.position,
-        color: m.color,
-        shape: m.shape,
-        text: m.text,
-      }))
-    )
+    const mountChart = () => {
+      if (disposed) return
 
-    chartRef.current?.timeScale().fitContent()
-  }, [candleData, markers])
+      const width = container.clientWidth
+      if (width <= 0) {
+        rafId = requestAnimationFrame(mountChart)
+        return
+      }
 
-  if (loading) {
-    return (
-      <div
-        className="flex items-center justify-center text-sm rounded-lg"
-        style={{ height, color: '#5E6673', background: '#0B0E11', border: '1px solid #2B3139' }}
-      >
-        加载中…
-      </div>
-    )
-  }
+      destroyChart()
 
-  if (candleData.length === 0) {
-    return (
-      <div
-        className="flex items-center justify-center text-sm rounded-lg"
-        style={{ height, color: '#5E6673', background: '#0B0E11', border: '1px solid #2B3139' }}
-      >
-        暂无 K 线数据
-      </div>
-    )
-  }
+      const chart = createChart(container, {
+        width,
+        height,
+        layout: {
+          background: { type: ColorType.Solid, color: '#0B0E11' },
+          textColor: '#848E9C',
+        },
+        grid: {
+          vertLines: { color: '#2B3139' },
+          horzLines: { color: '#2B3139' },
+        },
+        rightPriceScale: {
+          borderColor: '#2B3139',
+        },
+        timeScale: {
+          borderColor: '#2B3139',
+          timeVisible: true,
+          secondsVisible: false,
+        },
+        crosshair: {
+          vertLine: { color: '#5E6673' },
+          horzLine: { color: '#5E6673' },
+        },
+      })
+
+      const series = chart.addCandlestickSeries({
+        upColor: '#0ECB81',
+        downColor: '#F6465D',
+        borderUpColor: '#0ECB81',
+        borderDownColor: '#F6465D',
+        wickUpColor: '#0ECB81',
+        wickDownColor: '#F6465D',
+      })
+
+      chartRef.current = chart
+      seriesRef.current = series
+
+      const threshold = markerClickThresholdSec(interval)
+      clickHandler = (param: { time?: Time }) => {
+        if (!param.time) {
+          onSelectRef.current(null)
+          return
+        }
+        const matched = findEventNearTime(
+          eventsRef.current,
+          Number(param.time),
+          threshold
+        )
+        onSelectRef.current(matched)
+      }
+      chart.subscribeClick(clickHandler)
+
+      applyChartData()
+
+      resizeObserver = new ResizeObserver(() => {
+        if (disposed || !chartRef.current) return
+        const nextWidth = container.clientWidth
+        if (nextWidth > 0) {
+          chartRef.current.applyOptions({ width: nextWidth })
+        }
+      })
+      resizeObserver.observe(container)
+    }
+
+    mountChart()
+
+    return () => {
+      disposed = true
+      cancelAnimationFrame(rafId)
+      resizeObserver?.disconnect()
+      destroyChart()
+    }
+  }, [candleData, markers, height, interval])
+
+  const showEmpty = !loading && candleData.length === 0
 
   return (
     <div
-      ref={containerRef}
-      className="rounded-lg overflow-hidden"
+      className="relative rounded-lg overflow-hidden"
       style={{
         height,
         width: '100%',
         border: '1px solid #2B3139',
         background: '#0B0E11',
       }}
-    />
+    >
+      <div ref={containerRef} style={{ height: '100%', width: '100%' }} />
+      {loading && (
+        <div
+          className="absolute inset-0 flex items-center justify-center text-sm"
+          style={{ color: '#848E9C', background: 'rgba(11, 14, 17, 0.85)' }}
+        >
+          加载中…
+        </div>
+      )}
+      {showEmpty && (
+        <div
+          className="absolute inset-0 flex items-center justify-center text-sm"
+          style={{ color: '#5E6673', background: '#0B0E11' }}
+        >
+          暂无 K 线数据
+        </div>
+      )}
+    </div>
   )
 }

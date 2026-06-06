@@ -197,19 +197,22 @@ export interface LwcMarkerPoint {
 }
 
 export function mapKlinesToCandlestickData(klines: KlinePoint[]) {
-  return klines
-    .filter((k) => k.time > 0 && k.close > 0)
-    .map((k) => {
-      const timeSec = k.time < 1e12 ? k.time : Math.floor(k.time / 1000)
-      return {
-        time: timeSec,
-        open: k.open > 0 ? k.open : k.close,
-        high: k.high > 0 ? k.high : k.close,
-        low: k.low > 0 ? k.low : k.close,
-        close: k.close,
-      }
+  const byTime = new Map<
+    number,
+    { time: number; open: number; high: number; low: number; close: number }
+  >()
+  for (const k of klines) {
+    if (k.time <= 0 || k.close <= 0) continue
+    const timeSec = k.time < 1e12 ? k.time : Math.floor(k.time / 1000)
+    byTime.set(timeSec, {
+      time: timeSec,
+      open: k.open > 0 ? k.open : k.close,
+      high: k.high > 0 ? k.high : k.close,
+      low: k.low > 0 ? k.low : k.close,
+      close: k.close,
     })
-    .sort((a, b) => a.time - b.time)
+  }
+  return [...byTime.values()].sort((a, b) => a.time - b.time)
 }
 
 export function mapScatterPointsToMarkers(
