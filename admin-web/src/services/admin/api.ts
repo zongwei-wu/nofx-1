@@ -106,3 +106,111 @@ export async function updateUserPlan(userId: string, plan: string) {
     { method: 'PUT', data: { plan } },
   );
 }
+
+export async function listAdmins(params: {
+  current?: number;
+  pageSize?: number;
+  email?: string;
+}) {
+  return request<{ data: AdminUser[]; total: number; success: boolean }>(
+    '/api/admin/admins',
+    { params },
+  );
+}
+
+export async function createAdmin(email: string, password: string) {
+  return request<{ success: boolean; message: string }>('/api/admin/admins', {
+    method: 'POST',
+    data: { email, password },
+  });
+}
+
+export async function updateUserRole(userId: string, role: string) {
+  return request<{ success: boolean; message: string }>(
+    `/api/admin/users/${userId}/role`,
+    { method: 'PUT', data: { role } },
+  );
+}
+
+export async function resetUserPassword(userId: string, password: string) {
+  return request<{ success: boolean; message: string }>(
+    `/api/admin/users/${userId}/password`,
+    { method: 'PUT', data: { password } },
+  );
+}
+
+export async function deleteUser(userId: string) {
+  return request<{ success: boolean; message: string }>(
+    `/api/admin/users/${userId}`,
+    { method: 'DELETE' },
+  );
+}
+
+export type AdminTrader = {
+  id: string;
+  user_id: string;
+  user_email: string;
+  name: string;
+  ai_model_id: string;
+  ai_model_name: string;
+  exchange_id: string;
+  exchange_name: string;
+  exchange_type: string;
+  initial_balance: number;
+  scan_interval_minutes: number;
+  is_running: boolean;
+  btc_eth_leverage: number;
+  altcoin_leverage: number;
+  trading_symbols: string;
+  system_prompt_template: string;
+  is_cross_margin: boolean;
+  use_coin_pool: boolean;
+  use_oi_top: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminTraderDetail = AdminTrader & {
+  ai_model_provider?: string;
+  custom_prompt?: string;
+  override_base_prompt?: boolean;
+};
+
+export async function listTraders(params: {
+  current?: number;
+  pageSize?: number;
+  user_id?: string;
+  email?: string;
+  name?: string;
+  is_running?: string;
+}) {
+  return request<{ data: AdminTrader[]; total: number; success: boolean }>(
+    '/api/admin/traders',
+    { params },
+  );
+}
+
+export async function getTraderDetail(traderId: string) {
+  return request<{ data: AdminTraderDetail; success: boolean }>(
+    `/api/admin/traders/${traderId}`,
+  );
+}
+
+export async function getTraderAccount(traderId: string) {
+  return request<{ data: Record<string, unknown>; success: boolean }>(
+    `/api/admin/traders/${traderId}/account`,
+  );
+}
+
+export async function getTraderPositions(traderId: string) {
+  return request<{ data: Record<string, unknown>[]; success: boolean }>(
+    `/api/admin/traders/${traderId}/positions`,
+  );
+}
+
+export async function stopTrader(traderId: string) {
+  return request<{ success: boolean; message: string }>(
+    `/api/admin/traders/${traderId}/stop`,
+    { method: 'POST' },
+  );
+}

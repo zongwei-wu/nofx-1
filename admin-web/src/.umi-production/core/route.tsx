@@ -4,17 +4,19 @@
 import React from 'react';
 
 export async function getRoutes() {
-  const routes = {"1":{"path":"/user","layout":false,"id":"1"},"2":{"path":"/user/login","parentId":"1","id":"2"},"3":{"path":"/user/list","name":"用户管理","icon":"user","access":"canAdmin","parentId":"ant-design-pro-layout","id":"3"},"4":{"path":"/copy-trade/records","name":"跟单记录","icon":"table","access":"canAdmin","parentId":"ant-design-pro-layout","id":"4"},"5":{"path":"/system/config","name":"系统配置","icon":"setting","access":"canAdmin","parentId":"ant-design-pro-layout","id":"5"},"6":{"path":"/","redirect":"/user/list","parentId":"ant-design-pro-layout","id":"6"},"7":{"path":"*","layout":false,"id":"7"},"ant-design-pro-layout":{"id":"ant-design-pro-layout","path":"/","isLayout":true}} as const;
+  const routes = {"1":{"path":"/user","layout":false,"id":"1"},"2":{"path":"/user/login","parentId":"1","id":"2"},"3":{"path":"/user/list","name":"用户管理","icon":"user","access":"canAdmin","parentId":"ant-design-pro-layout","id":"3"},"4":{"path":"/admin/list","name":"管理员管理","icon":"crown","access":"canAdmin","parentId":"ant-design-pro-layout","id":"4"},"5":{"path":"/ai-trader/list","name":"AI 交易员","icon":"robot","access":"canAdmin","parentId":"ant-design-pro-layout","id":"5"},"6":{"path":"/copy-trade/records","name":"跟单记录","icon":"table","access":"canAdmin","parentId":"ant-design-pro-layout","id":"6"},"7":{"path":"/system/config","name":"系统配置","icon":"setting","access":"canAdmin","parentId":"ant-design-pro-layout","id":"7"},"8":{"path":"/","redirect":"/user/list","parentId":"ant-design-pro-layout","id":"8"},"9":{"path":"*","layout":false,"id":"9"},"ant-design-pro-layout":{"id":"ant-design-pro-layout","path":"/","isLayout":true}} as const;
   return {
     routes,
     routeComponents: {
 '1': React.lazy(() => import('./EmptyRoute')),
 '2': React.lazy(() => import(/* webpackChunkName: "p__user__login__index" */'@/pages/user/login/index.tsx')),
 '3': React.lazy(() => import(/* webpackChunkName: "p__user__list__index" */'@/pages/user/list/index.tsx')),
-'4': React.lazy(() => import(/* webpackChunkName: "p__copy-trade__records__index" */'@/pages/copy-trade/records/index.tsx')),
-'5': React.lazy(() => import(/* webpackChunkName: "p__system__config__index" */'@/pages/system/config/index.tsx')),
-'6': React.lazy(() => import('./EmptyRoute')),
-'7': React.lazy(() => import(/* webpackChunkName: "p__user__login__index" */'@/pages/user/login/index.tsx')),
+'4': React.lazy(() => import(/* webpackChunkName: "p__admin__list__index" */'@/pages/admin/list/index.tsx')),
+'5': React.lazy(() => import(/* webpackChunkName: "p__ai-trader__list__index" */'@/pages/ai-trader/list/index.tsx')),
+'6': React.lazy(() => import(/* webpackChunkName: "p__copy-trade__records__index" */'@/pages/copy-trade/records/index.tsx')),
+'7': React.lazy(() => import(/* webpackChunkName: "p__system__config__index" */'@/pages/system/config/index.tsx')),
+'8': React.lazy(() => import('./EmptyRoute')),
+'9': React.lazy(() => import(/* webpackChunkName: "p__user__login__index" */'@/pages/user/login/index.tsx')),
 'ant-design-pro-layout': React.lazy(() => import(/* webpackChunkName: "t__plugin-layout__Layout" */'/Users/wuzongwei/Documents/www/nofx-1/admin-web/src/.umi-production/plugin-layout/Layout.tsx')),
 },
   };

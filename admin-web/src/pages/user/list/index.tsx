@@ -11,6 +11,7 @@ import {
   listPlans,
   listUsers,
   updateUserPlan,
+  updateUserRole,
   type AdminUser,
   type PlanInfo,
 } from '@/services/admin/api';
@@ -68,7 +69,7 @@ export default function UserListPage() {
     {
       title: '操作',
       valueType: 'option',
-      width: 100,
+      width: 180,
       render: (_, record) =>
         record.role === 'admin'
           ? []
@@ -80,6 +81,18 @@ export default function UserListPage() {
                 onClick={() => setEditingUser(record)}
               >
                 分配套餐
+              </Button>,
+              <Button
+                key="promote"
+                type="link"
+                size="small"
+                onClick={async () => {
+                  await updateUserRole(record.id, 'admin');
+                  message.success('已设为管理员');
+                  setTableKey((k) => k + 1);
+                }}
+              >
+                设为管理员
               </Button>,
             ],
     },

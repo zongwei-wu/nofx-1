@@ -187,6 +187,221 @@
           "403": { "description": "非管理员" },
           "404": { "description": "用户不存在" }
         }
+      },
+      "delete": {
+        "tags": ["Admin"],
+        "summary": "删除用户或管理员",
+        "description": "不能删除自己或最后一个管理员",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "type": "string", "description": "用户 ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功",
+            "schema": { "$ref": "#/definitions/AdminSuccessMessageResponse" }
+          },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员或违反安全规则" },
+          "404": { "description": "用户不存在" }
+        }
+      }
+    },
+    "/admin/users/{id}/role": {
+      "put": {
+        "tags": ["Admin"],
+        "summary": "提权或降权用户",
+        "description": "将用户 role 设为 admin 或 user；不能降权自己或最后一个管理员",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "type": "string", "description": "用户 ID" },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/AdminUpdateUserRoleRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "schema": { "$ref": "#/definitions/AdminSuccessMessageResponse" }
+          },
+          "400": { "description": "参数错误" },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员或违反安全规则" },
+          "404": { "description": "用户不存在" }
+        }
+      }
+    },
+    "/admin/users/{id}/password": {
+      "put": {
+        "tags": ["Admin"],
+        "summary": "管理员重置用户密码",
+        "description": "无需 OTP，直接重置指定用户密码",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "type": "string", "description": "用户 ID" },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/AdminResetPasswordRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "重置成功",
+            "schema": { "$ref": "#/definitions/AdminSuccessMessageResponse" }
+          },
+          "400": { "description": "参数错误" },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" },
+          "404": { "description": "用户不存在" }
+        }
+      }
+    },
+    "/admin/admins": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "分页查询管理员列表",
+        "description": "仅返回 role=admin 的用户",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "current", "in": "query", "type": "integer", "description": "当前页码（ProTable）" },
+          { "name": "page", "in": "query", "type": "integer", "description": "当前页码（兼容）" },
+          { "name": "pageSize", "in": "query", "type": "integer", "description": "每页条数" },
+          { "name": "email", "in": "query", "type": "string", "description": "邮箱模糊搜索" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "schema": { "$ref": "#/definitions/AdminUsersPageResponse" }
+          },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" }
+        }
+      },
+      "post": {
+        "tags": ["Admin"],
+        "summary": "创建管理员",
+        "description": "新建管理员账号，跳过 OTP，plan 设为 vip",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/AdminCreateAdminRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "创建成功",
+            "schema": { "$ref": "#/definitions/AdminCreateAdminResponse" }
+          },
+          "400": { "description": "参数错误或邮箱已存在" },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" }
+        }
+      }
+    },
+    "/admin/traders": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "分页查询 AI 交易员",
+        "description": "跨用户查询，合并内存实时运行状态",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "current", "in": "query", "type": "integer" },
+          { "name": "page", "in": "query", "type": "integer" },
+          { "name": "pageSize", "in": "query", "type": "integer" },
+          { "name": "user_id", "in": "query", "type": "string", "description": "用户 ID 筛选" },
+          { "name": "email", "in": "query", "type": "string", "description": "用户邮箱模糊搜索" },
+          { "name": "name", "in": "query", "type": "string", "description": "交易员名称模糊搜索" },
+          { "name": "is_running", "in": "query", "type": "string", "description": "true/false 运行状态筛选" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "schema": { "$ref": "#/definitions/AdminTradersPageResponse" }
+          },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" }
+        }
+      }
+    },
+    "/admin/traders/{id}": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "AI 交易员详情",
+        "description": "返回配置与模型/交易所名称，不含密钥",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "type": "string", "description": "交易员 ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "schema": { "$ref": "#/definitions/AdminTraderDetailResponse" }
+          },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" },
+          "404": { "description": "交易员不存在" }
+        }
+      }
+    },
+    "/admin/traders/{id}/account": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "AI 交易员账户信息（只读）",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "type": "string", "description": "交易员 ID" }
+        ],
+        "responses": {
+          "200": { "description": "成功" },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" },
+          "404": { "description": "交易员不存在或未加载" }
+        }
+      }
+    },
+    "/admin/traders/{id}/positions": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "AI 交易员持仓（只读）",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "type": "string", "description": "交易员 ID" }
+        ],
+        "responses": {
+          "200": { "description": "成功" },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" },
+          "404": { "description": "交易员不存在或未加载" }
+        }
+      }
+    },
+    "/admin/traders/{id}/stop": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "强制停止 AI 交易员",
+        "description": "管理员强制停止运行中的交易员",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "type": "string", "description": "交易员 ID" }
+        ],
+        "responses": {
+          "200": {
+            "description": "停止成功",
+            "schema": { "$ref": "#/definitions/AdminSuccessMessageResponse" }
+          },
+          "400": { "description": "交易员已停止" },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" },
+          "404": { "description": "交易员不存在或未加载" }
+        }
       }
     },
     "/admin/copy-trade/records": {
@@ -502,6 +717,79 @@
         "success": { "type": "boolean" },
         "message": { "type": "string" },
         "data": { "$ref": "#/definitions/AdminUserItem" }
+      }
+    },
+    "AdminSuccessMessageResponse": {
+      "type": "object",
+      "properties": {
+        "success": { "type": "boolean" },
+        "message": { "type": "string" }
+      }
+    },
+    "AdminUpdateUserRoleRequest": {
+      "type": "object",
+      "required": ["role"],
+      "properties": {
+        "role": { "type": "string", "enum": ["admin", "user"] }
+      }
+    },
+    "AdminResetPasswordRequest": {
+      "type": "object",
+      "required": ["password"],
+      "properties": {
+        "password": { "type": "string", "minLength": 6 }
+      }
+    },
+    "AdminCreateAdminRequest": {
+      "type": "object",
+      "required": ["email", "password"],
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "password": { "type": "string", "minLength": 6 }
+      }
+    },
+    "AdminCreateAdminResponse": {
+      "type": "object",
+      "properties": {
+        "success": { "type": "boolean" },
+        "message": { "type": "string" },
+        "data": { "$ref": "#/definitions/AdminUserItem" }
+      }
+    },
+    "AdminTraderItem": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "user_id": { "type": "string" },
+        "user_email": { "type": "string" },
+        "name": { "type": "string" },
+        "ai_model_id": { "type": "string" },
+        "ai_model_name": { "type": "string" },
+        "exchange_id": { "type": "string" },
+        "exchange_name": { "type": "string" },
+        "exchange_type": { "type": "string" },
+        "initial_balance": { "type": "number", "format": "double" },
+        "scan_interval_minutes": { "type": "integer" },
+        "is_running": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "AdminTradersPageResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/AdminTraderItem" }
+        },
+        "total": { "type": "integer" },
+        "success": { "type": "boolean" }
+      }
+    },
+    "AdminTraderDetailResponse": {
+      "type": "object",
+      "properties": {
+        "success": { "type": "boolean" },
+        "data": { "$ref": "#/definitions/AdminTraderItem" }
       }
     }
   }

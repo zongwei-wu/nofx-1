@@ -887,6 +887,84 @@ func (d *Database) UpdateUserOTPVerified(userID string, verified bool) error {
 	return err
 }
 
+// ListUsersByRole 按角色分页查询用户
+func (d *Database) ListUsersByRole(role string, page, pageSize int, emailFilter string) ([]*User, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	where := " WHERE role = ?"
+	args := []interface{}{role}
+	if emailFilter != "" {
+		where += " AND email LIKE ?"
+		args = append(args, "%"+emailFilter+"%")
+	}
+
+	var total int
+	if err := d.db.QueryRow("SELECT COUNT(*) FROM users"+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * pageSize
+	query := `
+		SELECT id, email, password_hash, otp_secret, otp_verified, role, plan, created_at, updated_at
+		FROM users` + where + ` ORDER BY created_at DESC LIMIT ? OFFSET ?`
+	queryArgs := append(args, pageSize, offset)
+
+	rows, err := d.db.Query(query, queryArgs...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var users []*User
+	for rows.Next() {
+		var user User
+		if err := rows.Scan(
+			&user.ID, &user.Email, &user.PasswordHash, &user.OTPSecret,
+			&user.OTPVerified, &user.Role, &user.Plan, &user.CreatedAt, &user.UpdatedAt,
+		); err != nil {
+			return nil, 0, err
+		}
+		if user.Role == "" {
+			user.Role = UserRoleUser
+		}
+		if user.Plan == "" {
+			user.Plan = PlanStandard
+		}
+		users = append(users, &user)
+	}
+	return users, total, nil
+}
+
+// UpdateUserRole 更新用户角色
+func (d *Database) UpdateUserRole(userID, role string) error {
+	if role != UserRoleUser && role != UserRoleAdmin {
+		return fmt.Errorf("无效的角色: %s", role)
+	}
+	_, err := d.db.Exec(`UPDATE users SET role = ? WHERE id = ?`, role, userID)
+	return err
+}
+
+// CountAdmins 统计管理员数量
+func (d *Database) CountAdmins() (int, error) {
+	var count int
+	err := d.db.QueryRow(`SELECT COUNT(*) FROM users WHERE role = ?`, UserRoleAdmin).Scan(&count)
+	return count, err
+}
+
+// DeleteUser 删除用户（关联数据 CASCADE）
+func (d *Database) DeleteUser(userID string) error {
+	_, err := d.db.Exec(`DELETE FROM users WHERE id = ?`, userID)
+	return err
+}
+
 // UpdateUserPassword 更新用户密码
 func (d *Database) UpdateUserPassword(userID, passwordHash string) error {
 	_, err := d.db.Exec(`

@@ -17,6 +17,20 @@ export default [
     component: './user/list',
   },
   {
+    path: '/admin/list',
+    name: '管理员管理',
+    icon: 'crown',
+    access: 'canAdmin',
+    component: './admin/list',
+  },
+  {
+    path: '/ai-trader/list',
+    name: 'AI 交易员',
+    icon: 'robot',
+    access: 'canAdmin',
+    component: './ai-trader/list',
+  },
+  {
     path: '/copy-trade/records',
     name: '跟单记录',
     icon: 'table',

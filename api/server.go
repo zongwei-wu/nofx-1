@@ -193,9 +193,19 @@ func (s *Server) setupRoutes() {
 			admin := protected.Group("/admin", s.adminMiddleware())
 			{
 				admin.GET("/me", s.handleAdminMe)
+				admin.GET("/admins", s.handleAdminListAdmins)
+				admin.POST("/admins", s.handleAdminCreateAdmin)
 				admin.GET("/users", s.handleAdminListUsers)
 				admin.PUT("/users/:id", s.handleAdminUpdateUser)
+				admin.PUT("/users/:id/role", s.handleAdminUpdateUserRole)
+				admin.PUT("/users/:id/password", s.handleAdminResetUserPassword)
+				admin.DELETE("/users/:id", s.handleAdminDeleteUser)
 				admin.GET("/plans", s.handleAdminListPlans)
+				admin.GET("/traders", s.handleAdminListTraders)
+				admin.GET("/traders/:id", s.handleAdminGetTrader)
+				admin.GET("/traders/:id/account", s.handleAdminGetTraderAccount)
+				admin.GET("/traders/:id/positions", s.handleAdminGetTraderPositions)
+				admin.POST("/traders/:id/stop", s.handleAdminStopTrader)
 				admin.GET("/copy-trade/records", s.handleAdminCopyTradeRecords)
 				admin.GET("/system-config", s.handleAdminGetSystemConfig)
 				admin.PUT("/system-config", s.handleAdminPutSystemConfig)
@@ -932,36 +942,15 @@ func (s *Server) handleStopTrader(c *gin.Context) {
 	userID := c.GetString("user_id")
 	traderID := c.Param("id")
 
-	// 校验交易员是否属于当前用户
-	_, _, _, err := s.database.GetTraderConfig(userID, traderID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "交易员不存在或无访问权限"})
+	if err := s.stopTraderForUser(userID, traderID); err != nil {
+		if err.Error() == "交易员已停止" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
 
-	trader, err := s.traderManager.GetTrader(traderID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "交易员不存在"})
-		return
-	}
-
-	// 检查交易员是否正在运行
-	status := trader.GetStatus()
-	if isRunning, ok := status["is_running"].(bool); ok && !isRunning {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "交易员已停止"})
-		return
-	}
-
-	// 停止交易员
-	trader.Stop()
-
-	// 更新数据库中的运行状态
-	err = s.database.UpdateTraderStatus(userID, traderID, false)
-	if err != nil {
-		log.Printf("⚠️  更新交易员状态失败: %v", err)
-	}
-
-	log.Printf("⏹  交易员 %s 已停止", trader.GetName())
 	c.JSON(http.StatusOK, gin.H{"message": "交易员已停止"})
 }
 
