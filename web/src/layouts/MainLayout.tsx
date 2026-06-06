@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react'
+import { ReactNode, useEffect, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import HeaderBar from '../components/HeaderBar'
 import { Container } from '../components/Container'
@@ -15,12 +15,14 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const { user, logout, refreshPermissions } = useAuth()
   const location = useLocation()
 
-  // 进入主界面时刷新权限（管理员改套餐后无需重新登录）
+  // 每个用户会话仅刷新一次权限，避免 /api/me 请求循环
+  const permissionsSyncedRef = useRef<string | null>(null)
   useEffect(() => {
-    if (user) {
-      void refreshPermissions()
-    }
-  }, [user, refreshPermissions])
+    if (!user?.id) return
+    if (permissionsSyncedRef.current === user.id) return
+    permissionsSyncedRef.current = user.id
+    void refreshPermissions()
+  }, [user?.id, refreshPermissions])
 
   // 根据路径自动判断当前页面
   const getCurrentPage = ():

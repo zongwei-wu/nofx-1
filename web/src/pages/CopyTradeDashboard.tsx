@@ -414,6 +414,18 @@ export function CopyTradeDashboard() {
   const safeRecords = records ?? []
   const safeConfigs = configs ?? []
 
+  const chartEventSymbols = useMemo(
+    () => [
+      ...new Set(
+        safeRecords
+          .filter((r) => r.status === 'OPEN' || r.status === 'CLOSED')
+          .map((r) => r.symbol)
+          .filter(Boolean)
+      ),
+    ],
+    [safeRecords]
+  )
+
   const { monitored: monitoredTraders, unmonitored: unmonitoredTraders } = useMemo(
     () => partitionTradersForDashboard(leaderboard, safeConfigs),
     [leaderboard, safeConfigs]
@@ -811,14 +823,7 @@ export function CopyTradeDashboard() {
               <ChartErrorBoundary>
                 <TradeEventPriceChart
                   source="copy_trade"
-                  symbols={[
-                    ...new Set(
-                      safeRecords
-                        .filter((r) => r.status === 'OPEN' || r.status === 'CLOSED')
-                        .map((r) => r.symbol)
-                        .filter(Boolean)
-                    ),
-                  ]}
+                  symbols={chartEventSymbols}
                 />
               </ChartErrorBoundary>
             </div>

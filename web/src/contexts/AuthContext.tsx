@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useState,
+  useEffect,
+} from 'react'
 import { getSystemConfig } from '../lib/config'
 import { reset401Flag } from '../lib/httpClient'
 
@@ -107,39 +113,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await fetchMe(data.token)
   }
 
-  const applyMePayload = (data: {
-    user_id?: string
-    email?: string
-    plan?: string
-    features?: string[]
-  }) => {
-    if (Array.isArray(data.features)) {
-      setFeatures(data.features)
-      localStorage.setItem('auth_features', JSON.stringify(data.features))
-    }
-    setUser((prev) => {
-      const next: User = {
-        id: data.user_id ?? prev?.id ?? '',
-        email: data.email ?? prev?.email ?? '',
-        plan: data.plan ?? prev?.plan,
+  const applyMePayload = useCallback(
+    (data: {
+      user_id?: string
+      email?: string
+      plan?: string
+      features?: string[]
+    }) => {
+      if (Array.isArray(data.features)) {
+        setFeatures((prev) => {
+          if (
+            prev.length === data.features!.length &&
+            prev.every((f, i) => f === data.features![i])
+          ) {
+            return prev
+          }
+          localStorage.setItem(
+            'auth_features',
+            JSON.stringify(data.features)
+          )
+          return data.features!
+        })
       }
-      localStorage.setItem('auth_user', JSON.stringify(next))
-      return next
-    })
-  }
+      setUser((prev) => {
+        const next: User = {
+          id: data.user_id ?? prev?.id ?? '',
+          email: data.email ?? prev?.email ?? '',
+          plan: data.plan ?? prev?.plan,
+        }
+        if (
+          prev &&
+          prev.id === next.id &&
+          prev.email === next.email &&
+          prev.plan === next.plan
+        ) {
+          return prev
+        }
+        localStorage.setItem('auth_user', JSON.stringify(next))
+        return next
+      })
+    },
+    []
+  )
 
-  const fetchMe = async (authToken: string): Promise<boolean> => {
-    const response = await fetch('/api/me', {
-      headers: { Authorization: `Bearer ${authToken}` },
-    })
-    if (response.status === 401) {
-      return false
-    }
-    if (!response.ok) return true
-    const data = await response.json()
-    applyMePayload(data)
-    return true
-  }
+  const fetchMe = useCallback(
+    async (authToken: string): Promise<boolean> => {
+      const response = await fetch('/api/me', {
+        headers: { Authorization: `Bearer ${authToken}` },
+      })
+      if (response.status === 401) {
+        return false
+      }
+      if (!response.ok) return true
+      const data = await response.json()
+      applyMePayload(data)
+      return true
+    },
+    [applyMePayload]
+  )
 
   const restoreSession = async () => {
     const savedToken = localStorage.getItem('auth_token')
@@ -174,27 +205,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const refreshPermissions = async () => {
+  const refreshPermissions = useCallback(async () => {
     const savedToken = localStorage.getItem('auth_token')
-    const savedUser = localStorage.getItem('auth_user')
     if (!savedToken) return
-
-    if (!user && savedUser) {
-      try {
-        setToken(savedToken)
-        setUser(JSON.parse(savedUser) as User)
-        const savedFeatures = localStorage.getItem('auth_features')
-        if (savedFeatures) {
-          setFeatures(JSON.parse(savedFeatures) as string[])
-        }
-      } catch {
-        clearStoredAuth()
-        return
-      }
-    }
-
     await fetchMe(savedToken)
-  }
+  }, [fetchMe])
 
   const hasFeature = (feature: string) => features.includes(feature)
 

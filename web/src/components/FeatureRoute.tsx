@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react'
+import { ReactNode, useEffect, useRef } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuth } from '../contexts/AuthContext'
@@ -18,10 +18,15 @@ export function FeatureRoute({ feature, children }: FeatureRouteProps) {
     typeof localStorage !== 'undefined' &&
     !!localStorage.getItem('auth_token')
 
+  const authSyncRef = useRef(false)
   useEffect(() => {
-    if (pendingAuth) {
-      void refreshPermissions()
+    if (!pendingAuth) {
+      authSyncRef.current = false
+      return
     }
+    if (authSyncRef.current) return
+    authSyncRef.current = true
+    void refreshPermissions()
   }, [pendingAuth, refreshPermissions])
 
   useEffect(() => {

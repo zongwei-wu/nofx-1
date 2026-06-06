@@ -30,6 +30,8 @@ const SymbolPreferencesContext = createContext<SymbolPreferencesContextValue | n
   null
 )
 
+const EMPTY_NOTIONAL: Record<string, number> = {}
+
 async function fetchWithAuth<T>(url: string, token: string | null): Promise<T> {
   const res = await httpClient.get(url, {
     Authorization: token ? `Bearer ${token}` : '',
@@ -71,7 +73,10 @@ export function SymbolPreferencesProvider({ children }: { children: ReactNode })
     }
   }, [user, prefs])
 
-  const notionalBySymbol = valuesData?.values ?? {}
+  const notionalBySymbol = useMemo(
+    () => valuesData?.values ?? EMPTY_NOTIONAL,
+    [valuesData?.values]
+  )
 
   const sortSymbols = useCallback(
     (symbols: string[]) => {
