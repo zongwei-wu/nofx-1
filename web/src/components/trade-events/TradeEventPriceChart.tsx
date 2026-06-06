@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { httpClient } from '../../lib/httpClient'
-import type { TradeEvent } from './tradeEventTypes'
+import type { TradeEvent, KlinePoint } from './tradeEventTypes'
 import { EVENT_TYPE_LABELS, EVENT_TYPE_COLORS } from './tradeEventTypes'
 import {
   formatEventTime,
@@ -10,8 +10,8 @@ import {
   pickDefaultChartSymbol,
   DEFAULT_CHART_SYMBOL,
 } from './tradeEventChartUtils'
-import { TradingViewAdvancedChart } from './TradingViewAdvancedChart'
-import { DEFAULT_TV_CHART_HEIGHT, TV_COPYRIGHT_HEIGHT, type ChartInterval } from './tradingViewUtils'
+import { LightweightTradeChart } from './LightweightTradeChart'
+import { DEFAULT_TV_CHART_HEIGHT, type ChartInterval } from './tradingViewUtils'
 import { useSymbolPreferences } from '../../contexts/SymbolPreferencesContext'
 
 export interface TradeEventPriceChartProps {
@@ -33,7 +33,9 @@ export function TradeEventPriceChart({
   const [symbol, setSymbol] = useState(DEFAULT_CHART_SYMBOL)
   const [symbols, setSymbols] = useState<string[]>(symbolsProp || [])
   const [events, setEvents] = useState<TradeEvent[]>([])
-  const [loading, setLoading] = useState(false)
+  const [klines, setKlines] = useState<KlinePoint[]>([])
+  const [eventsLoading, setEventsLoading] = useState(false)
+  const [klinesLoading, setKlinesLoading] = useState(false)
   const [error, setError] = useState('')
   const [selectedEvent, setSelectedEvent] = useState<TradeEvent | null>(null)
   const { sortSymbols } = useSymbolPreferences()
@@ -44,7 +46,7 @@ export function TradeEventPriceChart({
   }, [])
 
   const loadEvents = useCallback(async () => {
-    setLoading(true)
+    setEventsLoading(true)
     setError('')
     try {
       const params = new URLSearchParams({ source })
@@ -82,13 +84,36 @@ export function TradeEventPriceChart({
       setError(e instanceof Error ? e.message : '加载失败')
       setEvents([])
     } finally {
-      setLoading(false)
+      setEventsLoading(false)
     }
   }, [source, traderId, portfolioId, authHeaders, symbolsProp])
+
+  const loadKlines = useCallback(async () => {
+    const sym = normalizeTradingSymbol(symbol)
+    if (!sym) return
+    setKlinesLoading(true)
+    setError('')
+    try {
+      const params = new URLSearchParams({ symbol: sym, interval, limit: '500' })
+      const kRes = await httpClient.get(`/api/market/klines?${params}`)
+      if (!kRes.ok) throw new Error('K线加载失败')
+      const kData = await kRes.json()
+      setKlines(kData.klines || [])
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'K线加载失败')
+      setKlines([])
+    } finally {
+      setKlinesLoading(false)
+    }
+  }, [symbol, interval])
 
   useEffect(() => {
     loadEvents()
   }, [loadEvents])
+
+  useEffect(() => {
+    loadKlines()
+  }, [loadKlines])
 
   useEffect(() => {
     if (!symbolsProp?.length) return
@@ -138,6 +163,8 @@ export function TradeEventPriceChart({
     }
   }, [selectedEvent])
 
+  const chartLoading = eventsLoading || klinesLoading
+
   return (
     <div>
       <div className="flex flex-wrap items-center gap-3 mb-3">
@@ -165,12 +192,15 @@ export function TradeEventPriceChart({
         </select>
         <button
           type="button"
-          onClick={() => loadEvents()}
-          disabled={loading}
+          onClick={() => {
+            loadEvents()
+            loadKlines()
+          }}
+          disabled={chartLoading}
           className="text-xs px-3 py-1.5 rounded font-semibold"
           style={{ background: '#2B3139', color: '#F0B90B' }}
         >
-          {loading ? '刷新中…' : '刷新'}
+          {chartLoading ? '刷新中…' : '刷新'}
         </button>
         <div className="flex gap-2 text-[10px]" style={{ color: '#848E9C' }}>
           {(['open', 'add', 'reduce', 'close'] as const).map((t) => (
@@ -192,12 +222,20 @@ export function TradeEventPriceChart({
       )}
 
       {symbol ? (
-        <TradingViewAdvancedChart symbol={symbol} interval={interval} height={height} />
+        <LightweightTradeChart
+          klines={klines}
+          events={symEvents}
+          interval={interval}
+          height={height}
+          loading={klinesLoading}
+          selectedEvent={selectedEvent}
+          onSelectEvent={setSelectedEvent}
+        />
       ) : (
         <div
           className="flex items-center justify-center text-sm rounded-lg"
           style={{
-            height: height + TV_COPYRIGHT_HEIGHT,
+            height,
             color: '#5E6673',
             background: '#0B0E11',
             border: '1px solid #2B3139',
@@ -207,8 +245,12 @@ export function TradeEventPriceChart({
         </div>
       )}
 
+      <p className="text-[10px] mt-2" style={{ color: '#5E6673' }}>
+        点击 K 线上的圆点标记或下方列表查看开/加/减/平详情
+      </p>
+
       <div
-        className="mt-3 rounded-lg overflow-hidden"
+        className="mt-2 rounded-lg overflow-hidden"
         style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
       >
         <div

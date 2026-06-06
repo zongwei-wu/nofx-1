@@ -813,7 +813,7 @@ export function CopyTradeDashboard() {
                 币种价格与跟单事件
               </div>
               <div className="text-xs mb-4" style={{ color: '#5E6673' }}>
-                TradingView K 线 · 下方列表查看开/加/减/平事件
+                蜡烛图标注交易事件 · 点击 K 线标记或列表查看详情
               </div>
               <ChartErrorBoundary>
                 <TradeEventPriceChart

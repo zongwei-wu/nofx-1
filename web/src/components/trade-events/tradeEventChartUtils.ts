@@ -187,6 +187,52 @@ export function resolveEventPrice(
   return best
 }
 
+export interface LwcMarkerPoint {
+  time: number
+  position: 'aboveBar' | 'belowBar'
+  color: string
+  shape: 'circle'
+  text?: string
+  event: TradeEvent
+}
+
+export function mapKlinesToCandlestickData(klines: KlinePoint[]) {
+  return klines
+    .filter((k) => k.time > 0 && k.close > 0)
+    .map((k) => {
+      const timeSec = k.time < 1e12 ? k.time : Math.floor(k.time / 1000)
+      return {
+        time: timeSec,
+        open: k.open > 0 ? k.open : k.close,
+        high: k.high > 0 ? k.high : k.close,
+        low: k.low > 0 ? k.low : k.close,
+        close: k.close,
+      }
+    })
+    .sort((a, b) => a.time - b.time)
+}
+
+export function mapScatterPointsToMarkers(
+  points: EventScatterPoint[],
+  selectedEvent: TradeEvent | null
+): LwcMarkerPoint[] {
+  return points.map((p) => {
+    const active = selectedEvent === p.event
+    return {
+      time: p.timeSec,
+      position: p.event.side === 'SHORT' ? 'aboveBar' : 'belowBar',
+      color: active ? '#EAECEF' : p.color,
+      shape: 'circle',
+      text: active ? p.label : undefined,
+      event: p.event,
+    }
+  })
+}
+
+export function markerClickThresholdSec(interval: '1h' | '4h'): number {
+  return interval === '4h' ? 14400 : 3600
+}
+
 export function mapEventsToScatterPoints(
   events: TradeEvent[],
   priceRows: PriceChartRow[]

@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import {
   mapKlinesToChartRows,
+  mapKlinesToCandlestickData,
   mapEventsToScatterPoints,
+  mapScatterPointsToMarkers,
   findEventNearTime,
   eventTradeAmount,
   scaleDotRadiusByAmount,
@@ -84,7 +86,7 @@ describe('tradeEventChartUtils', () => {
     const events: TradeEvent[] = [
       {
         symbol: 'BTCUSDT',
-        time: 1000000,
+        time: 1000,
         type: 'open',
         side: 'LONG',
         qty: 1,
@@ -95,5 +97,34 @@ describe('tradeEventChartUtils', () => {
     ]
     expect(findEventNearTime(events, 1000, 60)?.type).toBe('open')
     expect(findEventNearTime(events, 9999, 10)).toBeNull()
+  })
+
+  it('mapKlinesToCandlestickData', () => {
+    const data = mapKlinesToCandlestickData([
+      { time: 200, open: 1, high: 2, low: 0.5, close: 1.5 },
+      { time: 100, open: 1, high: 2, low: 0.5, close: 1.2 },
+    ])
+    expect(data).toHaveLength(2)
+    expect(data[0].time).toBe(100)
+    expect(data[1].close).toBe(1.5)
+  })
+
+  it('mapScatterPointsToMarkers highlights selected', () => {
+    const event: TradeEvent = {
+      symbol: 'BTCUSDT',
+      time: 100,
+      type: 'open',
+      side: 'LONG',
+      qty: 1,
+      price: 100,
+      source: '',
+      detail: '',
+    }
+    const points = mapEventsToScatterPoints([event], mapKlinesToChartRows([
+      { time: 100, open: 1, high: 2, low: 0.5, close: 100 },
+    ]))
+    const markers = mapScatterPointsToMarkers(points, event)
+    expect(markers[0].color).toBe('#EAECEF')
+    expect(markers[0].text).toBe('开仓')
   })
 })
