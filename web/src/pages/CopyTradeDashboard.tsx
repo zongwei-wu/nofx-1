@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
 import { httpClient } from '../lib/httpClient'
@@ -13,6 +13,11 @@ import {
   aggregateOpenPositions,
   countUniqueOpenPositions,
 } from '../components/copy-trade/copyTradePositionUtils'
+import { CopyTradeLeaderCard } from '../components/copy-trade/CopyTradeLeaderCard'
+import {
+  partitionTradersForDashboard,
+  type LeaderboardTrader,
+} from '../components/copy-trade/copyTradeLeaderboardUtils'
 
 interface CopyConfig {
   id: number
@@ -260,7 +265,7 @@ export function CopyTradeDashboard() {
   const navigate = useNavigate()
   const [configs, setConfigs] = useState<CopyConfig[]>([])
   const [records, setRecords] = useState<CopyRecord[]>([])
-  const [leaderboard, setLeaderboard] = useState<any[]>([])
+  const [leaderboard, setLeaderboard] = useState<LeaderboardTrader[]>([])
   const [aiTraders, setAiTraders] = useState<TraderInfo[]>([])
   const [copyTradeSettings, setCopyTradeSettings] = useState<CopyTradeSettings>({ ai_trader_id: '' })
   const [savingAiTrader, setSavingAiTrader] = useState(false)
@@ -301,8 +306,17 @@ export function CopyTradeDashboard() {
         const lbData = await lbRes.json()
         if (lbData.code === '000000' && lbData.data) {
           const all = [...(lbData.data.highestPnlLeads || []), ...(lbData.data.highestRoiLeads || [])]
-          const unique = new Map()
-          all.forEach((t: any) => unique.set(t.leadPortfolioId, t))
+          const unique = new Map<string, LeaderboardTrader>()
+          all.forEach((raw: LeaderboardTrader) => {
+            if (!raw?.leadPortfolioId) return
+            unique.set(raw.leadPortfolioId, {
+              ...raw,
+              leadPortfolioId: raw.leadPortfolioId,
+              nickname: raw.nickname || '',
+              pnl: Number(raw.pnl) || 0,
+              roi: Number(raw.roi) || 0,
+            })
+          })
           setLeaderboard(Array.from(unique.values()))
         }
       }
@@ -322,7 +336,7 @@ export function CopyTradeDashboard() {
     }
   }
 
-  const toggleTrader = async (trader: any) => {
+  const toggleTrader = async (trader: LeaderboardTrader) => {
     const existing = (configs ?? []).find(c => c.portfolio_id === trader.leadPortfolioId)
     const token = localStorage.getItem('auth_token')
     const headers: Record<string, string> = {
@@ -397,6 +411,14 @@ export function CopyTradeDashboard() {
     }
   }
 
+  const safeRecords = records ?? []
+  const safeConfigs = configs ?? []
+
+  const { monitored: monitoredTraders, unmonitored: unmonitoredTraders } = useMemo(
+    () => partitionTradersForDashboard(leaderboard, safeConfigs),
+    [leaderboard, safeConfigs]
+  )
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -405,8 +427,6 @@ export function CopyTradeDashboard() {
     )
   }
 
-  const safeRecords = records ?? []
-  const safeConfigs = configs ?? []
   const activeConfigs = safeConfigs.filter(c => c.enabled)
   const hasAutoFollow = safeConfigs.some(c => c.enabled && c.auto_follow)
   const showAiTraderWarning = hasAutoFollow && !copyTradeSettings.ai_trader_id
@@ -603,90 +623,63 @@ export function CopyTradeDashboard() {
           </label>
 
           <div className="text-xs font-semibold pt-1" style={{ color: '#848E9C' }}>
-            带单交易员 · 点击行启用 / 禁用
+            带单交易员 · 点击行启用 / 禁用 · 按盈亏金额排序
           </div>
-          {(leaderboard ?? []).map((trader: any) => {
-            const cfg = safeConfigs.find(c => c.portfolio_id === trader.leadPortfolioId)
-            const enabled = cfg?.enabled || false
-            return (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="space-y-2 order-2 lg:order-1">
               <div
-                key={trader.leadPortfolioId}
-                className="p-3 rounded-lg transition-all"
-                style={{ background: enabled ? 'rgba(14,203,129,0.08)' : '#1E2329', border: `1px solid ${enabled ? 'rgba(14,203,129,0.3)' : '#2B3139'}` }}
+                className="text-xs font-semibold px-1 sticky top-0 py-1"
+                style={{ color: '#848E9C' }}
               >
-                <div className="flex items-center justify-between" onClick={() => toggleTrader(trader)} style={{cursor:'pointer'}}>
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: '#2B3139', color: '#F0B90B' }}>
-                      {trader.nickname?.charAt(0)}
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold" style={{ color: '#EAECEF' }}>{trader.nickname}</div>
-                      <div className="text-xs" style={{ color: '#848E9C' }}>
-                        盈亏: ${(trader.pnl || 0).toLocaleString()} · ROI: {(trader.roi || 0).toFixed(2)}%
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {cfg && (
-                      <span className="text-xs" style={{ color: '#5E6673' }}>
-                        倍数: {cfg.size_multiplier}x
-                      </span>
-                    )}
-                    <div className={`w-3 h-3 rounded-full ${enabled ? 'bg-green-500' : 'bg-gray-500'}`}
-                      style={{ background: enabled ? '#0ECB81' : '#5E6673' }}
-                    />
-                  </div>
-                </div>
-                {cfg && enabled && (
-                  <div
-                    className="mt-2 pt-2 border-t space-y-2"
-                    style={{ borderColor: '#2B3139' }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <label className="flex items-start gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={cfg.auto_follow || false}
-                        disabled={!cfg.enabled}
-                        onChange={async (e) => {
-                          const token = localStorage.getItem('auth_token')
-                          await httpClient.post('/api/copy-trade/configs', {
-                            id: cfg.id,
-                            portfolio_id: cfg.portfolio_id,
-                            nickname: cfg.nickname,
-                            enabled: cfg.enabled,
-                            auto_follow: e.target.checked,
-                            max_copy_size: cfg.max_copy_size,
-                            size_multiplier: cfg.size_multiplier,
-                            copy_open_only: cfg.copy_open_only,
-                          }, {
-                            'Content-Type': 'application/json',
-                            Authorization: token ? `Bearer ${token}` : '',
-                          })
-                          await loadData()
-                        }}
-                        className="w-3.5 h-3.5 mt-0.5 rounded shrink-0"
-                        style={{ accentColor: '#0ECB81' }}
-                      />
-                      <span className="min-w-0">
-                        <span className="text-xs font-medium block" style={{ color: '#EAECEF' }}>
-                          自动监控
-                        </span>
-                        <span className="text-[10px] block mt-0.5" style={{ color: '#5E6673' }}>
-                          每 5 分钟拉取带单并 AI 分析，通过后自动下单
-                        </span>
-                      </span>
-                    </label>
-                  </div>
-                )}
-                {cfg && !enabled && (
-                  <div className="text-[10px] mt-2 pt-2 border-t" style={{ borderColor: '#2B3139', color: '#5E6673' }}>
-                    已禁用 · 不参与手动同步与自动监控
-                  </div>
-                )}
+                未监控 · {unmonitoredTraders.length}
               </div>
-            )
-          })}
+              {unmonitoredTraders.length === 0 ? (
+                <p className="text-xs py-4 text-center rounded-lg" style={{ color: '#5E6673', background: '#1E2329' }}>
+                  排行榜带单员均已加入监控或未加载数据
+                </p>
+              ) : (
+                unmonitoredTraders.map((trader) => (
+                  <CopyTradeLeaderCard
+                    key={trader.leadPortfolioId}
+                    trader={trader}
+                    cfg={safeConfigs.find((c) => c.portfolio_id === trader.leadPortfolioId)}
+                    onToggle={toggleTrader}
+                    onConfigUpdated={loadData}
+                  />
+                ))
+              )}
+            </div>
+            <div className="space-y-2 order-1 lg:order-2">
+              <div
+                className="text-xs font-semibold px-1 sticky top-0 py-1"
+                style={{ color: '#0ECB81' }}
+              >
+                监控中 · {monitoredTraders.length}
+              </div>
+              {monitoredTraders.length === 0 ? (
+                <p
+                  className="text-xs py-4 text-center rounded-lg"
+                  style={{
+                    color: '#5E6673',
+                    background: 'rgba(14,203,129,0.05)',
+                    border: '1px solid rgba(14,203,129,0.15)',
+                  }}
+                >
+                  暂无自动监控中的带单员，启用后勾选「自动监控」即可出现在此栏
+                </p>
+              ) : (
+                monitoredTraders.map((trader) => (
+                  <CopyTradeLeaderCard
+                    key={trader.leadPortfolioId}
+                    trader={trader}
+                    cfg={safeConfigs.find((c) => c.portfolio_id === trader.leadPortfolioId)}
+                    onToggle={toggleTrader}
+                    onConfigUpdated={loadData}
+                  />
+                ))
+              )}
+            </div>
+          </div>
         </div>
       )}
 
