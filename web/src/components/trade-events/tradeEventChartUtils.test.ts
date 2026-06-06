@@ -4,6 +4,10 @@ import {
   mapKlinesToCandlestickData,
   mapEventsToScatterPoints,
   mapScatterPointsToMarkers,
+  mapScatterPointsToClusteredMarkers,
+  thinScatterPointsForDensity,
+  findClusterNearTime,
+  countEventsAtSameKline,
   findEventNearTime,
   eventTradeAmount,
   scaleDotRadiusByAmount,
@@ -107,6 +111,107 @@ describe('tradeEventChartUtils', () => {
     expect(data).toHaveLength(2)
     expect(data[0].time).toBe(100)
     expect(data[1].close).toBe(1.5)
+  })
+
+  it('mapScatterPointsToClusteredMarkers merges same kline', () => {
+    const priceRows = mapKlinesToChartRows([
+      { time: 100, open: 1, high: 2, low: 0.5, close: 100 },
+    ])
+    const events: TradeEvent[] = [
+      {
+        symbol: 'BTCUSDT',
+        time: 100,
+        type: 'open',
+        side: 'LONG',
+        qty: 1,
+        price: 100,
+        source: '',
+        detail: '',
+      },
+      {
+        symbol: 'BTCUSDT',
+        time: 101,
+        type: 'add',
+        side: 'LONG',
+        qty: 1,
+        price: 100,
+        source: '',
+        detail: '',
+      },
+      {
+        symbol: 'BTCUSDT',
+        time: 102,
+        type: 'close',
+        side: 'LONG',
+        qty: 1,
+        price: 100,
+        source: '',
+        detail: '',
+      },
+    ]
+    const points = mapEventsToScatterPoints(events, priceRows)
+    const clusters = mapScatterPointsToClusteredMarkers(points, null)
+    expect(clusters).toHaveLength(1)
+    expect(clusters[0].events).toHaveLength(3)
+    expect(clusters[0].text).toBe('3')
+    expect(clusters[0].primaryEvent.type).toBe('close')
+  })
+
+  it('thinScatterPointsForDensity keeps open/close when crowded', () => {
+    const points = Array.from({ length: 30 }, (_, i) => ({
+      timeSec: 100 + i,
+      rawTimeSec: 100 + i,
+      price: 100,
+      color: '#0ECB81',
+      label: '加仓',
+      amount: 100,
+      dotRadius: 6,
+      event: {
+        symbol: 'BTCUSDT',
+        time: 100 + i,
+        type: (i === 0 ? 'open' : i === 29 ? 'close' : i % 2 === 0 ? 'add' : 'reduce') as TradeEvent['type'],
+        side: 'LONG' as const,
+        qty: 1,
+        price: 100,
+        source: '',
+        detail: '',
+      },
+    }))
+    const thinned = thinScatterPointsForDensity(points)
+    expect(thinned).toHaveLength(2)
+    expect(thinned.map((p) => p.event.type)).toEqual(['open', 'close'])
+  })
+
+  it('findClusterNearTime and countEventsAtSameKline', () => {
+    const priceRows = mapKlinesToChartRows([
+      { time: 100, open: 1, high: 2, low: 0.5, close: 100 },
+    ])
+    const events: TradeEvent[] = [
+      {
+        symbol: 'BTCUSDT',
+        time: 100,
+        type: 'open',
+        side: 'LONG',
+        qty: 1,
+        price: 100,
+        source: '',
+        detail: '',
+      },
+      {
+        symbol: 'BTCUSDT',
+        time: 101,
+        type: 'add',
+        side: 'LONG',
+        qty: 1,
+        price: 100,
+        source: '',
+        detail: '',
+      },
+    ]
+    const points = mapEventsToScatterPoints(events, priceRows)
+    const clusters = mapScatterPointsToClusteredMarkers(points, null)
+    expect(findClusterNearTime(clusters, 100, 60)?.events).toHaveLength(2)
+    expect(countEventsAtSameKline(points, events[0])).toBe(2)
   })
 
   it('mapScatterPointsToMarkers highlights selected', () => {

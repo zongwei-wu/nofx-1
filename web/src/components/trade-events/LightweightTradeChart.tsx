@@ -11,9 +11,10 @@ import {
   mapKlinesToCandlestickData,
   mapKlinesToChartRows,
   mapEventsToScatterPoints,
-  mapScatterPointsToMarkers,
-  findEventNearTime,
+  mapScatterPointsToClusteredMarkers,
+  findClusterNearTime,
   markerClickThresholdSec,
+  type LwcMarkerCluster,
 } from './tradeEventChartUtils'
 import type { ChartInterval } from './tradingViewUtils'
 import { DEFAULT_TV_CHART_HEIGHT } from './tradingViewUtils'
@@ -40,17 +41,18 @@ export function LightweightTradeChart({
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
-  const eventsRef = useRef(events)
+  const clustersRef = useRef<LwcMarkerCluster[]>([])
   const onSelectRef = useRef(onSelectEvent)
-  eventsRef.current = events
+  const lastClusterClickRef = useRef({ time: 0, index: 0 })
   onSelectRef.current = onSelectEvent
 
   const candleData = useMemo(() => mapKlinesToCandlestickData(klines), [klines])
-  const markers = useMemo(() => {
+  const clusters = useMemo(() => {
     const priceRows = mapKlinesToChartRows(klines)
     const scatterPoints = mapEventsToScatterPoints(events, priceRows)
-    return mapScatterPointsToMarkers(scatterPoints, selectedEvent)
+    return mapScatterPointsToClusteredMarkers(scatterPoints, selectedEvent)
   }, [klines, events, selectedEvent])
+  clustersRef.current = clusters
 
   useEffect(() => {
     const container = containerRef.current
@@ -85,12 +87,12 @@ export function LightweightTradeChart({
         }))
       )
       series.setMarkers(
-        markers.map((m) => ({
-          time: m.time as Time,
-          position: m.position,
-          color: m.color,
-          shape: m.shape,
-          text: m.text,
+        clusters.map((c) => ({
+          time: c.time as Time,
+          position: c.position,
+          color: c.color,
+          shape: c.shape,
+          text: c.text,
         }))
       )
       chart.timeScale().fitContent()
@@ -158,12 +160,28 @@ export function LightweightTradeChart({
           onSelectRef.current(null)
           return
         }
-        const matched = findEventNearTime(
-          eventsRef.current,
+        const cluster = findClusterNearTime(
+          clustersRef.current,
           Number(param.time),
           threshold
         )
-        onSelectRef.current(matched)
+        if (!cluster) {
+          onSelectRef.current(null)
+          return
+        }
+        if (cluster.events.length === 1) {
+          lastClusterClickRef.current = { time: cluster.time, index: 0 }
+          onSelectRef.current(cluster.events[0])
+          return
+        }
+        const sorted = [...cluster.events].sort((a, b) => b.time - a.time)
+        if (lastClusterClickRef.current.time === cluster.time) {
+          lastClusterClickRef.current.index =
+            (lastClusterClickRef.current.index + 1) % sorted.length
+        } else {
+          lastClusterClickRef.current = { time: cluster.time, index: 0 }
+        }
+        onSelectRef.current(sorted[lastClusterClickRef.current.index])
       }
       chart.subscribeClick(clickHandler)
 
@@ -187,7 +205,7 @@ export function LightweightTradeChart({
       resizeObserver?.disconnect()
       destroyChart()
     }
-  }, [candleData, markers, height, interval])
+  }, [candleData, clusters, height, interval])
 
   const showEmpty = !loading && candleData.length === 0
 

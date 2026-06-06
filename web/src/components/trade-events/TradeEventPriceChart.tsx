@@ -9,6 +9,9 @@ import {
   symbolsMatch,
   pickDefaultChartSymbol,
   DEFAULT_CHART_SYMBOL,
+  mapKlinesToChartRows,
+  mapEventsToScatterPoints,
+  countEventsAtSameKline,
 } from './tradeEventChartUtils'
 import { LightweightTradeChart } from './LightweightTradeChart'
 import { DEFAULT_TV_CHART_HEIGHT, type ChartInterval } from './tradingViewUtils'
@@ -157,11 +160,17 @@ export function TradeEventPriceChart({
   const selectedDetail = useMemo(() => {
     if (!selectedEvent) return null
     const displayPrice = selectedEvent.price > 0 ? selectedEvent.price : 0
+    const scatterPoints = mapEventsToScatterPoints(
+      symEvents,
+      mapKlinesToChartRows(klines)
+    )
+    const clusterSize = countEventsAtSameKline(scatterPoints, selectedEvent)
     return {
       displayPrice,
       amount: eventTradeAmount(selectedEvent, displayPrice),
+      clusterSize,
     }
-  }, [selectedEvent])
+  }, [selectedEvent, symEvents, klines])
 
   const chartLoading = eventsLoading || klinesLoading
 
@@ -246,7 +255,7 @@ export function TradeEventPriceChart({
       )}
 
       <p className="text-[10px] mt-2" style={{ color: '#5E6673' }}>
-        点击 K 线上的圆点标记或下方列表查看开/加/减/平详情
+        点击 K 线标记或下方列表查看详情；同一根 K 线多笔交易会合并显示数量，重复点击可切换
       </p>
 
       <div
@@ -313,6 +322,11 @@ export function TradeEventPriceChart({
               </span>
               {selectedEvent.source && <span>来源：{selectedEvent.source}</span>}
             </div>
+            {selectedDetail.clusterSize > 1 && (
+              <p className="pt-1" style={{ color: '#F0B90B' }}>
+                同根 K 线共 {selectedDetail.clusterSize} 笔，再次点击标记可切换查看
+              </p>
+            )}
             {selectedEvent.detail && (
               <p className="pt-2" style={{ color: '#5E6673' }}>
                 {selectedEvent.detail}

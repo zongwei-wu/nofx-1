@@ -196,6 +196,23 @@ export interface LwcMarkerPoint {
   event: TradeEvent
 }
 
+export interface LwcMarkerCluster {
+  time: number
+  position: 'aboveBar' | 'belowBar'
+  color: string
+  shape: 'circle'
+  text?: string
+  events: TradeEvent[]
+  primaryEvent: TradeEvent
+}
+
+const MARKER_TYPE_PRIORITY: Record<TradeEventType, number> = {
+  close: 4,
+  open: 3,
+  reduce: 2,
+  add: 1,
+}
+
 export function mapKlinesToCandlestickData(klines: KlinePoint[]) {
   const byTime = new Map<
     number,
@@ -215,21 +232,103 @@ export function mapKlinesToCandlestickData(klines: KlinePoint[]) {
   return [...byTime.values()].sort((a, b) => a.time - b.time)
 }
 
+/** 高密度时仅保留开/平仓，减少中间加仓/减仓标记 */
+export function thinScatterPointsForDensity(points: EventScatterPoint[]): EventScatterPoint[] {
+  if (points.length <= 24) return points
+  const major = points.filter((p) => p.event.type === 'open' || p.event.type === 'close')
+  return major.length > 0 ? major : points
+}
+
+/** 同一根 K 线上的事件合并为一个标记，显示数量 */
+export function mapScatterPointsToClusteredMarkers(
+  points: EventScatterPoint[],
+  selectedEvent: TradeEvent | null
+): LwcMarkerCluster[] {
+  const thinned = thinScatterPointsForDensity(points)
+  const byTime = new Map<number, EventScatterPoint[]>()
+
+  for (const p of thinned) {
+    const list = byTime.get(p.timeSec) ?? []
+    list.push(p)
+    byTime.set(p.timeSec, list)
+  }
+
+  const clusters: LwcMarkerCluster[] = []
+  for (const [timeSec, group] of byTime) {
+    const sorted = [...group].sort((a, b) => {
+      const pa = MARKER_TYPE_PRIORITY[a.event.type as TradeEventType] ?? 0
+      const pb = MARKER_TYPE_PRIORITY[b.event.type as TradeEventType] ?? 0
+      if (pb !== pa) return pb - pa
+      return b.rawTimeSec - a.rawTimeSec
+    })
+    const primary = sorted[0]
+    const events = group.map((g) => g.event)
+    const selectedInGroup = selectedEvent && events.includes(selectedEvent)
+    const shortCount = group.filter((g) => g.event.side === 'SHORT').length
+    const position: 'aboveBar' | 'belowBar' =
+      shortCount > group.length / 2 ? 'aboveBar' : 'belowBar'
+    const count = group.length
+    const active = Boolean(selectedInGroup)
+
+    let text: string | undefined
+    if (count > 1) {
+      text = active ? `${count}笔` : String(count)
+    } else if (active) {
+      text = primary.label
+    }
+
+    clusters.push({
+      time: timeSec,
+      position,
+      color: active ? '#EAECEF' : primary.color,
+      shape: 'circle',
+      text,
+      events,
+      primaryEvent: selectedInGroup && selectedEvent ? selectedEvent : primary.event,
+    })
+  }
+
+  return clusters.sort((a, b) => a.time - b.time)
+}
+
 export function mapScatterPointsToMarkers(
   points: EventScatterPoint[],
   selectedEvent: TradeEvent | null
 ): LwcMarkerPoint[] {
-  return points.map((p) => {
-    const active = selectedEvent === p.event
-    return {
-      time: p.timeSec,
-      position: p.event.side === 'SHORT' ? 'aboveBar' : 'belowBar',
-      color: active ? '#EAECEF' : p.color,
-      shape: 'circle',
-      text: active ? p.label : undefined,
-      event: p.event,
+  return mapScatterPointsToClusteredMarkers(points, selectedEvent).map((c) => ({
+    time: c.time,
+    position: c.position,
+    color: c.color,
+    shape: c.shape,
+    text: c.text,
+    event: c.primaryEvent,
+  }))
+}
+
+export function findClusterNearTime(
+  clusters: LwcMarkerCluster[],
+  chartTimeSec: number,
+  thresholdSec: number
+): LwcMarkerCluster | null {
+  let best: LwcMarkerCluster | null = null
+  let bestDiff = thresholdSec + 1
+  for (const c of clusters) {
+    const diff = Math.abs(c.time - chartTimeSec)
+    if (diff < bestDiff) {
+      bestDiff = diff
+      best = c
     }
-  })
+  }
+  return bestDiff <= thresholdSec ? best : null
+}
+
+export function countEventsAtSameKline(
+  points: EventScatterPoint[],
+  event: TradeEvent
+): number {
+  const target = points.find((p) => p.event === event)
+  if (!target) return 1
+  return points.filter((p) => p.timeSec === target.timeSec).length
 }
 
 export function markerClickThresholdSec(interval: '1h' | '4h'): number {
