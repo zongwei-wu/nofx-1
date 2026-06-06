@@ -12,6 +12,8 @@ import {
   mapKlinesToChartRows,
   mapEventsToScatterPoints,
   countEventsAtSameKline,
+  CHART_DEFAULT_VISIBLE_HOURS,
+  CHART_COPY_TRADE_VISIBLE_HOURS,
 } from './tradeEventChartUtils'
 import { LightweightTradeChart } from './LightweightTradeChart'
 import { DEFAULT_TV_CHART_HEIGHT, type ChartInterval } from './tradingViewUtils'
@@ -25,6 +27,7 @@ export interface TradeEventPriceChartProps {
   portfolioId?: string
   symbols?: string[]
   height?: number
+  visibleHours?: number
 }
 
 const EVENT_LIST_TITLES: Record<TradeEventSource, string> = {
@@ -46,7 +49,11 @@ export function TradeEventPriceChart({
   portfolioId,
   symbols: symbolsProp,
   height = DEFAULT_TV_CHART_HEIGHT,
+  visibleHours: visibleHoursProp,
 }: TradeEventPriceChartProps) {
+  const visibleHours =
+    visibleHoursProp ??
+    (source === 'copy_trade' ? CHART_COPY_TRADE_VISIBLE_HOURS : CHART_DEFAULT_VISIBLE_HOURS)
   const [interval, setInterval] = useState<ChartInterval>('1h')
   const [symbol, setSymbol] = useState(DEFAULT_CHART_SYMBOL)
   const [symbols, setSymbols] = useState<string[]>(symbolsProp || [])
@@ -251,6 +258,7 @@ export function TradeEventPriceChart({
           events={symEvents}
           interval={interval}
           height={height}
+          visibleHours={visibleHours}
           loading={klinesLoading}
           selectedEvent={selectedEvent}
           onSelectEvent={setSelectedEvent}

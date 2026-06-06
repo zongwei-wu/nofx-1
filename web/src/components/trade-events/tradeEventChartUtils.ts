@@ -1,7 +1,12 @@
 import type { TradeEvent, TradeEventType, KlinePoint } from './tradeEventTypes'
 import { EVENT_TYPE_COLORS, EVENT_TYPE_LABELS } from './tradeEventTypes'
-
 export const DEFAULT_CHART_SYMBOL = 'BTCUSDT'
+
+/** K 线默认可见时间窗口（小时）— AI 看板 */
+export const CHART_DEFAULT_VISIBLE_HOURS = 48
+
+/** 跟单管理 K 线默认可见时间窗口（1 周） */
+export const CHART_COPY_TRADE_VISIBLE_HOURS = 7 * 24
 
 export type ChartSymbolMode = 'all' | 'ai_exchange' | 'ai_copy'
 
@@ -258,6 +263,18 @@ const MARKER_TYPE_PRIORITY: Record<TradeEventType, number> = {
   open: 3,
   reduce: 2,
   add: 1,
+}
+
+/** 计算 K 线默认可见区间（最近 N 小时，秒级 Unix 时间戳） */
+export function getDefaultVisibleTimeRange(
+  candleTimes: number[],
+  visibleHours = CHART_DEFAULT_VISIBLE_HOURS
+): { from: number; to: number } | null {
+  if (candleTimes.length === 0) return null
+  const sorted = [...candleTimes].sort((a, b) => a - b)
+  const to = sorted[sorted.length - 1]
+  const from = Math.max(sorted[0], to - visibleHours * 3600)
+  return { from, to }
 }
 
 export function mapKlinesToCandlestickData(klines: KlinePoint[]) {

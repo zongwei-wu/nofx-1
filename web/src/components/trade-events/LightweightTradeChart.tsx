@@ -9,6 +9,8 @@ import {
 import type { KlinePoint, TradeEvent } from './tradeEventTypes'
 import {
   mapKlinesToCandlestickData,
+  getDefaultVisibleTimeRange,
+  CHART_DEFAULT_VISIBLE_HOURS,
   mapKlinesToChartRows,
   mapEventsToScatterPoints,
   mapScatterPointsToClusteredMarkers,
@@ -25,6 +27,7 @@ export interface LightweightTradeChartProps {
   interval: ChartInterval
   height?: number
   loading?: boolean
+  visibleHours?: number
   selectedEvent: TradeEvent | null
   onSelectEvent: (event: TradeEvent | null) => void
 }
@@ -35,6 +38,7 @@ export function LightweightTradeChart({
   interval,
   height = DEFAULT_TV_CHART_HEIGHT,
   loading = false,
+  visibleHours = CHART_DEFAULT_VISIBLE_HOURS,
   selectedEvent,
   onSelectEvent,
 }: LightweightTradeChartProps) {
@@ -95,7 +99,18 @@ export function LightweightTradeChart({
           text: c.text,
         }))
       )
-      chart.timeScale().fitContent()
+      const visibleRange = getDefaultVisibleTimeRange(
+        candleData.map((c) => c.time),
+        visibleHours
+      )
+      if (visibleRange) {
+        chart.timeScale().setVisibleRange({
+          from: visibleRange.from as Time,
+          to: visibleRange.to as Time,
+        })
+      } else {
+        chart.timeScale().fitContent()
+      }
     }
 
     if (candleData.length === 0) {
@@ -205,7 +220,7 @@ export function LightweightTradeChart({
       resizeObserver?.disconnect()
       destroyChart()
     }
-  }, [candleData, clusters, height, interval])
+  }, [candleData, clusters, height, interval, visibleHours])
 
   const showEmpty = !loading && candleData.length === 0
 

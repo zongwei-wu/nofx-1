@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   mapKlinesToChartRows,
   mapKlinesToCandlestickData,
+  getDefaultVisibleTimeRange,
+  CHART_COPY_TRADE_VISIBLE_HOURS,
   mapEventsToScatterPoints,
   mapScatterPointsToMarkers,
   mapScatterPointsToClusteredMarkers,
@@ -147,6 +149,29 @@ describe('tradeEventChartUtils', () => {
     ]
     expect(findEventNearTime(events, 1000, 60)?.type).toBe('open')
     expect(findEventNearTime(events, 9999, 10)).toBeNull()
+  })
+
+  it('getDefaultVisibleTimeRange uses last 48 hours', () => {
+    const base = 1_700_000_000
+    const times = Array.from({ length: 100 }, (_, i) => base + i * 3600)
+    const range = getDefaultVisibleTimeRange(times, 48)
+    expect(range).not.toBeNull()
+    expect(range!.to).toBe(base + 99 * 3600)
+    expect(range!.from).toBe(range!.to - 48 * 3600)
+  })
+
+  it('getDefaultVisibleTimeRange supports 1 week window for copy trade', () => {
+    const base = 1_700_000_000
+    const times = Array.from({ length: 200 }, (_, i) => base + i * 3600)
+    const range = getDefaultVisibleTimeRange(times, CHART_COPY_TRADE_VISIBLE_HOURS)
+    expect(range!.to).toBe(base + 199 * 3600)
+    expect(range!.from).toBe(range!.to - CHART_COPY_TRADE_VISIBLE_HOURS * 3600)
+  })
+
+  it('getDefaultVisibleTimeRange clamps when data shorter than window', () => {
+    const range = getDefaultVisibleTimeRange([1000, 2000, 3000], 48)
+    expect(range!.from).toBe(1000)
+    expect(range!.to).toBe(3000)
   })
 
   it('mapKlinesToCandlestickData', () => {
