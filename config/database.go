@@ -15,6 +15,7 @@ import (
 	"time"
 
 	_ "modernc.org/sqlite"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // DatabaseInterface 定义了数据库实现需要提供的方法集合
@@ -99,6 +100,18 @@ func NewDatabase(dbPath string) (*Database, error) {
 
 	if err := database.initDefaultData(); err != nil {
 		return nil, fmt.Errorf("初始化默认数据失败: %w", err)
+	}
+
+	if err := database.initPlanTables(); err != nil {
+		return nil, fmt.Errorf("初始化套餐表失败: %w", err)
+	}
+
+	if err := database.initPlanData(); err != nil {
+		return nil, fmt.Errorf("初始化套餐数据失败: %w", err)
+	}
+
+	if err := database.EnsureAdminUser(); err != nil {
+		return nil, fmt.Errorf("初始化管理员账号失败: %w", err)
 	}
 
 	log.Printf("✅ 数据库已启用 WAL 模式和 FULL 同步,数据持久性得到保证")
@@ -266,6 +279,8 @@ func (d *Database) createTables() error {
 		`ALTER TABLE traders ADD COLUMN system_prompt_template TEXT DEFAULT 'default'`, // 系统提示词模板名称
 		`ALTER TABLE ai_models ADD COLUMN custom_api_url TEXT DEFAULT ''`,              // 自定义API地址
 		`ALTER TABLE ai_models ADD COLUMN custom_model_name TEXT DEFAULT ''`,           // 自定义模型名称
+		`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'`,               // 用户角色
+		`ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'standard'`,           // 用户套餐
 	}
 
 	for _, query := range alterQueries {
@@ -546,6 +561,12 @@ func (d *Database) migrateExchangesTable() error {
 	return nil
 }
 
+// UserRole 用户角色
+const (
+	UserRoleUser  = "user"
+	UserRoleAdmin = "admin"
+)
+
 // User 用户配置
 type User struct {
 	ID           string    `json:"id"`
@@ -553,6 +574,8 @@ type User struct {
 	PasswordHash string    `json:"-"` // 不返回到前端
 	OTPSecret    string    `json:"-"` // 不返回到前端
 	OTPVerified  bool      `json:"otp_verified"`
+	Role         string    `json:"role"`
+	Plan         string    `json:"plan"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -640,6 +663,28 @@ type UserSignalSource struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+// initPlanTables 创建套餐相关表
+func (d *Database) initPlanTables() error {
+	queries := []string{
+		`CREATE TABLE IF NOT EXISTS plans (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			sort_order INTEGER NOT NULL DEFAULT 0
+		)`,
+		`CREATE TABLE IF NOT EXISTS plan_features (
+			plan_id TEXT NOT NULL,
+			feature_key TEXT NOT NULL,
+			PRIMARY KEY (plan_id, feature_key)
+		)`,
+	}
+	for _, q := range queries {
+		if _, err := d.db.Exec(q); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // GenerateOTPSecret 生成OTP密钥
 func GenerateOTPSecret() (string, error) {
 	secret := make([]byte, 20)
@@ -652,51 +697,88 @@ func GenerateOTPSecret() (string, error) {
 
 // CreateUser 创建用户
 func (d *Database) CreateUser(user *User) error {
+	role := user.Role
+	if role == "" {
+		role = UserRoleUser
+	}
+	plan := user.Plan
+	if plan == "" {
+		plan = PlanStandard
+	}
 	_, err := d.db.Exec(`
-		INSERT INTO users (id, email, password_hash, otp_secret, otp_verified)
-		VALUES (?, ?, ?, ?, ?)
-	`, user.ID, user.Email, user.PasswordHash, user.OTPSecret, user.OTPVerified)
+		INSERT INTO users (id, email, password_hash, otp_secret, otp_verified, role, plan)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, user.ID, user.Email, user.PasswordHash, user.OTPSecret, user.OTPVerified, role, plan)
 	return err
 }
 
-// EnsureAdminUser 确保admin用户存在（用于管理员模式）
+// EnsureAdminUser 确保 admin 用户存在并具备管理员角色；支持 ADMIN_PASSWORD 环境变量设置密码
 func (d *Database) EnsureAdminUser() error {
-	// 检查admin用户是否已存在
+	_, _ = d.db.Exec(`UPDATE users SET role = ? WHERE id = 'admin'`, UserRoleAdmin)
+
 	var count int
 	err := d.db.QueryRow(`SELECT COUNT(*) FROM users WHERE id = 'admin'`).Scan(&count)
 	if err != nil {
 		return err
 	}
 
-	// 如果已存在，直接返回
-	if count > 0 {
+	if count == 0 {
+		adminUser := &User{
+			ID:           "admin",
+			Email:        "admin@localhost",
+			PasswordHash: "",
+			OTPSecret:    "",
+			OTPVerified:  true,
+			Role:         UserRoleAdmin,
+		}
+		if err := d.CreateUser(adminUser); err != nil {
+			return err
+		}
+	}
+
+	adminPassword := os.Getenv("ADMIN_PASSWORD")
+	if adminPassword == "" {
 		return nil
 	}
 
-	// 创建admin用户（密码为空，因为管理员模式下不需要密码）
-	adminUser := &User{
-		ID:           "admin",
-		Email:        "admin@localhost",
-		PasswordHash: "", // 管理员模式下不使用密码
-		OTPSecret:    "",
-		OTPVerified:  true,
+	user, err := d.GetUserByID("admin")
+	if err != nil {
+		return err
+	}
+	if user.PasswordHash != "" {
+		return nil
 	}
 
-	return d.CreateUser(adminUser)
+	hash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("设置管理员密码失败: %w", err)
+	}
+	_, err = d.db.Exec(`UPDATE users SET password_hash = ? WHERE id = 'admin'`, string(hash))
+	if err != nil {
+		return err
+	}
+	log.Printf("✅ 已通过 ADMIN_PASSWORD 设置管理员登录密码")
+	return nil
 }
 
 // GetUserByEmail 通过邮箱获取用户
 func (d *Database) GetUserByEmail(email string) (*User, error) {
 	var user User
 	err := d.db.QueryRow(`
-		SELECT id, email, password_hash, otp_secret, otp_verified, created_at, updated_at
+		SELECT id, email, password_hash, otp_secret, otp_verified, role, plan, created_at, updated_at
 		FROM users WHERE email = ?
 	`, email).Scan(
 		&user.ID, &user.Email, &user.PasswordHash, &user.OTPSecret,
-		&user.OTPVerified, &user.CreatedAt, &user.UpdatedAt,
+		&user.OTPVerified, &user.Role, &user.Plan, &user.CreatedAt, &user.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
+	}
+	if user.Role == "" {
+		user.Role = UserRoleUser
+	}
+	if user.Plan == "" {
+		user.Plan = PlanStandard
 	}
 	return &user, nil
 }
@@ -705,16 +787,79 @@ func (d *Database) GetUserByEmail(email string) (*User, error) {
 func (d *Database) GetUserByID(userID string) (*User, error) {
 	var user User
 	err := d.db.QueryRow(`
-		SELECT id, email, password_hash, otp_secret, otp_verified, created_at, updated_at
+		SELECT id, email, password_hash, otp_secret, otp_verified, role, plan, created_at, updated_at
 		FROM users WHERE id = ?
 	`, userID).Scan(
 		&user.ID, &user.Email, &user.PasswordHash, &user.OTPSecret,
-		&user.OTPVerified, &user.CreatedAt, &user.UpdatedAt,
+		&user.OTPVerified, &user.Role, &user.Plan, &user.CreatedAt, &user.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
+	if user.Role == "" {
+		user.Role = UserRoleUser
+	}
+	if user.Plan == "" {
+		user.Plan = PlanStandard
+	}
 	return &user, nil
+}
+
+// ListUsers 分页查询用户（管理端）
+func (d *Database) ListUsers(page, pageSize int, emailFilter string) ([]*User, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	where := ""
+	args := []interface{}{}
+	if emailFilter != "" {
+		where = " WHERE email LIKE ?"
+		args = append(args, "%"+emailFilter+"%")
+	}
+
+	var total int
+	countQuery := "SELECT COUNT(*) FROM users" + where
+	if err := d.db.QueryRow(countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * pageSize
+	query := `
+		SELECT id, email, password_hash, otp_secret, otp_verified, role, plan, created_at, updated_at
+		FROM users` + where + ` ORDER BY created_at DESC LIMIT ? OFFSET ?`
+	queryArgs := append(args, pageSize, offset)
+
+	rows, err := d.db.Query(query, queryArgs...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var users []*User
+	for rows.Next() {
+		var user User
+		if err := rows.Scan(
+			&user.ID, &user.Email, &user.PasswordHash, &user.OTPSecret,
+			&user.OTPVerified, &user.Role, &user.Plan, &user.CreatedAt, &user.UpdatedAt,
+		); err != nil {
+			return nil, 0, err
+		}
+		if user.Role == "" {
+			user.Role = UserRoleUser
+		}
+		if user.Plan == "" {
+			user.Plan = PlanStandard
+		}
+		users = append(users, &user)
+	}
+	return users, total, nil
 }
 
 // GetAllUsers 获取所有用户ID列表

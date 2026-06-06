@@ -91,6 +91,173 @@
         }
       }
     },
+    "/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "当前用户信息与功能权限",
+        "description": "返回用户套餐 plan 及可用 features 列表，供前台菜单权限控制",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "schema": { "$ref": "#/definitions/MeResponse" }
+          },
+          "401": { "description": "未登录" }
+        }
+      }
+    },
+    "/admin/me": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "当前管理员信息",
+        "description": "返回已登录管理员的基本信息，需 admin 角色",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "schema": {
+              "$ref": "#/definitions/AdminMeResponse"
+            }
+          },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" }
+        }
+      }
+    },
+    "/admin/plans": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "套餐列表",
+        "description": "返回全部套餐及其绑定的 feature_key 列表",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "schema": { "$ref": "#/definitions/AdminPlansResponse" }
+          },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" }
+        }
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "分页查询用户列表",
+        "description": "跨用户查询，不返回密码与 OTP 密钥",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "current", "in": "query", "type": "integer", "description": "当前页码（ProTable）" },
+          { "name": "page", "in": "query", "type": "integer", "description": "当前页码（兼容）" },
+          { "name": "pageSize", "in": "query", "type": "integer", "description": "每页条数" },
+          { "name": "email", "in": "query", "type": "string", "description": "邮箱模糊搜索" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "schema": { "$ref": "#/definitions/AdminUsersPageResponse" }
+          },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" }
+        }
+      }
+    },
+    "/admin/users/{id}": {
+      "put": {
+        "tags": ["Admin"],
+        "summary": "更新用户套餐",
+        "description": "为用户分配套餐 plan，立即影响功能权限",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "type": "string", "description": "用户 ID" },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/AdminUpdateUserRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "schema": { "$ref": "#/definitions/AdminUpdateUserResponse" }
+          },
+          "400": { "description": "参数错误或套餐不存在" },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" },
+          "404": { "description": "用户不存在" }
+        }
+      }
+    },
+    "/admin/copy-trade/records": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "分页查询跟单记录",
+        "description": "跨用户查询 copy_trade_records",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "current", "in": "query", "type": "integer" },
+          { "name": "page", "in": "query", "type": "integer" },
+          { "name": "pageSize", "in": "query", "type": "integer" },
+          { "name": "user_id", "in": "query", "type": "string", "description": "用户 ID 筛选" },
+          { "name": "status", "in": "query", "type": "string", "description": "状态筛选 OPEN/CLOSED/FAILED" },
+          { "name": "symbol", "in": "query", "type": "string", "description": "交易对模糊搜索" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "schema": { "$ref": "#/definitions/AdminCopyTradeRecordsPageResponse" }
+          },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" }
+        }
+      }
+    },
+    "/admin/system-config": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "获取系统配置",
+        "description": "返回运营相关系统配置项",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "schema": { "$ref": "#/definitions/AdminSystemConfigResponse" }
+          },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" }
+        }
+      },
+      "put": {
+        "tags": ["Admin"],
+        "summary": "更新系统配置",
+        "description": "白名单 key 更新，如 registration_enabled、beta_mode 等",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/AdminSystemConfigUpdateRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "保存成功",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": { "type": "boolean" },
+                "message": { "type": "string" }
+              }
+            }
+          },
+          "400": { "description": "参数错误或不允许的配置项" },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" }
+        }
+      }
+    },
     "/copy-trade/settings": {
       "get": {
         "tags": ["CopyTrade"],
@@ -202,6 +369,139 @@
           "type": "boolean",
           "description": "未选择交易员时是否回退到默认已启用模型"
         }
+      }
+    },
+    "MeResponse": {
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "plan": { "type": "string", "enum": ["basic", "standard", "pro", "vip"] },
+        "features": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "competition, ai_trader, leaderboard, copy_trade, symbols"
+        }
+      }
+    },
+    "AdminMeResponse": {
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin"] }
+      }
+    },
+    "AdminUserItem": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "plan": { "type": "string", "enum": ["basic", "standard", "pro", "vip"] },
+        "otp_verified": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "AdminUsersPageResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/AdminUserItem" }
+        },
+        "total": { "type": "integer" },
+        "success": { "type": "boolean" }
+      }
+    },
+    "AdminCopyTradeRecordItem": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "integer" },
+        "user_id": { "type": "string" },
+        "portfolio_id": { "type": "string" },
+        "nickname": { "type": "string" },
+        "order_id": { "type": "string" },
+        "symbol": { "type": "string" },
+        "side": { "type": "string" },
+        "position_side": { "type": "string" },
+        "executed_qty": { "type": "number", "format": "double" },
+        "avg_price": { "type": "number", "format": "double" },
+        "total_pnl": { "type": "number", "format": "double" },
+        "status": { "type": "string" },
+        "lead_order_time": { "type": "integer", "format": "int64" },
+        "copy_time": { "type": "string" },
+        "close_time": { "type": "string" },
+        "close_price": { "type": "number", "format": "double" },
+        "error_message": { "type": "string" }
+      }
+    },
+    "AdminCopyTradeRecordsPageResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/AdminCopyTradeRecordItem" }
+        },
+        "total": { "type": "integer" },
+        "success": { "type": "boolean" }
+      }
+    },
+    "AdminSystemConfigResponse": {
+      "type": "object",
+      "properties": {
+        "success": { "type": "boolean" },
+        "data": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "registration_enabled、beta_mode、default_coins 等"
+        }
+      }
+    },
+    "AdminSystemConfigUpdateRequest": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "白名单配置项键值对"
+    },
+    "PlanInfo": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "sort_order": { "type": "integer" },
+        "features": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "AdminPlansResponse": {
+      "type": "object",
+      "properties": {
+        "success": { "type": "boolean" },
+        "data": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/PlanInfo" }
+        }
+      }
+    },
+    "AdminUpdateUserRequest": {
+      "type": "object",
+      "required": ["plan"],
+      "properties": {
+        "plan": {
+          "type": "string",
+          "enum": ["basic", "standard", "pro", "vip"]
+        }
+      }
+    },
+    "AdminUpdateUserResponse": {
+      "type": "object",
+      "properties": {
+        "success": { "type": "boolean" },
+        "message": { "type": "string" },
+        "data": { "$ref": "#/definitions/AdminUserItem" }
       }
     }
   }

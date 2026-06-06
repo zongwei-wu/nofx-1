@@ -1,0 +1,2563 @@
+{
+  "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+  "pkg": {
+    "name": "nofx-admin-web",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+      "dev": "cross-env MOCK=none max dev",
+      "build": "max build",
+      "start": "npm run dev",
+      "preview": "max preview --port 8001"
+    },
+    "dependencies": {
+      "@ant-design/icons": "^5.6.1",
+      "@ant-design/pro-components": "^2.8.6",
+      "@umijs/max": "^4.4.5",
+      "antd": "^5.24.2",
+      "dayjs": "^1.11.13",
+      "react": "^18.3.1",
+      "react-dom": "^18.3.1"
+    },
+    "devDependencies": {
+      "@types/react": "^18.3.17",
+      "@types/react-dom": "^18.3.5",
+      "cross-env": "^7.0.3",
+      "typescript": "^5.7.2"
+    },
+    "engines": {
+      "node": ">=20.0.0"
+    }
+  },
+  "pkgPath": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/package.json",
+  "plugins": {
+    "./node_modules/@umijs/core/dist/service/servicePlugin": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "preset",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/core/dist/service/servicePlugin.js",
+      "id": "./node_modules/@umijs/core/dist/service/servicePlugin",
+      "key": "servicePlugin",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "@umijs/preset-umi": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "preset",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/index.js",
+      "id": "@umijs/preset-umi",
+      "key": "umi",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 13
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/max/dist/preset": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "preset",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/max/dist/preset.js",
+      "id": "./node_modules/@umijs/max/dist/preset",
+      "key": "preset",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 7
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/registerMethods": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/registerMethods.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/registerMethods",
+      "key": "registerMethods",
+      "config": {},
+      "time": {
+        "hooks": {
+          "onStart": [
+            0
+          ]
+        },
+        "register": 5
+      },
+      "enableBy": "register"
+    },
+    "@umijs/did-you-know": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/did-you-know/dist/plugin.js",
+      "id": "@umijs/did-you-know",
+      "key": "umijsDidYouKnow",
+      "config": {},
+      "time": {
+        "hooks": {
+          "onStart": [
+            1
+          ]
+        },
+        "register": 3
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/404/404": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/404/404.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/404/404",
+      "key": "404",
+      "config": {},
+      "time": {
+        "hooks": {
+          "modifyRoutes": [
+            0
+          ]
+        },
+        "register": 0
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/aiDev/aiDev": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/aiDev/aiDev.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/aiDev/aiDev",
+      "key": "aiDev",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/appData/appData": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/appData/appData.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/appData/appData",
+      "key": "appData",
+      "config": {},
+      "time": {
+        "hooks": {
+          "modifyAppData": [
+            76
+          ]
+        },
+        "register": 26
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/appData/umiInfo": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/appData/umiInfo.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/appData/umiInfo",
+      "key": "umiInfo",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/check/check": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/check/check.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/check/check",
+      "key": "check",
+      "config": {},
+      "time": {
+        "hooks": {
+          "onCheckConfig": [
+            0
+          ],
+          "onCheck": [
+            0
+          ]
+        },
+        "register": 2
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/check/babel722": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/check/babel722.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/check/babel722",
+      "key": "babel722",
+      "config": {},
+      "time": {
+        "hooks": {
+          "onCheck": [
+            0
+          ]
+        },
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/codeSplitting/codeSplitting": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/codeSplitting/codeSplitting.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/codeSplitting/codeSplitting",
+      "key": "codeSplitting",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 0
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/configPlugins/configPlugins": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/configPlugins/configPlugins.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/configPlugins/configPlugins",
+      "key": "configPlugins",
+      "config": {},
+      "time": {
+        "hooks": {
+          "modifyConfig": [
+            0
+          ]
+        },
+        "register": 8
+      },
+      "enableBy": "register"
+    },
+    "virtual: config-title": {
+      "id": "virtual: config-title",
+      "key": "title",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-styles": {
+      "id": "virtual: config-styles",
+      "key": "styles",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-scripts": {
+      "id": "virtual: config-scripts",
+      "key": "scripts",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-routes": {
+      "id": "virtual: config-routes",
+      "key": "routes",
+      "config": {
+        "onChange": "regenerateTmpFiles"
+      },
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-routeLoader": {
+      "id": "virtual: config-routeLoader",
+      "key": "routeLoader",
+      "config": {
+        "default": {
+          "moduleType": "esm"
+        }
+      },
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-reactRouter5Compat": {
+      "id": "virtual: config-reactRouter5Compat",
+      "key": "reactRouter5Compat",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-presets": {
+      "id": "virtual: config-presets",
+      "key": "presets",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-plugins": {
+      "id": "virtual: config-plugins",
+      "key": "plugins",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-npmClient": {
+      "id": "virtual: config-npmClient",
+      "key": "npmClient",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-mountElementId": {
+      "id": "virtual: config-mountElementId",
+      "key": "mountElementId",
+      "config": {
+        "default": "root"
+      },
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-metas": {
+      "id": "virtual: config-metas",
+      "key": "metas",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-links": {
+      "id": "virtual: config-links",
+      "key": "links",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-historyWithQuery": {
+      "id": "virtual: config-historyWithQuery",
+      "key": "historyWithQuery",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-history": {
+      "id": "virtual: config-history",
+      "key": "history",
+      "config": {
+        "default": {
+          "type": "browser"
+        }
+      },
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-headScripts": {
+      "id": "virtual: config-headScripts",
+      "key": "headScripts",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-esbuildMinifyIIFE": {
+      "id": "virtual: config-esbuildMinifyIIFE",
+      "key": "esbuildMinifyIIFE",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-conventionRoutes": {
+      "id": "virtual: config-conventionRoutes",
+      "key": "conventionRoutes",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-conventionLayout": {
+      "id": "virtual: config-conventionLayout",
+      "key": "conventionLayout",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-base": {
+      "id": "virtual: config-base",
+      "key": "base",
+      "config": {
+        "default": "/"
+      },
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-analyze": {
+      "id": "virtual: config-analyze",
+      "key": "analyze",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-writeToDisk": {
+      "id": "virtual: config-writeToDisk",
+      "key": "writeToDisk",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-transformRuntime": {
+      "id": "virtual: config-transformRuntime",
+      "key": "transformRuntime",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-theme": {
+      "id": "virtual: config-theme",
+      "key": "theme",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-targets": {
+      "id": "virtual: config-targets",
+      "key": "targets",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-svgr": {
+      "id": "virtual: config-svgr",
+      "key": "svgr",
+      "config": {
+        "default": {}
+      },
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-svgo": {
+      "id": "virtual: config-svgo",
+      "key": "svgo",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-stylusLoader": {
+      "id": "virtual: config-stylusLoader",
+      "key": "stylusLoader",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-styleLoader": {
+      "id": "virtual: config-styleLoader",
+      "key": "styleLoader",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-srcTranspilerOptions": {
+      "id": "virtual: config-srcTranspilerOptions",
+      "key": "srcTranspilerOptions",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-srcTranspiler": {
+      "id": "virtual: config-srcTranspiler",
+      "key": "srcTranspiler",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-sassLoader": {
+      "id": "virtual: config-sassLoader",
+      "key": "sassLoader",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-runtimePublicPath": {
+      "id": "virtual: config-runtimePublicPath",
+      "key": "runtimePublicPath",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-purgeCSS": {
+      "id": "virtual: config-purgeCSS",
+      "key": "purgeCSS",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-publicPath": {
+      "id": "virtual: config-publicPath",
+      "key": "publicPath",
+      "config": {
+        "default": "/"
+      },
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-proxy": {
+      "id": "virtual: config-proxy",
+      "key": "proxy",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-postcssLoader": {
+      "id": "virtual: config-postcssLoader",
+      "key": "postcssLoader",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-outputPath": {
+      "id": "virtual: config-outputPath",
+      "key": "outputPath",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-normalCSSLoaderModules": {
+      "id": "virtual: config-normalCSSLoaderModules",
+      "key": "normalCSSLoaderModules",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-mfsu": {
+      "id": "virtual: config-mfsu",
+      "key": "mfsu",
+      "config": {
+        "default": {
+          "strategy": "eager"
+        }
+      },
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-mdx": {
+      "id": "virtual: config-mdx",
+      "key": "mdx",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-manifest": {
+      "id": "virtual: config-manifest",
+      "key": "manifest",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-lessLoader": {
+      "id": "virtual: config-lessLoader",
+      "key": "lessLoader",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-jsMinifierOptions": {
+      "id": "virtual: config-jsMinifierOptions",
+      "key": "jsMinifierOptions",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-jsMinifier": {
+      "id": "virtual: config-jsMinifier",
+      "key": "jsMinifier",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-inlineLimit": {
+      "id": "virtual: config-inlineLimit",
+      "key": "inlineLimit",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-ignoreMomentLocale": {
+      "id": "virtual: config-ignoreMomentLocale",
+      "key": "ignoreMomentLocale",
+      "config": {
+        "default": true
+      },
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-https": {
+      "id": "virtual: config-https",
+      "key": "https",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-hash": {
+      "id": "virtual: config-hash",
+      "key": "hash",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-forkTSChecker": {
+      "id": "virtual: config-forkTSChecker",
+      "key": "forkTSChecker",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-fastRefresh": {
+      "id": "virtual: config-fastRefresh",
+      "key": "fastRefresh",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-extraPostCSSPlugins": {
+      "id": "virtual: config-extraPostCSSPlugins",
+      "key": "extraPostCSSPlugins",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-extraBabelPresets": {
+      "id": "virtual: config-extraBabelPresets",
+      "key": "extraBabelPresets",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-extraBabelPlugins": {
+      "id": "virtual: config-extraBabelPlugins",
+      "key": "extraBabelPlugins",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-extraBabelIncludes": {
+      "id": "virtual: config-extraBabelIncludes",
+      "key": "extraBabelIncludes",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-externals": {
+      "id": "virtual: config-externals",
+      "key": "externals",
+      "config": {
+        "default": {}
+      },
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-esm": {
+      "id": "virtual: config-esm",
+      "key": "esm",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-devtool": {
+      "id": "virtual: config-devtool",
+      "key": "devtool",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-depTranspiler": {
+      "id": "virtual: config-depTranspiler",
+      "key": "depTranspiler",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-define": {
+      "id": "virtual: config-define",
+      "key": "define",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-deadCode": {
+      "id": "virtual: config-deadCode",
+      "key": "deadCode",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-cssPublicPath": {
+      "id": "virtual: config-cssPublicPath",
+      "key": "cssPublicPath",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-cssMinifierOptions": {
+      "id": "virtual: config-cssMinifierOptions",
+      "key": "cssMinifierOptions",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-cssMinifier": {
+      "id": "virtual: config-cssMinifier",
+      "key": "cssMinifier",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-cssLoaderModules": {
+      "id": "virtual: config-cssLoaderModules",
+      "key": "cssLoaderModules",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-cssLoader": {
+      "id": "virtual: config-cssLoader",
+      "key": "cssLoader",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-copy": {
+      "id": "virtual: config-copy",
+      "key": "copy",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-checkDepCssModules": {
+      "id": "virtual: config-checkDepCssModules",
+      "key": "checkDepCssModules",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-chainWebpack": {
+      "id": "virtual: config-chainWebpack",
+      "key": "chainWebpack",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-cacheDirectoryPath": {
+      "id": "virtual: config-cacheDirectoryPath",
+      "key": "cacheDirectoryPath",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-babelLoaderCustomize": {
+      "id": "virtual: config-babelLoaderCustomize",
+      "key": "babelLoaderCustomize",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-autoprefixer": {
+      "id": "virtual: config-autoprefixer",
+      "key": "autoprefixer",
+      "config": {},
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-autoCSSModules": {
+      "id": "virtual: config-autoCSSModules",
+      "key": "autoCSSModules",
+      "config": {
+        "default": true
+      },
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "virtual: config-alias": {
+      "id": "virtual: config-alias",
+      "key": "alias",
+      "config": {
+        "default": {
+          "umi": "@@/exports",
+          "react": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/react",
+          "react-dom": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/react-dom",
+          "react-router": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/react-router",
+          "react-router-dom": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/react-router-dom"
+        }
+      },
+      "type": "plugin",
+      "enableBy": "register",
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/crossorigin/crossorigin": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/crossorigin/crossorigin.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/crossorigin/crossorigin",
+      "key": "crossorigin",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/depsOnDemand/depsOnDemand": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/depsOnDemand/depsOnDemand.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/depsOnDemand/depsOnDemand",
+      "key": "depsOnDemand",
+      "config": {},
+      "time": {
+        "hooks": {
+          "onStart": [
+            1
+          ]
+        },
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/devTool/devTool": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/devTool/devTool.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/devTool/devTool",
+      "key": "devTool",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 0
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/esbuildHelperChecker/esbuildHelperChecker": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/esbuildHelperChecker/esbuildHelperChecker.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/esbuildHelperChecker/esbuildHelperChecker",
+      "key": "esbuildHelperChecker",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 98
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/esmi/esmi": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/esmi/esmi.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/esmi/esmi",
+      "key": "esmi",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 51
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/exportStatic/exportStatic": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/exportStatic/exportStatic.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/exportStatic/exportStatic",
+      "key": "exportStatic",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 16
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/favicons/favicons": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/favicons/favicons.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/favicons/favicons",
+      "key": "favicons",
+      "config": {},
+      "time": {
+        "hooks": {
+          "modifyAppData": [
+            0
+          ]
+        },
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/helmet/helmet": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/helmet/helmet.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/helmet/helmet",
+      "key": "helmet",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/icons/icons": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/icons/icons.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/icons/icons",
+      "key": "icons",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/mock/mock": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/mock/mock.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/mock/mock",
+      "key": "mock",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 42
+      }
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/mpa/mpa": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/mpa/mpa.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/mpa/mpa",
+      "key": "mpa",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 2
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/okam/okam": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/okam/okam.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/okam/okam",
+      "key": "okam",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/overrides/overrides": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/overrides/overrides.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/overrides/overrides",
+      "key": "overrides",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 0
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/phantomDependency/phantomDependency": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/phantomDependency/phantomDependency.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/phantomDependency/phantomDependency",
+      "key": "phantomDependency",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/polyfill/polyfill": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/polyfill/polyfill.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/polyfill/polyfill",
+      "key": "polyfill",
+      "config": {},
+      "time": {
+        "hooks": {
+          "modifyConfig": [
+            1
+          ]
+        },
+        "register": 2
+      }
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/polyfill/publicPathPolyfill": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/polyfill/publicPathPolyfill.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/polyfill/publicPathPolyfill",
+      "key": "publicPathPolyfill",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 0
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/prepare/prepare": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/prepare/prepare.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/prepare/prepare",
+      "key": "prepare",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 2
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/routePrefetch/routePrefetch": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/routePrefetch/routePrefetch.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/routePrefetch/routePrefetch",
+      "key": "routePrefetch",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 0
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/stagewise/stagewise": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/stagewise/stagewise.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/stagewise/stagewise",
+      "key": "stagewise",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 2
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/terminal/terminal": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/terminal/terminal.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/terminal/terminal",
+      "key": "terminal",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/tmpFiles/tmpFiles": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/tmpFiles/tmpFiles.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/tmpFiles/tmpFiles",
+      "key": "tmpFiles",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 4
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/clientLoader/clientLoader": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/clientLoader/clientLoader.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/clientLoader/clientLoader",
+      "key": "clientLoader",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/routeProps/routeProps": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/routeProps/routeProps.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/routeProps/routeProps",
+      "key": "routeProps",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      }
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/ssr/ssr": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/ssr/ssr.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/ssr/ssr",
+      "key": "ssr",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 2
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/tmpFiles/configTypes": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/tmpFiles/configTypes.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/tmpFiles/configTypes",
+      "key": "configTypes",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 2
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/transform/transform": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/transform/transform.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/transform/transform",
+      "key": "transform",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 3
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/lowImport/lowImport": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/lowImport/lowImport.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/lowImport/lowImport",
+      "key": "lowImport",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 4
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/vite/vite": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/vite/vite.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/vite/vite",
+      "key": "vite",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 0
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/apiRoute/apiRoute": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/apiRoute/apiRoute.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/apiRoute/apiRoute",
+      "key": "apiRoute",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 7
+      }
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/monorepo/redirect": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/monorepo/redirect.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/monorepo/redirect",
+      "key": "monorepoRedirect",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 32
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/test/test": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/test/test.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/test/test",
+      "key": "test",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      }
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/clickToComponent/clickToComponent": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/clickToComponent/clickToComponent.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/clickToComponent/clickToComponent",
+      "key": "clickToComponent",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/legacy/legacy": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/legacy/legacy.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/legacy/legacy",
+      "key": "legacy",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 2
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/classPropertiesLoose/classPropertiesLoose": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/classPropertiesLoose/classPropertiesLoose.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/classPropertiesLoose/classPropertiesLoose",
+      "key": "classPropertiesLoose",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 0
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/webpack/webpack": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/webpack/webpack.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/webpack/webpack",
+      "key": "preset-umi:webpack",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      }
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/swc/swc": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/swc/swc.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/swc/swc",
+      "key": "swc",
+      "config": {},
+      "time": {
+        "hooks": {
+          "addOnDemandDeps": [
+            0
+          ]
+        },
+        "register": 0
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/ui/ui": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/ui/ui.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/ui/ui",
+      "key": "ui",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 3
+      }
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/mako/mako": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/mako/mako.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/mako/mako",
+      "key": "mako",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 2
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/utoopack/utoopack": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/utoopack/utoopack.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/utoopack/utoopack",
+      "key": "utoopack",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      }
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/hmrGuardian/hmrGuardian": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/hmrGuardian/hmrGuardian.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/hmrGuardian/hmrGuardian",
+      "key": "hmrGuardian",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 2
+      }
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/routePreloadOnLoad/routePreloadOnLoad": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/routePreloadOnLoad/routePreloadOnLoad.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/routePreloadOnLoad/routePreloadOnLoad",
+      "key": "routePreloadOnLoad",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 33
+      }
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/forget/forget": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/forget/forget.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/forget/forget",
+      "key": "forget",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 2
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/preset-umi/dist/features/bundler/bundler": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/features/bundler/bundler.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/features/bundler/bundler",
+      "key": "preset-umi:bundler",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/build": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/build.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/build",
+      "key": "build",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 5
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/config/config": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/config/config.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/config/config",
+      "key": "config",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 48
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/dev/dev": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/dev/dev.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/dev/dev",
+      "key": "dev",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 34
+      }
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/help": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/help.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/help",
+      "key": "help",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/lint": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/lint.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/lint",
+      "key": "lint",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 0
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/setup": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/setup.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/setup",
+      "key": "setup",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/deadcode": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/deadcode.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/deadcode",
+      "key": "deadcode",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 0
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/version": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/version.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/version",
+      "key": "version",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/generators/page": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/generators/page.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/generators/page",
+      "key": "generator:page",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 2
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/generators/prettier": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/generators/prettier.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/generators/prettier",
+      "key": "generator:prettier",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/generators/tsconfig": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/generators/tsconfig.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/generators/tsconfig",
+      "key": "generator:tsconfig",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/generators/jest": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/generators/jest.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/generators/jest",
+      "key": "generator:jest",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/generators/tailwindcss": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/generators/tailwindcss.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/generators/tailwindcss",
+      "key": "generator:tailwindcss",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 0
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/generators/dva": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/generators/dva.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/generators/dva",
+      "key": "generator:dva",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/generators/component": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/generators/component.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/generators/component",
+      "key": "generator:component",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/generators/mock": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/generators/mock.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/generators/mock",
+      "key": "generator:mock",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 0
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/generators/cypress": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/generators/cypress.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/generators/cypress",
+      "key": "generator:cypress",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/generators/api": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/generators/api.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/generators/api",
+      "key": "generator:api",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 0
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/generators/precommit": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/generators/precommit.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/generators/precommit",
+      "key": "generator:precommit",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/plugin": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/plugin.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/plugin",
+      "key": "command:plugin",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/verify-commit": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/verify-commit.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/verify-commit",
+      "key": "verifyCommit",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/preview": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/preview.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/preview",
+      "key": "preview",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 27
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/preset-umi/dist/commands/mfsu/mfsu": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/preset-umi/dist/commands/mfsu/mfsu.js",
+      "id": "./node_modules/@umijs/preset-umi/dist/commands/mfsu/mfsu",
+      "key": "mfsu-cli",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "@umijs/plugin-run": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugin-run/dist/index.js",
+      "id": "@umijs/plugin-run",
+      "key": "run",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 2
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/plugins/dist/access": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/dist/access.js",
+      "id": "./node_modules/@umijs/plugins/dist/access",
+      "key": "access",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 2
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/plugins/dist/analytics": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/dist/analytics.js",
+      "id": "./node_modules/@umijs/plugins/dist/analytics",
+      "key": "analytics",
+      "config": {
+        "onChange": "reload"
+      },
+      "time": {
+        "hooks": {},
+        "register": 0
+      }
+    },
+    "./node_modules/@umijs/plugins/dist/antd": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/dist/antd.js",
+      "id": "./node_modules/@umijs/plugins/dist/antd",
+      "key": "antd",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 9
+      }
+    },
+    "./node_modules/@umijs/plugins/dist/dva": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/dist/dva.js",
+      "id": "./node_modules/@umijs/plugins/dist/dva",
+      "key": "dva",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 16
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/plugins/dist/initial-state": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/dist/initial-state.js",
+      "id": "./node_modules/@umijs/plugins/dist/initial-state",
+      "key": "initialState",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/plugins/dist/layout": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/dist/layout.js",
+      "id": "./node_modules/@umijs/plugins/dist/layout",
+      "key": "layout",
+      "config": {
+        "onChange": "regenerateTmpFiles"
+      },
+      "time": {
+        "hooks": {
+          "modifyConfig": [
+            0
+          ],
+          "addLayouts": [
+            0
+          ],
+          "modifyAppData": [
+            1
+          ]
+        },
+        "register": 4
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/plugins/dist/locale": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/dist/locale.js",
+      "id": "./node_modules/@umijs/plugins/dist/locale",
+      "key": "locale",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 2
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/plugins/dist/mf": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/dist/mf.js",
+      "id": "./node_modules/@umijs/plugins/dist/mf",
+      "key": "mf",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 3
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/plugins/dist/model": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/dist/model.js",
+      "id": "./node_modules/@umijs/plugins/dist/model",
+      "key": "model",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 2
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/plugins/dist/moment2dayjs": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/dist/moment2dayjs.js",
+      "id": "./node_modules/@umijs/plugins/dist/moment2dayjs",
+      "key": "moment2dayjs",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 0
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/plugins/dist/qiankun": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/dist/qiankun.js",
+      "id": "./node_modules/@umijs/plugins/dist/qiankun",
+      "key": "qiankun",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/plugins/dist/qiankun/master": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/dist/qiankun/master.js",
+      "id": "./node_modules/@umijs/plugins/dist/qiankun/master",
+      "key": "qiankun-master",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 2
+      }
+    },
+    "./node_modules/@umijs/plugins/dist/qiankun/slave": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/dist/qiankun/slave.js",
+      "id": "./node_modules/@umijs/plugins/dist/qiankun/slave",
+      "key": "qiankun-slave",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      }
+    },
+    "./node_modules/@umijs/plugins/dist/react-query": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/dist/react-query.js",
+      "id": "./node_modules/@umijs/plugins/dist/react-query",
+      "key": "reactQuery",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/plugins/dist/request": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/dist/request.js",
+      "id": "./node_modules/@umijs/plugins/dist/request",
+      "key": "request",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/plugins/dist/styled-components": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/dist/styled-components.js",
+      "id": "./node_modules/@umijs/plugins/dist/styled-components",
+      "key": "styledComponents",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/plugins/dist/tailwindcss": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/dist/tailwindcss.js",
+      "id": "./node_modules/@umijs/plugins/dist/tailwindcss",
+      "key": "tailwindcss",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/plugins/dist/valtio": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/dist/valtio.js",
+      "id": "./node_modules/@umijs/plugins/dist/valtio",
+      "key": "valtio",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "config"
+    },
+    "./node_modules/@umijs/max/dist/plugins/maxAlias": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/max/dist/plugins/maxAlias.js",
+      "id": "./node_modules/@umijs/max/dist/plugins/maxAlias",
+      "key": "maxAlias",
+      "config": {},
+      "time": {
+        "hooks": {
+          "modifyConfig": [
+            0
+          ]
+        },
+        "register": 0
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/max/dist/plugins/maxAppData": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/max/dist/plugins/maxAppData.js",
+      "id": "./node_modules/@umijs/max/dist/plugins/maxAppData",
+      "key": "maxAppData",
+      "config": {},
+      "time": {
+        "hooks": {
+          "modifyAppData": [
+            0
+          ]
+        },
+        "register": 1
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/max/dist/plugins/maxChecker": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/max/dist/plugins/maxChecker.js",
+      "id": "./node_modules/@umijs/max/dist/plugins/maxChecker",
+      "key": "maxChecker",
+      "config": {},
+      "time": {
+        "hooks": {
+          "onCheckPkgJSON": [
+            0
+          ]
+        },
+        "register": 0
+      },
+      "enableBy": "register"
+    },
+    "./node_modules/@umijs/core/dist/service/generatePlugin": {
+      "cwd": "/Users/wuzongwei/Documents/www/nofx-1/admin-web",
+      "type": "plugin",
+      "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/core/dist/service/generatePlugin.js",
+      "id": "./node_modules/@umijs/core/dist/service/generatePlugin",
+      "key": "generatePlugin",
+      "config": {},
+      "time": {
+        "hooks": {},
+        "register": 1
+      },
+      "enableBy": "register"
+    }
+  },
+  "presets": [],
+  "name": "build",
+  "args": {
+    "_": []
+  },
+  "userConfig": {
+    "base": "/admin/",
+    "publicPath": "/admin/",
+    "hash": true,
+    "routes": [
+      {
+        "path": "/user",
+        "layout": false,
+        "routes": [
+          {
+            "path": "/user/login",
+            "component": "./user/login"
+          }
+        ]
+      },
+      {
+        "path": "/user/list",
+        "name": "用户管理",
+        "icon": "user",
+        "access": "canAdmin",
+        "component": "./user/list"
+      },
+      {
+        "path": "/copy-trade/records",
+        "name": "跟单记录",
+        "icon": "table",
+        "access": "canAdmin",
+        "component": "./copy-trade/records"
+      },
+      {
+        "path": "/system/config",
+        "name": "系统配置",
+        "icon": "setting",
+        "access": "canAdmin",
+        "component": "./system/config"
+      },
+      {
+        "path": "/",
+        "redirect": "/user/list"
+      },
+      {
+        "path": "*",
+        "layout": false,
+        "component": "./user/login"
+      }
+    ],
+    "access": {},
+    "model": {},
+    "initialState": {},
+    "request": {},
+    "layout": {
+      "locale": false,
+      "navTheme": "light",
+      "colorPrimary": "#1677ff",
+      "layout": "mix",
+      "contentWidth": "Fluid",
+      "fixedHeader": true,
+      "fixSiderbar": true,
+      "title": "NOFX 管理后台",
+      "pwa": false
+    },
+    "proxy": {
+      "/api": {
+        "target": "http://localhost:8080",
+        "changeOrigin": true
+      }
+    },
+    "npmClient": "npm",
+    "mock": false
+  },
+  "mainConfigFile": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/config/config.ts",
+  "config": {
+    "routeLoader": {
+      "moduleType": "esm"
+    },
+    "mountElementId": "root",
+    "history": {
+      "type": "browser"
+    },
+    "base": "/admin/",
+    "svgr": {},
+    "publicPath": "/admin/",
+    "mfsu": {
+      "strategy": "eager"
+    },
+    "ignoreMomentLocale": true,
+    "externals": {},
+    "autoCSSModules": true,
+    "alias": {
+      "umi": "@@/exports",
+      "react": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/react",
+      "react-dom": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/react-dom",
+      "react-router": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/react-router",
+      "react-router-dom": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/react-router-dom",
+      "@": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/src",
+      "@@": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/src/.umi-production",
+      "regenerator-runtime": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/regenerator-runtime",
+      "@umijs/max": "@@/exports"
+    },
+    "hash": true,
+    "routes": [
+      {
+        "path": "/user",
+        "layout": false,
+        "routes": [
+          {
+            "path": "/user/login",
+            "component": "./user/login"
+          }
+        ]
+      },
+      {
+        "path": "/user/list",
+        "name": "用户管理",
+        "icon": "user",
+        "access": "canAdmin",
+        "component": "./user/list"
+      },
+      {
+        "path": "/copy-trade/records",
+        "name": "跟单记录",
+        "icon": "table",
+        "access": "canAdmin",
+        "component": "./copy-trade/records"
+      },
+      {
+        "path": "/system/config",
+        "name": "系统配置",
+        "icon": "setting",
+        "access": "canAdmin",
+        "component": "./system/config"
+      },
+      {
+        "path": "/",
+        "redirect": "/user/list"
+      },
+      {
+        "path": "*",
+        "layout": false,
+        "component": "./user/login"
+      }
+    ],
+    "access": {},
+    "model": {},
+    "initialState": {},
+    "request": {},
+    "layout": {
+      "locale": false,
+      "navTheme": "light",
+      "colorPrimary": "#1677ff",
+      "layout": "mix",
+      "contentWidth": "Fluid",
+      "fixedHeader": true,
+      "fixSiderbar": true,
+      "title": "NOFX 管理后台",
+      "pwa": false
+    },
+    "proxy": {
+      "/api": {
+        "target": "http://localhost:8080",
+        "changeOrigin": true
+      }
+    },
+    "npmClient": "npm",
+    "mock": false,
+    "targets": {
+      "chrome": 80
+    }
+  },
+  "routes": {
+    "1": {
+      "path": "/user",
+      "layout": false,
+      "id": "1",
+      "absPath": "/user"
+    },
+    "2": {
+      "path": "/user/login",
+      "file": "@/pages/user/login/index.tsx",
+      "parentId": "1",
+      "id": "2",
+      "absPath": "/user/login",
+      "__content": "import { LockOutlined, UserOutlined } from '@ant-design/icons';\nimport { LoginForm, ProFormText } from '@ant-design/pro-components';\nimport { history, useModel } from '@umijs/max';\nimport { message } from 'antd';\nimport { login } from '@/services/admin/api';\n\nconst TOKEN_KEY = 'admin_token';\n\nexport default function LoginPage() {\n  const { setInitialState } = useModel('@@initialState');\n\n  return (\n    <div\n      style={{\n        display: 'flex',\n        height: '100vh',\n        alignItems: 'center',\n        justifyContent: 'center',\n        background: '#f0f2f5',\n      }}\n    >\n      <LoginForm\n        title=\"NOFX 管理后台\"\n        subTitle=\"使用管理员账号登录\"\n        onFinish={async (values) => {\n          try {\n            const res = await login(values.email, values.password);\n            if (!res.token) {\n              message.error('登录失败');\n              return false;\n            }\n            if (res.role && res.role !== 'admin') {\n              message.error('该账号不是管理员');\n              return false;\n            }\n            localStorage.setItem(TOKEN_KEY, res.token);\n            await setInitialState({\n              currentUser: {\n                name: res.email,\n                email: res.email,\n                role: res.role || 'admin',\n                access: res.role || 'admin',\n              },\n            });\n            message.success('登录成功');\n            history.push('/user/list');\n            return true;\n          } catch (err: unknown) {\n            const e = err as { data?: { error?: string } };\n            message.error(e?.data?.error || '登录失败');\n            return false;\n          }\n        }}\n      >\n        <ProFormText\n          name=\"email\"\n          fieldProps={{ size: 'large', prefix: <UserOutlined /> }}\n          placeholder=\"admin@localhost\"\n          rules={[{ required: true, message: '请输入邮箱' }]}\n          initialValue=\"admin@localhost\"\n        />\n        <ProFormText.Password\n          name=\"password\"\n          fieldProps={{ size: 'large', prefix: <LockOutlined /> }}\n          placeholder=\"密码\"\n          rules={[{ required: true, message: '请输入密码' }]}\n        />\n      </LoginForm>\n    </div>\n  );\n}\n",
+      "__isJSFile": true,
+      "__absFile": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/src/pages/user/login/index.tsx"
+    },
+    "3": {
+      "path": "/user/list",
+      "name": "用户管理",
+      "icon": "user",
+      "access": "canAdmin",
+      "file": "@/pages/user/list/index.tsx",
+      "parentId": "ant-design-pro-layout",
+      "id": "3",
+      "absPath": "/user/list",
+      "__content": "import type { ProColumns } from '@ant-design/pro-components';\nimport { PageContainer, ProTable } from '@ant-design/pro-components';\nimport { listUsers, type AdminUser } from '@/services/admin/api';\n\nconst columns: ProColumns<AdminUser>[] = [\n  { title: 'ID', dataIndex: 'id', copyable: true, width: 180 },\n  { title: '邮箱', dataIndex: 'email', copyable: true },\n  {\n    title: '角色',\n    dataIndex: 'role',\n    valueEnum: {\n      admin: { text: '管理员', status: 'Success' },\n      user: { text: '用户', status: 'Default' },\n    },\n    width: 100,\n  },\n  {\n    title: 'OTP 已验证',\n    dataIndex: 'otp_verified',\n    valueType: 'select',\n    valueEnum: {\n      true: { text: '是', status: 'Success' },\n      false: { text: '否', status: 'Warning' },\n    },\n    width: 120,\n    render: (_, record) => (record.otp_verified ? '是' : '否'),\n  },\n  {\n    title: '注册时间',\n    dataIndex: 'created_at',\n    valueType: 'dateTime',\n    width: 180,\n  },\n];\n\nexport default function UserListPage() {\n  return (\n    <PageContainer>\n      <ProTable<AdminUser>\n        rowKey=\"id\"\n        columns={columns}\n        request={async (params) => {\n          const res = await listUsers({\n            current: params.current,\n            pageSize: params.pageSize,\n            email: params.email as string | undefined,\n          });\n          return {\n            data: res.data,\n            total: res.total,\n            success: res.success,\n          };\n        }}\n        search={{ labelWidth: 'auto' }}\n        pagination={{ defaultPageSize: 20 }}\n      />\n    </PageContainer>\n  );\n}\n",
+      "__isJSFile": true,
+      "__absFile": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/src/pages/user/list/index.tsx"
+    },
+    "4": {
+      "path": "/copy-trade/records",
+      "name": "跟单记录",
+      "icon": "table",
+      "access": "canAdmin",
+      "file": "@/pages/copy-trade/records/index.tsx",
+      "parentId": "ant-design-pro-layout",
+      "id": "4",
+      "absPath": "/copy-trade/records",
+      "__content": "import type { ProColumns } from '@ant-design/pro-components';\nimport { PageContainer, ProTable } from '@ant-design/pro-components';\nimport {\n  listCopyTradeRecords,\n  type CopyTradeRecord,\n} from '@/services/admin/api';\n\nconst columns: ProColumns<CopyTradeRecord>[] = [\n  { title: 'ID', dataIndex: 'id', width: 70, search: false },\n  { title: '用户 ID', dataIndex: 'user_id', copyable: true, width: 140 },\n  { title: '带单员', dataIndex: 'nickname', search: false, width: 120 },\n  { title: '组合 ID', dataIndex: 'portfolio_id', search: false, width: 120 },\n  {\n    title: '交易对',\n    dataIndex: 'symbol',\n    width: 110,\n  },\n  {\n    title: '状态',\n    dataIndex: 'status',\n    valueEnum: {\n      OPEN: { text: '持仓中', status: 'Processing' },\n      CLOSED: { text: '已平仓', status: 'Success' },\n      FAILED: { text: '失败', status: 'Error' },\n    },\n    width: 100,\n  },\n  { title: '方向', dataIndex: 'side', search: false, width: 70 },\n  { title: '持仓侧', dataIndex: 'position_side', search: false, width: 80 },\n  {\n    title: '数量',\n    dataIndex: 'executed_qty',\n    search: false,\n    width: 90,\n  },\n  {\n    title: '均价',\n    dataIndex: 'avg_price',\n    search: false,\n    width: 100,\n  },\n  {\n    title: '盈亏',\n    dataIndex: 'total_pnl',\n    search: false,\n    width: 100,\n    render: (_, r) => (\n      <span style={{ color: r.total_pnl >= 0 ? '#3f8600' : '#cf1322' }}>\n        {r.total_pnl?.toFixed?.(2) ?? r.total_pnl}\n      </span>\n    ),\n  },\n  {\n    title: '跟单时间',\n    dataIndex: 'copy_time',\n    valueType: 'dateTime',\n    search: false,\n    width: 170,\n  },\n  {\n    title: '错误信息',\n    dataIndex: 'error_message',\n    search: false,\n    ellipsis: true,\n  },\n];\n\nexport default function CopyTradeRecordsPage() {\n  return (\n    <PageContainer>\n      <ProTable<CopyTradeRecord>\n        rowKey=\"id\"\n        columns={columns}\n        scroll={{ x: 1400 }}\n        request={async (params) => {\n          const res = await listCopyTradeRecords({\n            current: params.current,\n            pageSize: params.pageSize,\n            user_id: params.user_id as string | undefined,\n            status: params.status as string | undefined,\n            symbol: params.symbol as string | undefined,\n          });\n          return {\n            data: res.data,\n            total: res.total,\n            success: res.success,\n          };\n        }}\n        search={{ labelWidth: 'auto' }}\n        pagination={{ defaultPageSize: 20 }}\n      />\n    </PageContainer>\n  );\n}\n",
+      "__isJSFile": true,
+      "__absFile": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/src/pages/copy-trade/records/index.tsx"
+    },
+    "5": {
+      "path": "/system/config",
+      "name": "系统配置",
+      "icon": "setting",
+      "access": "canAdmin",
+      "file": "@/pages/system/config/index.tsx",
+      "parentId": "ant-design-pro-layout",
+      "id": "5",
+      "absPath": "/system/config",
+      "__content": "import {\n  PageContainer,\n  ProForm,\n  ProFormSelect,\n  ProFormTextArea,\n} from '@ant-design/pro-components';\nimport { message } from 'antd';\nimport { useEffect, useState } from 'react';\nimport {\n  getSystemConfig,\n  updateSystemConfig,\n  type SystemConfig,\n} from '@/services/admin/api';\n\nexport default function SystemConfigPage() {\n  const [initialValues, setInitialValues] = useState<SystemConfig>({});\n\n  useEffect(() => {\n    getSystemConfig().then((res) => {\n      if (res.data) {\n        setInitialValues(res.data);\n      }\n    });\n  }, []);\n\n  return (\n    <PageContainer>\n      <ProForm<SystemConfig>\n        key={JSON.stringify(initialValues)}\n        initialValues={initialValues}\n        onFinish={async (values) => {\n          await updateSystemConfig(values);\n          message.success('配置已保存');\n          return true;\n        }}\n        submitter={{ searchConfig: { submitText: '保存配置' } }}\n      >\n        <ProFormSelect\n          name=\"registration_enabled\"\n          label=\"开放注册\"\n          options={[\n            { label: '开启', value: 'true' },\n            { label: '关闭', value: 'false' },\n          ]}\n          rules={[{ required: true }]}\n        />\n        <ProFormSelect\n          name=\"beta_mode\"\n          label=\"内测模式\"\n          options={[\n            { label: '开启', value: 'true' },\n            { label: '关闭', value: 'false' },\n          ]}\n          rules={[{ required: true }]}\n        />\n        <ProFormSelect\n          name=\"use_default_coins\"\n          label=\"使用默认币种\"\n          options={[\n            { label: '是', value: 'true' },\n            { label: '否', value: 'false' },\n          ]}\n          rules={[{ required: true }]}\n        />\n        <ProFormTextArea\n          name=\"default_coins\"\n          label=\"默认币种列表 (JSON 数组)\"\n          fieldProps={{ rows: 4 }}\n          rules={[{ required: true }]}\n        />\n        <ProFormSelect\n          name=\"btc_eth_leverage\"\n          label=\"BTC/ETH 杠杆\"\n          options={['1', '2', '3', '5', '10', '20'].map((v) => ({\n            label: `${v}x`,\n            value: v,\n          }))}\n          rules={[{ required: true }]}\n        />\n        <ProFormSelect\n          name=\"altcoin_leverage\"\n          label=\"山寨币杠杆\"\n          options={['1', '2', '3', '5', '10', '20'].map((v) => ({\n            label: `${v}x`,\n            value: v,\n          }))}\n          rules={[{ required: true }]}\n        />\n        <ProFormSelect\n          name=\"max_daily_loss\"\n          label=\"最大日损失 (%)\"\n          options={['5', '10', '15', '20'].map((v) => ({\n            label: v,\n            value: v,\n          }))}\n        />\n        <ProFormSelect\n          name=\"max_drawdown\"\n          label=\"最大回撤 (%)\"\n          options={['10', '15', '20', '30'].map((v) => ({\n            label: v,\n            value: v,\n          }))}\n        />\n        <ProFormSelect\n          name=\"stop_trading_minutes\"\n          label=\"停止交易时间 (分钟)\"\n          options={['30', '60', '120', '240'].map((v) => ({\n            label: v,\n            value: v,\n          }))}\n        />\n      </ProForm>\n    </PageContainer>\n  );\n}\n",
+      "__isJSFile": true,
+      "__absFile": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/src/pages/system/config/index.tsx"
+    },
+    "6": {
+      "path": "/",
+      "redirect": "/user/list",
+      "parentId": "ant-design-pro-layout",
+      "id": "6",
+      "absPath": "/"
+    },
+    "7": {
+      "path": "*",
+      "layout": false,
+      "file": "@/pages/user/login/index.tsx",
+      "id": "7",
+      "absPath": "/*",
+      "__content": "import { LockOutlined, UserOutlined } from '@ant-design/icons';\nimport { LoginForm, ProFormText } from '@ant-design/pro-components';\nimport { history, useModel } from '@umijs/max';\nimport { message } from 'antd';\nimport { login } from '@/services/admin/api';\n\nconst TOKEN_KEY = 'admin_token';\n\nexport default function LoginPage() {\n  const { setInitialState } = useModel('@@initialState');\n\n  return (\n    <div\n      style={{\n        display: 'flex',\n        height: '100vh',\n        alignItems: 'center',\n        justifyContent: 'center',\n        background: '#f0f2f5',\n      }}\n    >\n      <LoginForm\n        title=\"NOFX 管理后台\"\n        subTitle=\"使用管理员账号登录\"\n        onFinish={async (values) => {\n          try {\n            const res = await login(values.email, values.password);\n            if (!res.token) {\n              message.error('登录失败');\n              return false;\n            }\n            if (res.role && res.role !== 'admin') {\n              message.error('该账号不是管理员');\n              return false;\n            }\n            localStorage.setItem(TOKEN_KEY, res.token);\n            await setInitialState({\n              currentUser: {\n                name: res.email,\n                email: res.email,\n                role: res.role || 'admin',\n                access: res.role || 'admin',\n              },\n            });\n            message.success('登录成功');\n            history.push('/user/list');\n            return true;\n          } catch (err: unknown) {\n            const e = err as { data?: { error?: string } };\n            message.error(e?.data?.error || '登录失败');\n            return false;\n          }\n        }}\n      >\n        <ProFormText\n          name=\"email\"\n          fieldProps={{ size: 'large', prefix: <UserOutlined /> }}\n          placeholder=\"admin@localhost\"\n          rules={[{ required: true, message: '请输入邮箱' }]}\n          initialValue=\"admin@localhost\"\n        />\n        <ProFormText.Password\n          name=\"password\"\n          fieldProps={{ size: 'large', prefix: <LockOutlined /> }}\n          placeholder=\"密码\"\n          rules={[{ required: true, message: '请输入密码' }]}\n        />\n      </LoginForm>\n    </div>\n  );\n}\n",
+      "__isJSFile": true,
+      "__absFile": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/src/pages/user/login/index.tsx"
+    },
+    "ant-design-pro-layout": {
+      "id": "ant-design-pro-layout",
+      "path": "/",
+      "file": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/src/.umi-production/plugin-layout/Layout.tsx",
+      "absPath": "/",
+      "isLayout": true,
+      "__absFile": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/src/.umi-production/plugin-layout/Layout.tsx"
+    }
+  },
+  "apiRoutes": {},
+  "hasSrcDir": true,
+  "npmClient": "npm",
+  "umi": {
+    "version": "4.6.61",
+    "name": "Umi Max",
+    "importSource": "@umijs/max",
+    "cliName": "max"
+  },
+  "bundleStatus": {
+    "done": false
+  },
+  "mfsuBundleStatus": {
+    "done": false
+  },
+  "react": {
+    "version": "18.3.1",
+    "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/react"
+  },
+  "react-dom": {
+    "version": "18.3.1",
+    "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/react-dom"
+  },
+  "appJS": {
+    "path": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/src/app.tsx",
+    "exports": [
+      "getInitialState",
+      "layout",
+      "request"
+    ]
+  },
+  "locale": "zh-CN",
+  "globalCSS": [
+    "/Users/wuzongwei/Documents/www/nofx-1/admin-web/src/global.less"
+  ],
+  "globalJS": [],
+  "overridesCSS": [],
+  "bundler": "webpack",
+  "git": {
+    "originUrl": "https://github.com/zongwei-wu/nofx-1.git"
+  },
+  "framework": "react",
+  "typescript": {
+    "tsVersion": "5.9.3",
+    "tslibVersion": "2.8.1"
+  },
+  "faviconFiles": [],
+  "pluginLayout": {
+    "pkgPath": "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@ant-design/pro-components",
+    "version": "2.8.10"
+  }
+}

@@ -111,9 +111,6 @@ func (s *Server) setupRoutes() {
 		api.POST("/equity-history-batch", s.handleEquityHistoryBatch)
 		api.GET("/traders/:id/public-config", s.handleGetPublicTraderConfig)
 
-		// 币安跟单数据（无需认证，代理Binance公开API）
-		api.GET("/copy-trading/leaderboard", s.handleCopyTradingLeaderboard)
-		api.GET("/copy-trading/orders", s.handleCopyTradingOrders)
 		api.GET("/market/klines", s.handleMarketKlines)
 
 		// 认证相关路由（无需认证）
@@ -125,59 +122,84 @@ func (s *Server) setupRoutes() {
 		// 需要认证的路由
 		protected := api.Group("/", s.authMiddleware())
 		{
-			// 注销（加入黑名单）
+			protected.GET("/me", s.handleMe)
 			protected.POST("/logout", s.handleLogout)
-
-			// 服务器IP查询（需要认证，用于白名单配置）
 			protected.GET("/server-ip", s.handleGetServerIP)
 
-			// AI交易员管理
-			protected.GET("/my-traders", s.handleTraderList)
-			protected.GET("/traders/:id/config", s.handleGetTraderConfig)
-			protected.POST("/traders", s.handleCreateTrader)
-			protected.PUT("/traders/:id", s.handleUpdateTrader)
-			protected.DELETE("/traders/:id", s.handleDeleteTrader)
-			protected.POST("/traders/:id/start", s.handleStartTrader)
-			protected.POST("/traders/:id/stop", s.handleStopTrader)
-			protected.PUT("/traders/:id/prompt", s.handleUpdateTraderPrompt)
+			// 排行榜（需 leaderboard 权限）
+			leaderboard := protected.Group("/", s.requireFeature(config.FeatureLeaderboard))
+			{
+				leaderboard.GET("/copy-trading/leaderboard", s.handleCopyTradingLeaderboard)
+				leaderboard.GET("/copy-trading/orders", s.handleCopyTradingOrders)
+			}
 
-			// AI模型配置
-			protected.GET("/models", s.handleGetModelConfigs)
-			protected.PUT("/models", s.handleUpdateModelConfigs)
+			// AI 交易员（需 ai_trader 权限）
+			aiTrader := protected.Group("/", s.requireFeature(config.FeatureAITrader))
+			{
+				aiTrader.GET("/my-traders", s.handleTraderList)
+				aiTrader.GET("/traders/:id/config", s.handleGetTraderConfig)
+				aiTrader.POST("/traders", s.handleCreateTrader)
+				aiTrader.PUT("/traders/:id", s.handleUpdateTrader)
+				aiTrader.DELETE("/traders/:id", s.handleDeleteTrader)
+				aiTrader.POST("/traders/:id/start", s.handleStartTrader)
+				aiTrader.POST("/traders/:id/stop", s.handleStopTrader)
+				aiTrader.PUT("/traders/:id/prompt", s.handleUpdateTraderPrompt)
+				aiTrader.GET("/models", s.handleGetModelConfigs)
+				aiTrader.PUT("/models", s.handleUpdateModelConfigs)
+				aiTrader.GET("/exchanges", s.handleGetExchangeConfigs)
+				aiTrader.PUT("/exchanges", s.handleUpdateExchangeConfigs)
+				aiTrader.GET("/user/signal-sources", s.handleGetUserSignalSource)
+				aiTrader.POST("/user/signal-sources", s.handleSaveUserSignalSource)
+				aiTrader.GET("/status", s.handleStatus)
+				aiTrader.GET("/account", s.handleAccount)
+				aiTrader.GET("/positions", s.handlePositions)
+				aiTrader.GET("/decisions", s.handleDecisions)
+				aiTrader.GET("/decisions/latest", s.handleLatestDecisions)
+				aiTrader.GET("/statistics", s.handleStatistics)
+				aiTrader.GET("/performance", s.handlePerformance)
+			}
 
-			// 交易所配置
-			protected.GET("/exchanges", s.handleGetExchangeConfigs)
-			protected.PUT("/exchanges", s.handleUpdateExchangeConfigs)
+			// 跟单管理（需 copy_trade 权限）
+			copyTrade := protected.Group("/", s.requireFeature(config.FeatureCopyTrade))
+			{
+				copyTrade.GET("/copy-trade/configs", s.handleGetCopyTradeConfigs)
+				copyTrade.POST("/copy-trade/configs", s.handleUpdateCopyTradeConfig)
+				copyTrade.DELETE("/copy-trade/configs/:id", s.handleDeleteCopyTradeConfig)
+				copyTrade.GET("/copy-trade/settings", s.handleGetCopyTradeSettings)
+				copyTrade.PUT("/copy-trade/settings", s.handleUpdateCopyTradeSettings)
+				copyTrade.GET("/copy-trade/records", s.handleGetCopyTradeRecords)
+				copyTrade.GET("/copy-trade/monitor", s.handleGetCopyTradeMonitor)
+				copyTrade.POST("/copy-trade/refresh-pnl", s.handleRefreshCopyTradePnL)
+				copyTrade.POST("/copy-trade/sync", s.handleSyncCopyTrade)
+				copyTrade.POST("/copy-trade/copy-order", s.handleCopyOrder)
+			}
 
-			// 用户信号源配置
-			protected.GET("/user/signal-sources", s.handleGetUserSignalSource)
-			protected.POST("/user/signal-sources", s.handleSaveUserSignalSource)
+			// 交易事件图（AI 交易员或跟单任一权限）
+			tradeEvents := protected.Group("/", s.requireAnyFeature(config.FeatureAITrader, config.FeatureCopyTrade))
+			{
+				tradeEvents.GET("/trade-events", s.handleTradeEvents)
+			}
 
-			// 指定trader的数据（使用query参数 ?trader_id=xxx）
-			protected.GET("/status", s.handleStatus)
-			protected.GET("/account", s.handleAccount)
-			protected.GET("/positions", s.handlePositions)
-			protected.GET("/decisions", s.handleDecisions)
-			protected.GET("/decisions/latest", s.handleLatestDecisions)
-			protected.GET("/statistics", s.handleStatistics)
-			protected.GET("/performance", s.handlePerformance)
+			// 币种管理（需 symbols 权限）
+			symbols := protected.Group("/", s.requireFeature(config.FeatureSymbols))
+			{
+				symbols.GET("/symbol-preferences", s.handleGetSymbolPreferences)
+				symbols.PUT("/symbol-preferences", s.handlePutSymbolPreferences)
+				symbols.POST("/symbol-preferences/reset", s.handleResetSymbolPreferences)
+				symbols.GET("/symbol-values", s.handleGetSymbolValues)
+			}
 
-			// 跟单管理
-			protected.GET("/copy-trade/configs", s.handleGetCopyTradeConfigs)
-			protected.POST("/copy-trade/configs", s.handleUpdateCopyTradeConfig)
-			protected.DELETE("/copy-trade/configs/:id", s.handleDeleteCopyTradeConfig)
-			protected.GET("/copy-trade/settings", s.handleGetCopyTradeSettings)
-			protected.PUT("/copy-trade/settings", s.handleUpdateCopyTradeSettings)
-			protected.GET("/copy-trade/records", s.handleGetCopyTradeRecords)
-			protected.GET("/copy-trade/monitor", s.handleGetCopyTradeMonitor)
-			protected.POST("/copy-trade/refresh-pnl", s.handleRefreshCopyTradePnL)
-			protected.POST("/copy-trade/sync", s.handleSyncCopyTrade)
-			protected.POST("/copy-trade/copy-order", s.handleCopyOrder)
-			protected.GET("/trade-events", s.handleTradeEvents)
-			protected.GET("/symbol-preferences", s.handleGetSymbolPreferences)
-			protected.PUT("/symbol-preferences", s.handlePutSymbolPreferences)
-			protected.POST("/symbol-preferences/reset", s.handleResetSymbolPreferences)
-			protected.GET("/symbol-values", s.handleGetSymbolValues)
+			// 管理端 API（需 admin 角色）
+			admin := protected.Group("/admin", s.adminMiddleware())
+			{
+				admin.GET("/me", s.handleAdminMe)
+				admin.GET("/users", s.handleAdminListUsers)
+				admin.PUT("/users/:id", s.handleAdminUpdateUser)
+				admin.GET("/plans", s.handleAdminListPlans)
+				admin.GET("/copy-trade/records", s.handleAdminCopyTradeRecords)
+				admin.GET("/system-config", s.handleAdminGetSystemConfig)
+				admin.PUT("/system-config", s.handleAdminPutSystemConfig)
+			}
 		}
 	}
 }
@@ -1642,6 +1664,16 @@ func (s *Server) authMiddleware() gin.HandlerFunc {
 		// 将用户信息存储到上下文中
 		c.Set("user_id", claims.UserID)
 		c.Set("email", claims.Email)
+		role := claims.Role
+		if role == "" {
+			role = config.UserRoleUser
+		}
+		c.Set("role", role)
+		plan := claims.Plan
+		if plan == "" {
+			plan = config.PlanStandard
+		}
+		c.Set("plan", plan)
 		c.Next()
 	}
 }
@@ -1823,7 +1855,15 @@ func (s *Server) handleCompleteRegistration(c *gin.Context) {
 	}
 
 	// 生成JWT token
-	token, err := auth.GenerateJWT(user.ID, user.Email)
+	role := user.Role
+	if role == "" {
+		role = config.UserRoleUser
+	}
+	plan := user.Plan
+	if plan == "" {
+		plan = config.PlanStandard
+	}
+	token, err := auth.GenerateJWT(user.ID, user.Email, role, plan)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成token失败"})
 		return
@@ -1835,12 +1875,7 @@ func (s *Server) handleCompleteRegistration(c *gin.Context) {
 		log.Printf("初始化用户默认配置失败: %v", err)
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"token":   token,
-		"user_id": user.ID,
-		"email":   user.Email,
-		"message": "注册完成",
-	})
+	c.JSON(http.StatusOK, s.userAuthPayload(user, token, "注册完成"))
 }
 
 // handleLogin 处理用户登录请求
@@ -1865,6 +1900,21 @@ func (s *Server) handleLogin(c *gin.Context) {
 	// 验证密码
 	if !auth.CheckPassword(req.Password, user.PasswordHash) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "邮箱或密码错误"})
+		return
+	}
+
+	// 管理员账号跳过 OTP，直接签发 token
+	if user.Role == config.UserRoleAdmin {
+		plan := user.Plan
+		if plan == "" {
+			plan = config.PlanVIP
+		}
+		token, err := auth.GenerateJWT(user.ID, user.Email, user.Role, plan)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "生成token失败"})
+			return
+		}
+		c.JSON(http.StatusOK, s.userAuthPayload(user, token, "登录成功"))
 		return
 	}
 
@@ -1912,19 +1962,21 @@ func (s *Server) handleVerifyOTP(c *gin.Context) {
 		return
 	}
 
-	// 生成JWT token
-	token, err := auth.GenerateJWT(user.ID, user.Email)
+	role := user.Role
+	if role == "" {
+		role = config.UserRoleUser
+	}
+	plan := user.Plan
+	if plan == "" {
+		plan = config.PlanStandard
+	}
+	token, err := auth.GenerateJWT(user.ID, user.Email, role, plan)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成token失败"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"token":   token,
-		"user_id": user.ID,
-		"email":   user.Email,
-		"message": "登录成功",
-	})
+	c.JSON(http.StatusOK, s.userAuthPayload(user, token, "登录成功"))
 }
 
 // handleResetPassword 重置密码（通过邮箱 + OTP 验证）

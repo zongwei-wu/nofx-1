@@ -41,6 +41,7 @@ export class HttpClient {
       // Clean up local storage
       localStorage.removeItem('auth_token')
       localStorage.removeItem('auth_user')
+      localStorage.removeItem('auth_features')
 
       // Notify global listeners (AuthContext will react to this)
       window.dispatchEvent(new Event('unauthorized'))

@@ -5,11 +5,15 @@ import { reset401Flag } from '../lib/httpClient'
 interface User {
   id: string
   email: string
+  plan?: string
 }
 
 interface AuthContextType {
   user: User | null
   token: string | null
+  features: string[]
+  hasFeature: (feature: string) => boolean
+  refreshPermissions: () => Promise<void>
   login: (
     email: string,
     password: string
@@ -55,7 +59,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 function restoreSessionFromStorage(
   setToken: (t: string | null) => void,
-  setUser: (u: User | null) => void
+  setUser: (u: User | null) => void,
+  setFeatures: (f: string[]) => void
 ) {
   const savedToken = localStorage.getItem('auth_token')
   const savedUser = localStorage.getItem('auth_user')
@@ -63,33 +68,101 @@ function restoreSessionFromStorage(
   try {
     setToken(savedToken)
     setUser(JSON.parse(savedUser) as User)
+    const savedFeatures = localStorage.getItem('auth_features')
+    if (savedFeatures) {
+      setFeatures(JSON.parse(savedFeatures) as string[])
+    }
   } catch {
     localStorage.removeItem('auth_token')
     localStorage.removeItem('auth_user')
+    localStorage.removeItem('auth_features')
   }
+}
+
+type AuthSessionPayload = {
+  token: string
+  user_id: string
+  email: string
+  plan?: string
+  features?: string[]
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
+  const [features, setFeatures] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
+  const applyAuthSession = (data: AuthSessionPayload) => {
+    const userInfo: User = {
+      id: data.user_id,
+      email: data.email,
+      plan: data.plan,
+    }
+    const featureList = data.features ?? []
+    setToken(data.token)
+    setUser(userInfo)
+    setFeatures(featureList)
+    localStorage.setItem('auth_token', data.token)
+    localStorage.setItem('auth_user', JSON.stringify(userInfo))
+    localStorage.setItem('auth_features', JSON.stringify(featureList))
+  }
+
+  const fetchMe = async (authToken: string) => {
+    const response = await fetch('/api/me', {
+      headers: { Authorization: `Bearer ${authToken}` },
+    })
+    if (!response.ok) return
+    const data = await response.json()
+    if (data.features) {
+      setFeatures(data.features)
+      localStorage.setItem('auth_features', JSON.stringify(data.features))
+    }
+    if (data.plan) {
+      setUser((prev) => (prev ? { ...prev, plan: data.plan } : prev))
+      const savedUser = localStorage.getItem('auth_user')
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser) as User
+          localStorage.setItem(
+            'auth_user',
+            JSON.stringify({ ...parsed, plan: data.plan })
+          )
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }
+
+  const refreshPermissions = async () => {
+    const savedToken = localStorage.getItem('auth_token')
+    if (savedToken) {
+      await fetchMe(savedToken)
+    }
+  }
+
+  const hasFeature = (feature: string) => features.includes(feature)
+
   useEffect(() => {
-    // Reset 401 flag on page load to allow fresh 401 handling
     reset401Flag()
 
-    // 先检查是否为管理员模式（使用带缓存的系统配置获取）
     getSystemConfig()
-      .then(() => {
-        // 不再在管理员模式下模拟登录；统一检查本地存储
+      .then(async () => {
+        restoreSessionFromStorage(setToken, setUser, setFeatures)
         const savedToken = localStorage.getItem('auth_token')
-        const savedUser = localStorage.getItem('auth_user')
-        restoreSessionFromStorage(setToken, setUser)
+        if (savedToken) {
+          await fetchMe(savedToken)
+        }
         setIsLoading(false)
       })
-      .catch((err) => {
+      .catch(async (err) => {
         console.error('Failed to fetch system config:', err)
-        restoreSessionFromStorage(setToken, setUser)
+        restoreSessionFromStorage(setToken, setUser, setFeatures)
+        const savedToken = localStorage.getItem('auth_token')
+        if (savedToken) {
+          await fetchMe(savedToken)
+        }
         setIsLoading(false)
       })
   }, [])
@@ -101,7 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Clear auth state when 401 is detected
       setUser(null)
       setToken(null)
-      // Note: localStorage cleanup is already done in httpClient
+      setFeatures([])
     }
 
     window.addEventListener('unauthorized', handleUnauthorized)
@@ -154,14 +227,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Reset 401 flag on successful login
         reset401Flag()
 
-        const userInfo = {
-          id: data.user_id || 'admin',
+        applyAuthSession({
+          token: data.token,
+          user_id: data.user_id || 'admin',
           email: data.email || 'admin@localhost',
-        }
-        setToken(data.token)
-        setUser(userInfo)
-        localStorage.setItem('auth_token', data.token)
-        localStorage.setItem('auth_user', JSON.stringify(userInfo))
+          plan: data.plan,
+          features: data.features,
+        })
 
         // Check and redirect to returnUrl if exists
         const returnUrl = sessionStorage.getItem('returnUrl')
@@ -240,12 +312,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Reset 401 flag on successful login
         reset401Flag()
 
-        // 登录成功，保存token和用户信息
-        const userInfo = { id: data.user_id, email: data.email }
-        setToken(data.token)
-        setUser(userInfo)
-        localStorage.setItem('auth_token', data.token)
-        localStorage.setItem('auth_user', JSON.stringify(userInfo))
+        applyAuthSession(data as AuthSessionPayload)
 
         // Check and redirect to returnUrl if exists
         const returnUrl = sessionStorage.getItem('returnUrl')
@@ -284,12 +351,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Reset 401 flag on successful login
         reset401Flag()
 
-        // 注册完成，自动登录
-        const userInfo = { id: data.user_id, email: data.email }
-        setToken(data.token)
-        setUser(userInfo)
-        localStorage.setItem('auth_token', data.token)
-        localStorage.setItem('auth_user', JSON.stringify(userInfo))
+        applyAuthSession(data as AuthSessionPayload)
 
         // Check and redirect to returnUrl if exists
         const returnUrl = sessionStorage.getItem('returnUrl')
@@ -354,8 +416,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setUser(null)
     setToken(null)
+    setFeatures([])
     localStorage.removeItem('auth_token')
     localStorage.removeItem('auth_user')
+    localStorage.removeItem('auth_features')
   }
 
   return (
@@ -363,6 +427,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         token,
+        features,
+        hasFeature,
+        refreshPermissions,
         login,
         loginAdmin,
         register,

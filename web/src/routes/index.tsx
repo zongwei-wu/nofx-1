@@ -12,6 +12,8 @@ import TraderDashboard from '../pages/TraderDashboard'
 import { CopyTradingPage } from '../pages/CopyTradingPage'
 import { CopyTradeDashboard } from '../pages/CopyTradeDashboard'
 import { SymbolManagementPage } from '../pages/SymbolManagementPage'
+import { FeatureRoute } from '../components/FeatureRoute'
+import { FEATURES } from '../config/features'
 
 export const router = createBrowserRouter([
   {
@@ -50,23 +52,43 @@ export const router = createBrowserRouter([
       },
       {
         path: '/traders',
-        element: <AITradersPage />,
+        element: (
+          <FeatureRoute feature={FEATURES.ai_trader}>
+            <AITradersPage />
+          </FeatureRoute>
+        ),
       },
       {
         path: '/dashboard',
-        element: <TraderDashboard />,
+        element: (
+          <FeatureRoute feature={FEATURES.ai_trader}>
+            <TraderDashboard />
+          </FeatureRoute>
+        ),
       },
       {
         path: '/copy-trading',
-        element: <CopyTradingPage />,
+        element: (
+          <FeatureRoute feature={FEATURES.leaderboard}>
+            <CopyTradingPage />
+          </FeatureRoute>
+        ),
       },
       {
         path: '/copy-trade',
-        element: <CopyTradeDashboard />,
+        element: (
+          <FeatureRoute feature={FEATURES.copy_trade}>
+            <CopyTradeDashboard />
+          </FeatureRoute>
+        ),
       },
       {
         path: '/symbols',
-        element: <SymbolManagementPage />,
+        element: (
+          <FeatureRoute feature={FEATURES.symbols}>
+            <SymbolManagementPage />
+          </FeatureRoute>
+        ),
       },
     ],
   },

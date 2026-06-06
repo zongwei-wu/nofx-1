@@ -5,6 +5,8 @@ import { Menu, X, ChevronDown } from 'lucide-react'
 import { t, type Language } from '../i18n/translations'
 import { Container } from './Container'
 import { useSystemConfig } from '../hooks/useSystemConfig'
+import { useAuth } from '../contexts/AuthContext'
+import { LOGGED_IN_NAV_ITEMS } from '../config/navItems'
 
 interface HeaderBarProps {
   onLoginClick?: () => void
@@ -29,6 +31,18 @@ export default function HeaderBar({
   onPageChange,
 }: HeaderBarProps) {
   const navigate = useNavigate()
+  const { hasFeature } = useAuth()
+
+  /** 无对应 feature 权限时不显示菜单项 */
+  const canShow = (feature: string | null) => {
+    if (!feature) return true
+    return hasFeature(feature)
+  }
+
+  const showNav = (key: string) =>
+    LOGGED_IN_NAV_ITEMS.some(
+      (item) => item.key === key && canShow(item.feature)
+    )
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false)
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
@@ -90,6 +104,7 @@ export default function HeaderBar({
             {isLoggedIn ? (
               // Main app navigation when logged in
               <>
+                {showNav('competition') && (
                 <button
                   onClick={() => {
                     navigate('/competition')
@@ -128,7 +143,9 @@ export default function HeaderBar({
 
                   {t('realtimeNav', language)}
                 </button>
+                )}
 
+                {showNav('traders') && (
                 <button
                   onClick={() => {
                     navigate('/traders')
@@ -167,7 +184,9 @@ export default function HeaderBar({
 
                   {t('configNav', language)}
                 </button>
+                )}
 
+                {showNav('trader') && (
                 <button
                   onClick={() => {
                     navigate('/dashboard')
@@ -206,7 +225,9 @@ export default function HeaderBar({
 
                   {t('dashboardNav', language)}
                 </button>
+                )}
 
+                {showNav('copy-trading') && (
                 <button
                   onClick={() => navigate('/copy-trading')}
                   className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
@@ -241,7 +262,9 @@ export default function HeaderBar({
                   )}
                   排行榜
                 </button>
+                )}
 
+                {showNav('copy-trade') && (
                 <button
                   onClick={() => navigate('/copy-trade')}
                   className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
@@ -276,7 +299,9 @@ export default function HeaderBar({
                   )}
                   跟单管理
                 </button>
+                )}
 
+                {showNav('symbols') && (
                 <button
                   onClick={() => navigate('/symbols')}
                   className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
@@ -311,6 +336,7 @@ export default function HeaderBar({
                   )}
                   币种管理
                 </button>
+                )}
 
                 <button
                   onClick={() => {
@@ -691,14 +717,10 @@ export default function HeaderBar({
       >
         <div className="px-4 py-4 space-y-3">
           {/* New Navigation Tabs */}
-          {isLoggedIn ? (
+          {isLoggedIn && showNav('competition') ? (
             <button
               onClick={() => {
-                console.log(
-                  '移动端 实时 button clicked, onPageChange:',
-                  onPageChange
-                )
-                onPageChange?.('competition')
+                navigate('/competition')
                 setMobileMenuOpen(false)
               }}
               className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
@@ -755,16 +777,12 @@ export default function HeaderBar({
               {t('realtimeNav', language)}
             </a>
           )}
-          {/* Only show 配置 and 看板 when logged in */}
           {isLoggedIn && (
             <>
+              {showNav('traders') && (
               <button
                 onClick={() => {
-                  if (onPageChange) {
-                    onPageChange('traders')
-                  } else {
-                    navigate('/traders')
-                  }
+                  navigate('/traders')
                   setMobileMenuOpen(false)
                 }}
                 className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
@@ -793,13 +811,11 @@ export default function HeaderBar({
 
                 {t('configNav', language)}
               </button>
+              )}
+              {showNav('trader') && (
               <button
                 onClick={() => {
-                  if (onPageChange) {
-                    onPageChange('trader')
-                  } else {
-                    navigate('/dashboard')
-                  }
+                  navigate('/dashboard')
                   setMobileMenuOpen(false)
                 }}
                 className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
@@ -828,6 +844,70 @@ export default function HeaderBar({
 
                 {t('dashboardNav', language)}
               </button>
+              )}
+              {showNav('copy-trading') && (
+              <button
+                onClick={() => {
+                  navigate('/copy-trading')
+                  setMobileMenuOpen(false)
+                }}
+                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
+                style={{
+                  color:
+                    currentPage === 'copy-trading'
+                      ? 'var(--brand-yellow)'
+                      : 'var(--brand-light-gray)',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                  position: 'relative',
+                  width: '100%',
+                  textAlign: 'left',
+                }}
+              >
+                {currentPage === 'copy-trading' && (
+                  <span
+                    className="absolute inset-0 rounded-lg"
+                    style={{
+                      background: 'rgba(240, 185, 11, 0.15)',
+                      zIndex: -1,
+                    }}
+                  />
+                )}
+                排行榜
+              </button>
+              )}
+              {showNav('copy-trade') && (
+              <button
+                onClick={() => {
+                  navigate('/copy-trade')
+                  setMobileMenuOpen(false)
+                }}
+                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
+                style={{
+                  color:
+                    currentPage === 'copy-trade'
+                      ? 'var(--brand-yellow)'
+                      : 'var(--brand-light-gray)',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                  position: 'relative',
+                  width: '100%',
+                  textAlign: 'left',
+                }}
+              >
+                {currentPage === 'copy-trade' && (
+                  <span
+                    className="absolute inset-0 rounded-lg"
+                    style={{
+                      background: 'rgba(240, 185, 11, 0.15)',
+                      zIndex: -1,
+                    }}
+                  />
+                )}
+                跟单管理
+              </button>
+              )}
+              {showNav('symbols') && (
               <button
                 onClick={() => {
                   navigate('/symbols')
@@ -857,13 +937,10 @@ export default function HeaderBar({
                 )}
                 币种管理
               </button>
+              )}
               <button
                 onClick={() => {
-                  if (onPageChange) {
-                    onPageChange('faq')
-                  } else {
-                    navigate('/faq')
-                  }
+                  navigate('/faq')
                   setMobileMenuOpen(false)
                 }}
                 className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"

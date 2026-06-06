@@ -72,6 +72,8 @@ func IsTokenBlacklisted(token string) bool {
 type Claims struct {
 	UserID string `json:"user_id"`
 	Email  string `json:"email"`
+	Role   string `json:"role"`
+	Plan   string `json:"plan"`
 	jwt.RegisteredClaims
 }
 
@@ -112,10 +114,12 @@ func VerifyOTP(secret, code string) bool {
 }
 
 // GenerateJWT 生成JWT token
-func GenerateJWT(userID, email string) (string, error) {
+func GenerateJWT(userID, email, role, plan string) (string, error) {
 	claims := Claims{
 		UserID: userID,
 		Email:  email,
+		Role:   role,
+		Plan:   plan,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)), // 24小时过期
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
