@@ -16,6 +16,81 @@
     }
   },
   "paths": {
+    "/trade-events": {
+      "get": {
+        "tags": ["TradeEvents"],
+        "summary": "统一交易事件",
+        "description": "按数据源返回开/加/减/平事件，供 K 线标注图使用。ai_trader=AI 本账户成交；ai_copy_trade=指定 AI 交易员参与的跟单成交；copy_trade=跟单管理全量（含带单员订单推断）",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "enum": ["ai_trader", "ai_copy_trade", "copy_trade"],
+            "description": "事件数据源"
+          },
+          {
+            "name": "trader_id",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "AI 交易员 ID（ai_trader / ai_copy_trade 必填）"
+          },
+          {
+            "name": "portfolio_id",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "带单组合 ID（copy_trade 可选筛选）"
+          },
+          {
+            "name": "symbol",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "description": "币种，如 BTCUSDT"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64",
+            "description": "起始时间（毫秒时间戳）"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64",
+            "description": "结束时间（毫秒时间戳）"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "schema": {
+              "$ref": "#/definitions/TradeEventsResponse"
+            }
+          },
+          "400": {
+            "description": "参数错误"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "404": {
+            "description": "交易员不存在"
+          },
+          "500": {
+            "description": "服务器错误"
+          }
+        }
+      }
+    },
     "/copy-trade/settings": {
       "get": {
         "tags": ["CopyTrade"],
@@ -71,6 +146,33 @@
     }
   },
   "definitions": {
+    "TradeEvent": {
+      "type": "object",
+      "properties": {
+        "symbol": { "type": "string" },
+        "time": { "type": "integer", "format": "int64", "description": "毫秒时间戳" },
+        "type": { "type": "string", "enum": ["open", "add", "reduce", "close"] },
+        "side": { "type": "string", "description": "LONG 或 SHORT" },
+        "qty": { "type": "number", "format": "double" },
+        "price": { "type": "number", "format": "double" },
+        "source": { "type": "string", "description": "ai_trader | ai_copy_trade | copy_trade | lead" },
+        "detail": { "type": "string" }
+      }
+    },
+    "TradeEventsResponse": {
+      "type": "object",
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/TradeEvent" }
+        },
+        "symbols": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "可用币种列表"
+        }
+      }
+    },
     "UpdateCopyTradeSettingsRequest": {
       "type": "object",
       "required": ["ai_trader_id"],

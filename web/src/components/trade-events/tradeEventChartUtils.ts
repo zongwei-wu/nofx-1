@@ -3,32 +3,79 @@ import { EVENT_TYPE_COLORS, EVENT_TYPE_LABELS } from './tradeEventTypes'
 
 export const DEFAULT_CHART_SYMBOL = 'BTCUSDT'
 
+export type ChartSymbolMode = 'all' | 'ai_exchange' | 'ai_copy'
+
+const AI_TRADE_ACTIONS = new Set([
+  'open_long',
+  'open_short',
+  'close_long',
+  'close_short',
+  'partial_close',
+])
+
 type PositionLike = { symbol?: string; position_amt?: number; positionAmt?: number }
-type DecisionActionLike = { symbol?: string; success?: boolean }
+type DecisionActionLike = { symbol?: string; success?: boolean; action?: string }
 type DecisionRecordLike = {
+  source?: 'auto_trader' | 'copy_trade'
   positions?: PositionLike[]
   decisions?: DecisionActionLike[]
+  copy_trade_meta?: { ai_trader_id?: string; action_taken?: string }
+  success?: boolean
+}
+
+function isAITradeDecisionAction(action?: string): boolean {
+  return Boolean(action && AI_TRADE_ACTIONS.has(action))
 }
 
 /** 合并当前持仓与决策日志中的历史持仓/成交币种 */
 export function collectChartSymbols(
   currentSymbols: string[],
-  decisions: DecisionRecordLike[] = []
+  decisions: DecisionRecordLike[] = [],
+  options?: { mode?: ChartSymbolMode; traderId?: string }
 ): string[] {
+  const mode = options?.mode ?? 'all'
+  const traderId = options?.traderId ?? ''
   const merged = new Set<string>()
-  for (const s of currentSymbols) {
-    const n = normalizeTradingSymbol(s)
-    if (n) merged.add(n)
-  }
-  for (const rec of decisions) {
-    for (const pos of rec.positions ?? []) {
-      const amt = pos.position_amt ?? pos.positionAmt ?? 0
-      if (amt === 0) continue
-      const n = normalizeTradingSymbol(pos.symbol)
+
+  if (mode === 'all' || mode === 'ai_exchange') {
+    for (const s of currentSymbols) {
+      const n = normalizeTradingSymbol(s)
       if (n) merged.add(n)
     }
+  }
+
+  for (const rec of decisions) {
+    if (mode === 'ai_exchange' && rec.source === 'copy_trade') {
+      continue
+    }
+    if (mode === 'ai_copy') {
+      if (rec.source !== 'copy_trade') continue
+      if (traderId && rec.copy_trade_meta?.ai_trader_id !== traderId) continue
+      if (rec.copy_trade_meta?.action_taken !== 'copied_open' || rec.success === false) {
+        continue
+      }
+      for (const d of rec.decisions ?? []) {
+        if (!d.symbol) continue
+        const n = normalizeTradingSymbol(d.symbol)
+        if (n) merged.add(n)
+      }
+      continue
+    }
+
+    if (mode !== 'ai_copy') {
+      for (const pos of rec.positions ?? []) {
+        const amt = pos.position_amt ?? pos.positionAmt ?? 0
+        if (amt === 0) continue
+        const n = normalizeTradingSymbol(pos.symbol)
+        if (n) merged.add(n)
+      }
+    }
+
     for (const d of rec.decisions ?? []) {
       if (d.success === false || !d.symbol) continue
+      if (mode === 'ai_exchange' && !isAITradeDecisionAction(d.action)) {
+        continue
+      }
       const n = normalizeTradingSymbol(d.symbol)
       if (n) merged.add(n)
     }

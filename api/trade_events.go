@@ -59,6 +59,15 @@ func positionSideFromAction(action string) string {
 	return "LONG"
 }
 
+func isAITradeAction(action string) bool {
+	switch action {
+	case "open_long", "open_short", "close_long", "close_short", "partial_close":
+		return true
+	default:
+		return false
+	}
+}
+
 func classifyAIAction(action string, hadOpen bool) string {
 	switch action {
 	case "open_long", "open_short":
@@ -81,7 +90,7 @@ func aiEventsFromDecisions(records []*logger.DecisionRecord, symbolFilter string
 
 	for _, rec := range records {
 		for _, d := range rec.Decisions {
-			if !d.Success || d.Symbol == "" {
+			if !d.Success || d.Symbol == "" || !isAITradeAction(d.Action) {
 				continue
 			}
 			sym := normalizeTradeSymbol(d.Symbol)
@@ -308,7 +317,7 @@ func collectSymbolsFromAIRecords(records []*logger.DecisionRecord) []string {
 			}
 		}
 		for _, d := range rec.Decisions {
-			if d.Success && d.Symbol != "" {
+			if d.Success && d.Symbol != "" && isAITradeAction(d.Action) {
 				seen[normalizeTradeSymbol(d.Symbol)] = true
 			}
 		}
@@ -363,6 +372,208 @@ func mergeSymbolLists(lists ...[]string) []string {
 	return out
 }
 
+func (s *Server) aiCopyTradePortfolioIDs(userID, traderID string) (map[string]bool, error) {
+	rows, err := s.database.DB().Query(`
+		SELECT DISTINCT portfolio_id
+		FROM copy_trade_ai_decisions
+		WHERE user_id = ? AND ai_trader_id = ? AND success = 1 AND action_taken = 'copied_open'`,
+		userID, traderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[string]bool)
+	for rows.Next() {
+		var pid string
+		if rows.Scan(&pid) == nil && pid != "" {
+			out[pid] = true
+		}
+	}
+	return out, nil
+}
+
+func (s *Server) lookupCopyRecordPrice(userID, portfolioID, symbol string, aroundMs int64) float64 {
+	var avgPrice float64
+	_ = s.database.DB().QueryRow(`
+		SELECT avg_price FROM copy_trade_records
+		WHERE user_id = ? AND portfolio_id = ? AND symbol = ? AND avg_price > 0
+		ORDER BY ABS(COALESCE(copy_time, lead_order_time) - ?) ASC
+		LIMIT 1`,
+		userID, portfolioID, symbol, aroundMs).Scan(&avgPrice)
+	return avgPrice
+}
+
+func (s *Server) aiCopyTradeEventsFromDB(userID, traderID, symbolFilter string) ([]TradeEvent, error) {
+	portfolios, err := s.aiCopyTradePortfolioIDs(userID, traderID)
+	if err != nil {
+		return nil, err
+	}
+
+	var events []TradeEvent
+
+	// 开仓：AI 跟单风控成功执行
+	openQ := `
+		SELECT portfolio_id, nickname, symbol, recommended_qty, created_at
+		FROM copy_trade_ai_decisions
+		WHERE user_id = ? AND ai_trader_id = ? AND success = 1 AND action_taken = 'copied_open'`
+	openArgs := []interface{}{userID, traderID}
+	if symbolFilter != "" {
+		openQ += ` AND symbol = ?`
+		openArgs = append(openArgs, symbolFilter)
+	}
+	openQ += ` ORDER BY created_at ASC`
+
+	openRows, err := s.database.DB().Query(openQ, openArgs...)
+	if err != nil {
+		return nil, err
+	}
+	defer openRows.Close()
+
+	for openRows.Next() {
+		var pid, nick, sym string
+		var qty float64
+		var createdAt interface{}
+		if err := openRows.Scan(&pid, &nick, &sym, &qty, &createdAt); err != nil {
+			continue
+		}
+		sym = normalizeTradeSymbol(sym)
+		ts := parseTimeToMs(createdAt)
+		if ts == 0 {
+			continue
+		}
+		price := s.lookupCopyRecordPrice(userID, pid, sym, ts/1000)
+		events = append(events, TradeEvent{
+			Symbol: sym,
+			Time:   ts,
+			Type:   "open",
+			Side:   "LONG",
+			Qty:    qty,
+			Price:  price,
+			Source: "ai_copy_trade",
+			Detail: fmt.Sprintf("AI跟单开仓 · %s", nick),
+		})
+		if sym != "" {
+			portfolios[pid] = true
+		}
+	}
+
+	if len(portfolios) == 0 {
+		return events, nil
+	}
+
+	// 平仓：该 AI 曾成功跟单开仓的组合下的已平仓记录
+	closeQ := `
+		SELECT portfolio_id, nickname, symbol, position_side, executed_qty, close_price, avg_price, close_time
+		FROM copy_trade_records
+		WHERE user_id = ? AND status = 'CLOSED'`
+	closeArgs := []interface{}{userID}
+	if symbolFilter != "" {
+		closeQ += ` AND symbol = ?`
+		closeArgs = append(closeArgs, symbolFilter)
+	}
+	closeQ += ` ORDER BY close_time ASC`
+
+	closeRows, err := s.database.DB().Query(closeQ, closeArgs...)
+	if err != nil {
+		return nil, err
+	}
+	defer closeRows.Close()
+
+	for closeRows.Next() {
+		var pid, nick, sym, posSide string
+		var qty, closePrice, avgPrice float64
+		var closeTime interface{}
+		if err := closeRows.Scan(&pid, &nick, &sym, &posSide, &qty, &closePrice, &avgPrice, &closeTime); err != nil {
+			continue
+		}
+		if !portfolios[pid] {
+			continue
+		}
+		sym = normalizeTradeSymbol(sym)
+		closeMs := parseTimeToMs(closeTime)
+		if closeMs == 0 {
+			continue
+		}
+		cp := closePrice
+		if cp <= 0 {
+			cp = avgPrice
+		}
+		events = append(events, TradeEvent{
+			Symbol: sym,
+			Time:   closeMs,
+			Type:   "close",
+			Side:   posSide,
+			Qty:    qty,
+			Price:  cp,
+			Source: "ai_copy_trade",
+			Detail: fmt.Sprintf("AI跟单平仓 · %s", nick),
+		})
+	}
+
+	// 补充：run_events 中的 copied_close（同一 AI 参与的 run）
+	runRows, err := s.database.DB().Query(`
+		SELECT e.portfolio_id, e.nickname, e.symbol, e.lead_position_side, e.created_at
+		FROM copy_trade_run_events e
+		INNER JOIN copy_trade_ai_decisions d ON d.run_id = e.run_id
+		WHERE e.user_id = ? AND d.ai_trader_id = ? AND d.success = 1
+		  AND e.action = 'copied_close'`,
+		userID, traderID)
+	if err == nil {
+		defer runRows.Close()
+		for runRows.Next() {
+			var pid, nick, sym, posSide string
+			var createdAt interface{}
+			if runRows.Scan(&pid, &nick, &sym, &posSide, &createdAt) != nil {
+				continue
+			}
+			if !portfolios[pid] {
+				continue
+			}
+			sym = normalizeTradeSymbol(sym)
+			if symbolFilter != "" && sym != symbolFilter {
+				continue
+			}
+			ts := parseTimeToMs(createdAt)
+			if ts == 0 {
+				continue
+			}
+			events = append(events, TradeEvent{
+				Symbol: sym,
+				Time:   ts,
+				Type:   "close",
+				Side:   posSide,
+				Qty:    0,
+				Price:  0,
+				Source: "ai_copy_trade",
+				Detail: fmt.Sprintf("AI跟单平仓 · %s", nick),
+			})
+		}
+	}
+
+	return events, nil
+}
+
+func (s *Server) distinctAICopyTradeSymbols(userID, traderID string) ([]string, error) {
+	rows, err := s.database.DB().Query(`
+		SELECT DISTINCT symbol FROM copy_trade_ai_decisions
+		WHERE user_id = ? AND ai_trader_id = ? AND success = 1 AND action_taken = 'copied_open'
+		ORDER BY symbol`, userID, traderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var sym string
+		if rows.Scan(&sym) == nil {
+			if norm := normalizeTradeSymbol(sym); norm != "" {
+				out = append(out, norm)
+			}
+		}
+	}
+	return out, nil
+}
+
 func filterEventsByTime(events []TradeEvent, fromMs, toMs int64) []TradeEvent {
 	if fromMs == 0 && toMs == 0 {
 		return events
@@ -381,7 +592,7 @@ func filterEventsByTime(events []TradeEvent, fromMs, toMs int64) []TradeEvent {
 }
 
 // handleTradeEvents 统一交易事件
-// GET /api/trade-events?source=copy_trade|ai_trader&trader_id=&portfolio_id=&symbol=&from=&to=
+// GET /api/trade-events?source=copy_trade|ai_trader|ai_copy_trade&trader_id=&portfolio_id=&symbol=&from=&to=
 func (s *Server) handleTradeEvents(c *gin.Context) {
 	source := strings.TrimSpace(c.Query("source"))
 	symbol := strings.ToUpper(strings.TrimSpace(c.Query("symbol")))
@@ -407,13 +618,37 @@ func (s *Server) handleTradeEvents(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
-		records, err := trader.GetDecisionLogger().GetLatestRecords(500)
+		records, err := trader.GetDecisionLogger().GetLatestRecords(1000)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 		events = aiEventsFromDecisions(records, symbol)
 		symbolCandidates = append(symbolCandidates, collectSymbolsFromAIRecords(records))
+
+	case "ai_copy_trade":
+		userID := c.GetString("user_id")
+		if userID == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
+			return
+		}
+		_, traderID, err := s.getTraderFromQuery(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		log.Printf("[trade-events] ai_copy_trade userID=%s traderID=%s symbol=%s", userID, traderID, symbol)
+		aiCopyEv, err := s.aiCopyTradeEventsFromDB(userID, traderID, symbol)
+		if err != nil {
+			log.Printf("[trade-events] ai_copy_trade error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		log.Printf("[trade-events] ai_copy_trade returned %d events", len(aiCopyEv))
+		events = append(events, aiCopyEv...)
+		if syms, err := s.distinctAICopyTradeSymbols(userID, traderID); err == nil {
+			symbolCandidates = append(symbolCandidates, syms)
+		}
 
 	case "copy_trade", "":
 		userID := c.GetString("user_id")
@@ -471,7 +706,7 @@ func (s *Server) handleTradeEvents(c *gin.Context) {
 		}
 
 	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "source 须为 copy_trade 或 ai_trader"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "source 须为 copy_trade、ai_trader 或 ai_copy_trade"})
 		return
 	}
 

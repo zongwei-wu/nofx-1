@@ -813,7 +813,7 @@ export function CopyTradeDashboard() {
                 币种价格与跟单事件
               </div>
               <div className="text-xs mb-4" style={{ color: '#5E6673' }}>
-                蜡烛图标注交易事件 · 点击 K 线标记或列表查看详情
+                含跟单记录与带单员订单推断的开/加/减/平 · 与 AI 看板「本账户成交 / AI 跟单成交」数据源不同
               </div>
               <ChartErrorBoundary>
                 <TradeEventPriceChart

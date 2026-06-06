@@ -70,6 +70,52 @@ describe('tradeEventChartUtils', () => {
     expect(syms).toContain('SOLUSDT')
   })
 
+  it('collectChartSymbols ai_exchange excludes copy trade and non-trade actions', () => {
+    const syms = collectChartSymbols(['BTCUSDT'], [
+      {
+        source: 'copy_trade',
+        success: true,
+        copy_trade_meta: { ai_trader_id: 't1', action_taken: 'copied_open' },
+        decisions: [{ symbol: 'ETHUSDT', success: true }],
+      },
+      {
+        source: 'auto_trader',
+        decisions: [
+          { symbol: 'SOLUSDT', success: true, action: 'hold' },
+          { symbol: 'XRPUSDT', success: true, action: 'open_long' },
+        ],
+      },
+    ], { mode: 'ai_exchange' })
+    expect(syms).toContain('BTCUSDT')
+    expect(syms).toContain('XRPUSDT')
+    expect(syms).not.toContain('ETHUSDT')
+    expect(syms).not.toContain('SOLUSDT')
+  })
+
+  it('collectChartSymbols ai_copy filters by trader and copied_open', () => {
+    const syms = collectChartSymbols([], [
+      {
+        source: 'copy_trade',
+        success: true,
+        copy_trade_meta: { ai_trader_id: 't1', action_taken: 'copied_open' },
+        decisions: [{ symbol: 'BTCUSDT', success: true }],
+      },
+      {
+        source: 'copy_trade',
+        success: true,
+        copy_trade_meta: { ai_trader_id: 't2', action_taken: 'copied_open' },
+        decisions: [{ symbol: 'ETHUSDT', success: true }],
+      },
+      {
+        source: 'copy_trade',
+        success: false,
+        copy_trade_meta: { ai_trader_id: 't1', action_taken: 'open_failed' },
+        decisions: [{ symbol: 'SOLUSDT', success: false }],
+      },
+    ], { mode: 'ai_copy', traderId: 't1' })
+    expect(syms).toEqual(['BTCUSDT'])
+  })
+
   it('pickDefaultChartSymbol prefers BTC', () => {
     expect(
       pickDefaultChartSymbol(['ETHUSDT', 'SOLUSDT'], ['ETHUSDT'], '')

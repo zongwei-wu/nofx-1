@@ -17,12 +17,27 @@ import { LightweightTradeChart } from './LightweightTradeChart'
 import { DEFAULT_TV_CHART_HEIGHT, type ChartInterval } from './tradingViewUtils'
 import { useSymbolPreferences } from '../../contexts/SymbolPreferencesContext'
 
+export type TradeEventSource = 'copy_trade' | 'ai_trader' | 'ai_copy_trade'
+
 export interface TradeEventPriceChartProps {
-  source: 'copy_trade' | 'ai_trader'
+  source: TradeEventSource
   traderId?: string
   portfolioId?: string
   symbols?: string[]
   height?: number
+}
+
+const EVENT_LIST_TITLES: Record<TradeEventSource, string> = {
+  ai_trader: 'AI 本账户成交',
+  ai_copy_trade: 'AI 跟单成交',
+  copy_trade: '跟单交易事件',
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+  ai_trader: 'AI 本账户',
+  ai_copy_trade: 'AI 跟单',
+  copy_trade: '跟单记录',
+  lead: '带单员',
 }
 
 export function TradeEventPriceChart({
@@ -266,7 +281,7 @@ export function TradeEventPriceChart({
           className="px-3 py-2 text-xs font-semibold"
           style={{ background: '#1E2329', color: '#848E9C', borderBottom: '1px solid #2B3139' }}
         >
-          交易事件
+          {EVENT_LIST_TITLES[source]}
           {symEvents.length > 0 && (
             <span className="ml-2" style={{ color: '#F0B90B' }}>
               {symEvents.length} 条
@@ -320,7 +335,11 @@ export function TradeEventPriceChart({
                     : selectedDetail.amount.toFixed(4)
                   : '—'}
               </span>
-              {selectedEvent.source && <span>来源：{selectedEvent.source}</span>}
+              {selectedEvent.source && (
+                <span>
+                  来源：{SOURCE_LABELS[selectedEvent.source] || selectedEvent.source}
+                </span>
+              )}
             </div>
             {selectedDetail.clusterSize > 1 && (
               <p className="pt-1" style={{ color: '#F0B90B' }}>

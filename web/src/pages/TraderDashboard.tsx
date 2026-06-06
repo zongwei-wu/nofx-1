@@ -148,10 +148,24 @@ export default function TraderDashboard() {
     }
   )
 
-  const chartSymbols = useMemo(() => {
+  const [eventChartTab, setEventChartTab] = useState<'ai_exchange' | 'ai_copy'>('ai_exchange')
+
+  const exchangeChartSymbols = useMemo(() => {
     const current = (positions ?? []).map((p) => p.symbol).filter(Boolean)
-    return sortSymbols(collectChartSymbols(current, decisions ?? []))
+    return sortSymbols(
+      collectChartSymbols(current, decisions ?? [], { mode: 'ai_exchange' })
+    )
   }, [positions, decisions, sortSymbols])
+
+  const copyChartSymbols = useMemo(() => {
+    if (!selectedTraderId) return []
+    return sortSymbols(
+      collectChartSymbols([], decisions ?? [], {
+        mode: 'ai_copy',
+        traderId: selectedTraderId,
+      })
+    )
+  }, [decisions, sortSymbols, selectedTraderId])
 
   const { data: stats } = useSWR<Statistics>(
     user && token && selectedTraderId ? `statistics-${selectedTraderId}` : null,
@@ -454,14 +468,46 @@ export default function TraderDashboard() {
               <TrendingUp className="w-5 h-5" style={{ color: '#F0B90B' }} />
               持仓币种价格与交易事件
             </h2>
-            <p className="text-xs mb-4" style={{ color: '#5E6673' }}>
-              基于 AI 决策日志 · K 线标注开/加/减/平 · 点击标记或列表查看详情
+            <p className="text-xs mb-3" style={{ color: '#5E6673' }}>
+              {eventChartTab === 'ai_exchange'
+                ? 'AI 交易员在自己绑定交易所的实际成交（开/加/减/平）'
+                : '该 AI 交易员作为跟单风控时，成功执行的开/平仓（与跟单管理全量数据不同）'}
             </p>
+            <div
+              className="flex gap-1 p-1 rounded-lg mb-4"
+              style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
+            >
+              <button
+                type="button"
+                onClick={() => setEventChartTab('ai_exchange')}
+                className="flex-1 py-1.5 px-3 rounded text-xs font-semibold"
+                style={{
+                  background: eventChartTab === 'ai_exchange' ? '#2B3139' : 'transparent',
+                  color: eventChartTab === 'ai_exchange' ? '#F0B90B' : '#848E9C',
+                }}
+              >
+                本账户成交
+              </button>
+              <button
+                type="button"
+                onClick={() => setEventChartTab('ai_copy')}
+                className="flex-1 py-1.5 px-3 rounded text-xs font-semibold"
+                style={{
+                  background: eventChartTab === 'ai_copy' ? '#2B3139' : 'transparent',
+                  color: eventChartTab === 'ai_copy' ? '#F0B90B' : '#848E9C',
+                }}
+              >
+                AI 跟单成交
+              </button>
+            </div>
             <ChartErrorBoundary>
               <TradeEventPriceChart
-                source="ai_trader"
+                key={eventChartTab}
+                source={eventChartTab === 'ai_exchange' ? 'ai_trader' : 'ai_copy_trade'}
                 traderId={selectedTrader.trader_id}
-                symbols={chartSymbols}
+                symbols={
+                  eventChartTab === 'ai_exchange' ? exchangeChartSymbols : copyChartSymbols
+                }
               />
             </ChartErrorBoundary>
           </div>
