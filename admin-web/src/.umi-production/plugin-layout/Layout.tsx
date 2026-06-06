@@ -11,7 +11,7 @@ import {
 import React, { useMemo } from 'react';
 import {
   ProLayout,
-} from "/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@ant-design/pro-components";
+} from "/home/admin/nofx-1/admin-web/node_modules/@ant-design/pro-components";
 import './Layout.css';
 import Logo from './Logo';
 import Exception from './Exception';

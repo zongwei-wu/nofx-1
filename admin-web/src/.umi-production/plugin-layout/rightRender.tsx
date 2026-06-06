@@ -3,7 +3,7 @@
 // DO NOT CHANGE IT MANUALLY!
 import React from 'react';
 import { Avatar, version, Dropdown, Menu, Spin } from 'antd';
-import { LogoutOutlined } from '/Users/wuzongwei/Documents/www/nofx-1/admin-web/node_modules/@umijs/plugins/node_modules/@ant-design/icons';
+import { LogoutOutlined } from '/home/admin/nofx-1/admin-web/node_modules/@umijs/plugins/node_modules/@ant-design/icons';
 
 export function getRightRenderContent (opts: {
    runtimeConfig: any,

@@ -17,7 +17,7 @@ export async function getRoutes() {
 '7': React.lazy(() => import(/* webpackChunkName: "p__system__config__index" */'@/pages/system/config/index.tsx')),
 '8': React.lazy(() => import('./EmptyRoute')),
 '9': React.lazy(() => import(/* webpackChunkName: "p__user__login__index" */'@/pages/user/login/index.tsx')),
-'ant-design-pro-layout': React.lazy(() => import(/* webpackChunkName: "t__plugin-layout__Layout" */'/Users/wuzongwei/Documents/www/nofx-1/admin-web/src/.umi-production/plugin-layout/Layout.tsx')),
+'ant-design-pro-layout': React.lazy(() => import(/* webpackChunkName: "t__plugin-layout__Layout" */'/home/admin/nofx-1/admin-web/src/.umi-production/plugin-layout/Layout.tsx')),
 },
   };
 }

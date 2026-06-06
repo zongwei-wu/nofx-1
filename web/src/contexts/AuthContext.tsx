@@ -205,14 +205,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             message: data.message,
           }
         }
+        applyAuthSession(data)
+        return { success: true, message: data.message }
       } else {
         return { success: false, message: data.error }
       }
     } catch (error) {
       return { success: false, message: '登录失败，请重试' }
     }
-
-    return { success: false, message: '未知错误' }
   }
 
   const loginAdmin = async (password: string) => {
