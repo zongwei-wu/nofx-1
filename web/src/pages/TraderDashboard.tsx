@@ -9,6 +9,7 @@ import { collectChartSymbols } from '../components/trade-events/tradeEventChartU
 import AILearning from '../components/AILearning'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
+import { FEATURES } from '../config/features'
 import { useSymbolPreferences } from '../contexts/SymbolPreferencesContext'
 import { t, type Language } from '../i18n/translations'
 import {
@@ -50,7 +51,8 @@ function getModelDisplayName(modelId: string): string {
 
 export default function TraderDashboard() {
   const { language } = useLanguage()
-  const { user, token } = useAuth()
+  const { user, token, hasFeature } = useAuth()
+  const hasCopyTrade = hasFeature(FEATURES.copy_trade)
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [selectedTraderId, setSelectedTraderId] = useState<string | undefined>(
@@ -188,6 +190,16 @@ export default function TraderDashboard() {
   }, [account])
 
   const selectedTrader = traders?.find((t) => t.trader_id === selectedTraderId)
+
+  // 切换交易员时：未运行默认「AI 跟单成交」；无跟单权限仅「本账户成交」
+  useEffect(() => {
+    if (!selectedTrader) return
+    if (!hasCopyTrade) {
+      setEventChartTab('ai_exchange')
+      return
+    }
+    setEventChartTab(selectedTrader.is_running ? 'ai_exchange' : 'ai_copy')
+  }, [selectedTrader?.trader_id, hasCopyTrade, selectedTrader?.is_running])
 
   // If API failed with error, show empty state
   if (tradersError) {
@@ -450,72 +462,12 @@ export default function TraderDashboard() {
 
       {/* 主要内容区：左右分屏 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* 左侧：图表 + 持仓 */}
+        {/* 左侧：持仓 + 交易事件 + 净值曲线 */}
         <div className="space-y-6">
-          {/* Equity Chart */}
-          <div className="animate-slide-in" style={{ animationDelay: '0.1s' }}>
-            <EquityChart traderId={selectedTrader.trader_id} />
-          </div>
-
-          <div
-            className="binance-card p-6 animate-slide-in"
-            style={{ animationDelay: '0.12s' }}
-          >
-            <h2
-              className="text-xl font-bold mb-1 flex items-center gap-2"
-              style={{ color: '#EAECEF' }}
-            >
-              <TrendingUp className="w-5 h-5" style={{ color: '#F0B90B' }} />
-              持仓币种价格与交易事件
-            </h2>
-            <p className="text-xs mb-3" style={{ color: '#5E6673' }}>
-              {eventChartTab === 'ai_exchange'
-                ? 'AI 交易员在自己绑定交易所的实际成交（开/加/减/平）'
-                : '该 AI 交易员作为跟单风控时，成功执行的开/平仓（与跟单管理全量数据不同）'}
-            </p>
-            <div
-              className="flex gap-1 p-1 rounded-lg mb-4"
-              style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
-            >
-              <button
-                type="button"
-                onClick={() => setEventChartTab('ai_exchange')}
-                className="flex-1 py-1.5 px-3 rounded text-xs font-semibold"
-                style={{
-                  background: eventChartTab === 'ai_exchange' ? '#2B3139' : 'transparent',
-                  color: eventChartTab === 'ai_exchange' ? '#F0B90B' : '#848E9C',
-                }}
-              >
-                本账户成交
-              </button>
-              <button
-                type="button"
-                onClick={() => setEventChartTab('ai_copy')}
-                className="flex-1 py-1.5 px-3 rounded text-xs font-semibold"
-                style={{
-                  background: eventChartTab === 'ai_copy' ? '#2B3139' : 'transparent',
-                  color: eventChartTab === 'ai_copy' ? '#F0B90B' : '#848E9C',
-                }}
-              >
-                AI 跟单成交
-              </button>
-            </div>
-            <ChartErrorBoundary>
-              <TradeEventPriceChart
-                key={eventChartTab}
-                source={eventChartTab === 'ai_exchange' ? 'ai_trader' : 'ai_copy_trade'}
-                traderId={selectedTrader.trader_id}
-                symbols={
-                  eventChartTab === 'ai_exchange' ? exchangeChartSymbols : copyChartSymbols
-                }
-              />
-            </ChartErrorBoundary>
-          </div>
-
           {/* Current Positions */}
           <div
             className="binance-card p-6 animate-slide-in"
-            style={{ animationDelay: '0.15s' }}
+            style={{ animationDelay: '0.1s' }}
           >
             <div className="flex items-center justify-between mb-5">
               <h2
@@ -669,6 +621,68 @@ export default function TraderDashboard() {
                 </div>
               </div>
             )}
+          </div>
+
+          <div
+            className="binance-card p-6 animate-slide-in"
+            style={{ animationDelay: '0.12s' }}
+          >
+            <h2
+              className="text-xl font-bold mb-1 flex items-center gap-2"
+              style={{ color: '#EAECEF' }}
+            >
+              <TrendingUp className="w-5 h-5" style={{ color: '#F0B90B' }} />
+              持仓币种价格与交易事件
+            </h2>
+            <p className="text-xs mb-3" style={{ color: '#5E6673' }}>
+              {eventChartTab === 'ai_exchange'
+                ? 'AI 交易员在自己绑定交易所的实际成交（开/加/减/平）'
+                : '该 AI 交易员作为跟单风控时，成功执行的开/平仓（与跟单管理全量数据不同）'}
+            </p>
+            <div
+              className="flex gap-1 p-1 rounded-lg mb-4"
+              style={{ background: '#0B0E11', border: '1px solid #2B3139' }}
+            >
+              <button
+                type="button"
+                onClick={() => setEventChartTab('ai_exchange')}
+                className={`py-1.5 px-3 rounded text-xs font-semibold ${hasCopyTrade ? 'flex-1' : 'w-full'}`}
+                style={{
+                  background: eventChartTab === 'ai_exchange' ? '#2B3139' : 'transparent',
+                  color: eventChartTab === 'ai_exchange' ? '#F0B90B' : '#848E9C',
+                }}
+              >
+                本账户成交
+              </button>
+              {hasCopyTrade && (
+                <button
+                  type="button"
+                  onClick={() => setEventChartTab('ai_copy')}
+                  className="flex-1 py-1.5 px-3 rounded text-xs font-semibold"
+                  style={{
+                    background: eventChartTab === 'ai_copy' ? '#2B3139' : 'transparent',
+                    color: eventChartTab === 'ai_copy' ? '#F0B90B' : '#848E9C',
+                  }}
+                >
+                  AI 跟单成交
+                </button>
+              )}
+            </div>
+            <ChartErrorBoundary>
+              <TradeEventPriceChart
+                key={eventChartTab}
+                source={eventChartTab === 'ai_exchange' ? 'ai_trader' : 'ai_copy_trade'}
+                traderId={selectedTrader.trader_id}
+                symbols={
+                  eventChartTab === 'ai_exchange' ? exchangeChartSymbols : copyChartSymbols
+                }
+              />
+            </ChartErrorBoundary>
+          </div>
+
+          {/* Equity Chart */}
+          <div className="animate-slide-in" style={{ animationDelay: '0.15s' }}>
+            <EquityChart traderId={selectedTrader.trader_id} />
           </div>
         </div>
 
