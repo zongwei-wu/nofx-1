@@ -77,7 +77,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [features, setFeatures] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  const applyAuthSession = (data: AuthSessionPayload) => {
+  const navigateAfterLogin = (defaultPath: string) => {
+    sessionStorage.removeItem('from401')
+    reset401Flag()
+    const returnUrl = sessionStorage.getItem('returnUrl')
+    const target = returnUrl || defaultPath
+    if (returnUrl) {
+      sessionStorage.removeItem('returnUrl')
+    }
+    void import('../routes').then(({ router }) => {
+      router.navigate(target, { replace: true })
+    })
+  }
+
+  const applyAuthSession = async (data: AuthSessionPayload) => {
     const userInfo: User = {
       id: data.user_id,
       email: data.email,
@@ -90,6 +103,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('auth_token', data.token)
     localStorage.setItem('auth_user', JSON.stringify(userInfo))
     localStorage.setItem('auth_features', JSON.stringify(featureList))
+    // 登录后从 /api/me 拉取最新 plan/features（管理员改套餐后立即生效）
+    await fetchMe(data.token)
   }
 
   const applyMePayload = (data: {
@@ -98,7 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     plan?: string
     features?: string[]
   }) => {
-    if (data.features) {
+    if (Array.isArray(data.features)) {
       setFeatures(data.features)
       localStorage.setItem('auth_features', JSON.stringify(data.features))
     }
@@ -161,9 +176,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshPermissions = async () => {
     const savedToken = localStorage.getItem('auth_token')
-    if (savedToken) {
-      await fetchMe(savedToken)
+    const savedUser = localStorage.getItem('auth_user')
+    if (!savedToken) return
+
+    if (!user && savedUser) {
+      try {
+        setToken(savedToken)
+        setUser(JSON.parse(savedUser) as User)
+        const savedFeatures = localStorage.getItem('auth_features')
+        if (savedFeatures) {
+          setFeatures(JSON.parse(savedFeatures) as string[])
+        }
+      } catch {
+        clearStoredAuth()
+        return
+      }
     }
+
+    await fetchMe(savedToken)
   }
 
   const hasFeature = (feature: string) => features.includes(feature)
@@ -221,8 +251,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             message: data.message,
           }
         }
+        await applyAuthSession(data)
+        sessionStorage.removeItem('from401')
         reset401Flag()
-        applyAuthSession(data)
         return { success: true, message: data.message }
       } else {
         return { success: false, message: data.error }
@@ -241,28 +272,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       const data = await response.json()
       if (response.ok) {
-        // Reset 401 flag on successful login
-        reset401Flag()
-
-        applyAuthSession({
+        await applyAuthSession({
           token: data.token,
           user_id: data.user_id || 'admin',
           email: data.email || 'admin@localhost',
           plan: data.plan,
           features: data.features,
         })
-
-        // Check and redirect to returnUrl if exists
-        const returnUrl = sessionStorage.getItem('returnUrl')
-        if (returnUrl) {
-          sessionStorage.removeItem('returnUrl')
-          window.history.pushState({}, '', returnUrl)
-          window.dispatchEvent(new PopStateEvent('popstate'))
-        } else {
-          // 跳转到仪表盘
-          window.history.pushState({}, '', '/dashboard')
-          window.dispatchEvent(new PopStateEvent('popstate'))
-        }
+        navigateAfterLogin('/dashboard')
         return { success: true }
       } else {
         return { success: false, message: data.error || '登录失败' }
@@ -326,23 +343,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json()
 
       if (response.ok) {
-        // Reset 401 flag on successful login
-        reset401Flag()
-
-        applyAuthSession(data as AuthSessionPayload)
-
-        // Check and redirect to returnUrl if exists
-        const returnUrl = sessionStorage.getItem('returnUrl')
-        if (returnUrl) {
-          sessionStorage.removeItem('returnUrl')
-          window.history.pushState({}, '', returnUrl)
-          window.dispatchEvent(new PopStateEvent('popstate'))
-        } else {
-          // 跳转到配置页面
-          window.history.pushState({}, '', '/traders')
-          window.dispatchEvent(new PopStateEvent('popstate'))
-        }
-
+        await applyAuthSession(data as AuthSessionPayload)
+        navigateAfterLogin('/competition')
         return { success: true, message: data.message }
       } else {
         return { success: false, message: data.error }
@@ -365,23 +367,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json()
 
       if (response.ok) {
-        // Reset 401 flag on successful login
-        reset401Flag()
-
-        applyAuthSession(data as AuthSessionPayload)
-
-        // Check and redirect to returnUrl if exists
-        const returnUrl = sessionStorage.getItem('returnUrl')
-        if (returnUrl) {
-          sessionStorage.removeItem('returnUrl')
-          window.history.pushState({}, '', returnUrl)
-          window.dispatchEvent(new PopStateEvent('popstate'))
-        } else {
-          // 跳转到配置页面
-          window.history.pushState({}, '', '/traders')
-          window.dispatchEvent(new PopStateEvent('popstate'))
-        }
-
+        await applyAuthSession(data as AuthSessionPayload)
+        navigateAfterLogin('/competition')
         return { success: true, message: data.message }
       } else {
         return { success: false, message: data.error }

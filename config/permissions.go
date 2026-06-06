@@ -75,6 +75,18 @@ func (d *Database) initPlanData() error {
 	return nil
 }
 
+// EnsurePlanFeatures 若套餐功能绑定为空则重新初始化（兼容旧库升级）
+func (d *Database) EnsurePlanFeatures() error {
+	var count int
+	if err := d.db.QueryRow(`SELECT COUNT(*) FROM plan_features`).Scan(&count); err != nil {
+		return err
+	}
+	if count == 0 {
+		return d.initPlanData()
+	}
+	return nil
+}
+
 // GetPlanFeatures 获取套餐绑定的功能列表
 func (d *Database) GetPlanFeatures(planID string) ([]string, error) {
 	rows, err := d.db.Query(`

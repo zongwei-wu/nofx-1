@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log"
 	"net/http"
 
 	"nofx/config"
@@ -24,6 +25,9 @@ func (s *Server) handleMe(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取权限失败"})
 		return
 	}
+	if len(features) == 0 {
+		features = []string{config.FeatureCompetition}
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"user_id":  user.ID,
@@ -39,11 +43,23 @@ func (s *Server) userAuthPayload(user *config.User, token, message string) gin.H
 	if role == "" {
 		role = config.UserRoleUser
 	}
+	// 重新读取用户，确保管理员刚分配的 plan 已生效
+	if fresh, err := s.database.GetUserByID(user.ID); err == nil {
+		user = fresh
+	}
 	plan := user.Plan
 	if plan == "" {
 		plan = config.PlanStandard
 	}
-	features, _ := s.database.GetUserFeatures(user.ID, role)
+	features, err := s.database.GetUserFeatures(user.ID, role)
+	if err != nil {
+		log.Printf("⚠️ 获取用户 %s 功能权限失败: %v", user.ID, err)
+		features = []string{config.FeatureCompetition}
+	}
+	if len(features) == 0 {
+		log.Printf("⚠️ 用户 %s 套餐 %s 无功能绑定，回退为 competition", user.ID, plan)
+		features = []string{config.FeatureCompetition}
+	}
 	return gin.H{
 		"token":    token,
 		"user_id":  user.ID,

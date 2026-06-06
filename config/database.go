@@ -110,6 +110,10 @@ func NewDatabase(dbPath string) (*Database, error) {
 		return nil, fmt.Errorf("初始化套餐数据失败: %w", err)
 	}
 
+	if err := database.EnsurePlanFeatures(); err != nil {
+		return nil, fmt.Errorf("校验套餐功能绑定失败: %w", err)
+	}
+
 	if err := database.EnsureAdminUser(); err != nil {
 		return nil, fmt.Errorf("初始化管理员账号失败: %w", err)
 	}

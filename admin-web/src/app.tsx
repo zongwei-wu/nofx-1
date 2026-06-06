@@ -70,8 +70,22 @@ export const request: RequestConfig = {
     },
   ],
   errorConfig: {
-    errorHandler: (error: { response?: { status?: number } }) => {
+    errorHandler: (error: {
+      response?: { status?: number; config?: { headers?: Record<string, string> } };
+    }) => {
       if (error?.response?.status === 401) {
+        const authHeader =
+          error.response.config?.headers?.Authorization ||
+          error.response.config?.headers?.authorization ||
+          '';
+        const requestToken = authHeader.startsWith('Bearer ')
+          ? authHeader.slice(7).trim()
+          : '';
+        const currentToken = localStorage.getItem(TOKEN_KEY);
+        // 未带 token 或旧请求 401，不清除当前会话
+        if (!requestToken || (currentToken && requestToken !== currentToken)) {
+          return;
+        }
         localStorage.removeItem(TOKEN_KEY);
         history.push('/user/login');
         message.error('登录已过期，请重新登录');

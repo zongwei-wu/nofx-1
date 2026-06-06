@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import { ReactNode, useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import HeaderBar from '../components/HeaderBar'
 import { Container } from '../components/Container'
@@ -12,8 +12,15 @@ interface MainLayoutProps {
 
 export default function MainLayout({ children }: MainLayoutProps) {
   const { language, setLanguage } = useLanguage()
-  const { user, logout } = useAuth()
+  const { user, logout, refreshPermissions } = useAuth()
   const location = useLocation()
+
+  // 进入主界面时刷新权限（管理员改套餐后无需重新登录）
+  useEffect(() => {
+    if (user) {
+      void refreshPermissions()
+    }
+  }, [user, refreshPermissions])
 
   // 根据路径自动判断当前页面
   const getCurrentPage = ():

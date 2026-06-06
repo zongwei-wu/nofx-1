@@ -40,13 +40,14 @@ export class HttpClient {
   ): Promise<Response> {
     // Handle 401 Unauthorized - Token expired or invalid
     if (response.status === 401) {
+      // 未携带 token 的请求（如页面误调用需鉴权接口），不要清除已登录会话
+      if (!requestToken) {
+        throw new Error('需要登录后访问')
+      }
+
       const currentToken = localStorage.getItem('auth_token')
       // 忽略过期请求：用户已用新 token 重新登录，旧请求返回 401 不应清除新会话
-      if (
-        requestToken &&
-        currentToken &&
-        requestToken !== currentToken
-      ) {
+      if (currentToken && requestToken !== currentToken) {
         throw new Error('登录已过期，请重新登录')
       }
 
@@ -88,9 +89,9 @@ export class HttpClient {
       throw new Error('登录已过期，请重新登录')
     }
 
-    // Handle other common errors
+    // 403 是套餐/功能权限不足，不是登录过期，不触发登出
     if (response.status === 403) {
-      throw new Error('没有权限访问此资源')
+      throw new Error('当前套餐无此功能权限')
     }
 
     if (response.status === 404) {

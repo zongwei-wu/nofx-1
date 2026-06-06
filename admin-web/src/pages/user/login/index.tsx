@@ -34,6 +34,7 @@ export default function LoginPage() {
               return false;
             }
             localStorage.setItem(TOKEN_KEY, res.token);
+            sessionStorage.removeItem('from401');
             await setInitialState({
               currentUser: {
                 name: res.email,

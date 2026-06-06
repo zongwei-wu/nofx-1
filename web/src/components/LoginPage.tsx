@@ -67,6 +67,7 @@ export function LoginPage() {
         setUserID(result.userID)
         setStep('otp')
       } else {
+        sessionStorage.removeItem('from401')
         if (expiredToastId) {
           toast.dismiss(expiredToastId)
         }
@@ -99,7 +100,7 @@ export function LoginPage() {
       setError(msg)
       toast.error(msg)
     } else {
-      // Dismiss the "login expired" toast on successful OTP verification
+      sessionStorage.removeItem('from401')
       if (expiredToastId) {
         toast.dismiss(expiredToastId)
       }

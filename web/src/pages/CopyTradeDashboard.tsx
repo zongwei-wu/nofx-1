@@ -301,7 +301,7 @@ export function CopyTradeDashboard() {
       }
 
       // Load leaderboard for available traders
-      const lbRes = await httpClient.get('/api/copy-trading/leaderboard')
+      const lbRes = await httpClient.get('/api/copy-trading/leaderboard', headers)
       if (lbRes.ok) {
         const lbData = await lbRes.json()
         if (lbData.code === '000000' && lbData.data) {

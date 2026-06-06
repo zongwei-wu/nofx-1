@@ -1870,12 +1870,18 @@ func (s *Server) handleCompleteRegistration(c *gin.Context) {
 // handleLogin 处理用户登录请求
 func (s *Server) handleLogin(c *gin.Context) {
 	var req struct {
-		Email    string `json:"email" binding:"required,email"`
+		Email    string `json:"email" binding:"required"`
 		Password string `json:"password" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	req.Email = strings.TrimSpace(req.Email)
+	if req.Email == "" || !strings.Contains(req.Email, "@") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "邮箱格式无效"})
 		return
 	}
 
