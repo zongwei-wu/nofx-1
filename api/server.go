@@ -59,6 +59,10 @@ func NewServer(traderManager *manager.TraderManager, database *config.Database, 
 	// 设置路由
 	s.setupRoutes()
 
+	if err := s.reloadPromptTemplatesFromDB(); err != nil {
+		log.Printf("⚠️  从数据库加载提示词模板失败: %v", err)
+	}
+
 	return s
 }
 
@@ -209,6 +213,11 @@ func (s *Server) setupRoutes() {
 				admin.GET("/copy-trade/records", s.handleAdminCopyTradeRecords)
 				admin.GET("/system-config", s.handleAdminGetSystemConfig)
 				admin.PUT("/system-config", s.handleAdminPutSystemConfig)
+				admin.GET("/prompt-templates", s.handleAdminListPromptTemplates)
+				admin.POST("/prompt-templates", s.handleAdminCreatePromptTemplate)
+				admin.GET("/prompt-templates/:name", s.handleAdminGetPromptTemplate)
+				admin.PUT("/prompt-templates/:name", s.handleAdminUpdatePromptTemplate)
+				admin.DELETE("/prompt-templates/:name", s.handleAdminDeletePromptTemplate)
 			}
 		}
 	}
@@ -2777,9 +2786,26 @@ func (s *Server) handleGetPublicTraderConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+// reloadPromptTemplatesFromDB 从数据库加载提示词模板到内存
+func (s *Server) reloadPromptTemplatesFromDB() error {
+	records, err := s.database.GetAllPromptTemplates()
+	if err != nil {
+		return err
+	}
+	templates := make([]*decision.PromptTemplate, 0, len(records))
+	for _, r := range records {
+		templates = append(templates, &decision.PromptTemplate{
+			Name:    r.Name,
+			Content: r.Content,
+		})
+	}
+	decision.SetPromptTemplates(templates)
+	return nil
+}
+
 // reloadPromptTemplatesWithLog 重新加载提示词模板并记录日志
 func (s *Server) reloadPromptTemplatesWithLog(templateName string) {
-	if err := decision.ReloadPromptTemplates(); err != nil {
+	if err := s.reloadPromptTemplatesFromDB(); err != nil {
 		log.Printf("⚠️  重新加载提示词模板失败: %v", err)
 		return
 	}

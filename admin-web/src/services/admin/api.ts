@@ -214,3 +214,59 @@ export async function stopTrader(traderId: string) {
     { method: 'POST' },
   );
 }
+
+export type PromptTemplateItem = {
+  name: string;
+  description?: string;
+  content?: string;
+  content_preview?: string;
+  content_length?: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export async function listPromptTemplates(params: {
+  current?: number;
+  pageSize?: number;
+  name?: string;
+}) {
+  return request<{
+    data: PromptTemplateItem[];
+    total: number;
+    success: boolean;
+  }>('/api/admin/prompt-templates', { params });
+}
+
+export async function getPromptTemplate(name: string) {
+  return request<{ data: PromptTemplateItem; success: boolean }>(
+    `/api/admin/prompt-templates/${encodeURIComponent(name)}`,
+  );
+}
+
+export async function createPromptTemplate(data: {
+  name: string;
+  content: string;
+  description?: string;
+}) {
+  return request<{ success: boolean; message: string }>(
+    '/api/admin/prompt-templates',
+    { method: 'POST', data },
+  );
+}
+
+export async function updatePromptTemplate(
+  name: string,
+  data: { content: string; description?: string },
+) {
+  return request<{ success: boolean; message: string }>(
+    `/api/admin/prompt-templates/${encodeURIComponent(name)}`,
+    { method: 'PUT', data },
+  );
+}
+
+export async function deletePromptTemplate(name: string) {
+  return request<{ success: boolean; message: string; error?: string }>(
+    `/api/admin/prompt-templates/${encodeURIComponent(name)}`,
+    { method: 'DELETE' },
+  );
+}

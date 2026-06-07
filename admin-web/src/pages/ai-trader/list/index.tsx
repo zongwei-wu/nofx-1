@@ -9,6 +9,7 @@ import {
   Table,
   Tabs,
   Tag,
+  Typography,
 } from 'antd';
 import { useState } from 'react';
 import {
@@ -177,6 +178,31 @@ export default function AITraderListPage() {
                     <Descriptions.Item label="交易对">{detail.trading_symbols || '-'}</Descriptions.Item>
                     <Descriptions.Item label="Prompt 模板">
                       {detail.system_prompt_template}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="提示词模式">
+                      {detail.custom_prompt
+                        ? detail.override_base_prompt
+                          ? '覆盖默认'
+                          : '附加到默认'
+                        : '未设置'}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="自定义/附加提示词">
+                      {detail.custom_prompt ? (
+                        <Typography.Paragraph
+                          style={{
+                            marginBottom: 0,
+                            whiteSpace: 'pre-wrap',
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                            maxHeight: 240,
+                            overflow: 'auto',
+                          }}
+                        >
+                          {detail.custom_prompt}
+                        </Typography.Paragraph>
+                      ) : (
+                        '未设置自定义提示词'
+                      )}
                     </Descriptions.Item>
                   </Descriptions>
                 ),

@@ -16,6 +16,36 @@
     }
   },
   "paths": {
+    "/prompt-templates": {
+      "get": {
+        "tags": ["PromptTemplates"],
+        "summary": "获取系统提示词模板列表",
+        "description": "返回所有可用模板名称（无需认证，数据来自数据库缓存）",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "schema": { "$ref": "#/definitions/PromptTemplatesListResponse" }
+          }
+        }
+      }
+    },
+    "/prompt-templates/{name}": {
+      "get": {
+        "tags": ["PromptTemplates"],
+        "summary": "获取指定提示词模板内容",
+        "description": "返回模板完整内容（无需认证）",
+        "parameters": [
+          { "name": "name", "in": "path", "required": true, "type": "string", "description": "模板名称" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "schema": { "$ref": "#/definitions/PromptTemplateDetailResponse" }
+          },
+          "404": { "description": "模板不存在" }
+        }
+      }
+    },
     "/trade-events": {
       "get": {
         "tags": ["TradeEvents"],
@@ -473,6 +503,114 @@
         }
       }
     },
+    "/admin/prompt-templates": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "分页查询提示词模板",
+        "description": "管理员查询系统提示词模板列表",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "current", "in": "query", "type": "integer" },
+          { "name": "page", "in": "query", "type": "integer" },
+          { "name": "pageSize", "in": "query", "type": "integer" },
+          { "name": "name", "in": "query", "type": "string", "description": "模板名称模糊搜索" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "schema": { "$ref": "#/definitions/AdminPromptTemplatesPageResponse" }
+          },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" }
+        }
+      },
+      "post": {
+        "tags": ["Admin"],
+        "summary": "创建提示词模板",
+        "description": "名称创建后不可修改",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/PromptTemplateCreateRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "创建成功",
+            "schema": { "$ref": "#/definitions/AdminSuccessMessageResponse" }
+          },
+          "400": { "description": "参数错误或名称已存在" },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" }
+        }
+      }
+    },
+    "/admin/prompt-templates/{name}": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "获取提示词模板详情",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "name", "in": "path", "required": true, "type": "string" }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "schema": { "$ref": "#/definitions/AdminPromptTemplateDetailResponse" }
+          },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" },
+          "404": { "description": "模板不存在" }
+        }
+      },
+      "put": {
+        "tags": ["Admin"],
+        "summary": "更新提示词模板",
+        "description": "仅可更新内容与描述，不可改名",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "name", "in": "path", "required": true, "type": "string" },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/PromptTemplateUpdateRequest" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "schema": { "$ref": "#/definitions/AdminSuccessMessageResponse" }
+          },
+          "400": { "description": "参数错误" },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" },
+          "404": { "description": "模板不存在" }
+        }
+      },
+      "delete": {
+        "tags": ["Admin"],
+        "summary": "删除提示词模板",
+        "description": "有交易员引用时拒绝删除",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "name", "in": "path", "required": true, "type": "string" }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功",
+            "schema": { "$ref": "#/definitions/AdminSuccessMessageResponse" }
+          },
+          "400": { "description": "模板正在被交易员使用" },
+          "401": { "description": "未登录" },
+          "403": { "description": "非管理员" },
+          "404": { "description": "模板不存在" }
+        }
+      }
+    },
     "/copy-trade/settings": {
       "get": {
         "tags": ["CopyTrade"],
@@ -790,6 +928,82 @@
       "properties": {
         "success": { "type": "boolean" },
         "data": { "$ref": "#/definitions/AdminTraderItem" }
+      }
+    },
+    "PromptTemplatesListResponse": {
+      "type": "object",
+      "properties": {
+        "templates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "PromptTemplateDetailResponse": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "content": { "type": "string" }
+      }
+    },
+    "PromptTemplateItem": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "content_preview": { "type": "string" },
+        "content_length": { "type": "integer" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "AdminPromptTemplatesPageResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/PromptTemplateItem" }
+        },
+        "total": { "type": "integer" },
+        "success": { "type": "boolean" }
+      }
+    },
+    "AdminPromptTemplateDetailResponse": {
+      "type": "object",
+      "properties": {
+        "success": { "type": "boolean" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "content": { "type": "string" },
+            "description": { "type": "string" },
+            "created_at": { "type": "string", "format": "date-time" },
+            "updated_at": { "type": "string", "format": "date-time" }
+          }
+        }
+      }
+    },
+    "PromptTemplateCreateRequest": {
+      "type": "object",
+      "required": ["name", "content"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+        "content": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "PromptTemplateUpdateRequest": {
+      "type": "object",
+      "required": ["content"],
+      "properties": {
+        "content": { "type": "string" },
+        "description": { "type": "string" }
       }
     }
   }

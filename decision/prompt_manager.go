@@ -139,6 +139,23 @@ func (pm *PromptManager) ReloadTemplates(dir string) error {
 	return pm.LoadTemplates(dir)
 }
 
+// SetTemplates 用给定列表原子替换内存中的模板（供 DB 加载使用）
+func (pm *PromptManager) SetTemplates(templates []*PromptTemplate) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	pm.templates = make(map[string]*PromptTemplate, len(templates))
+	for _, t := range templates {
+		if t == nil || t.Name == "" {
+			continue
+		}
+		pm.templates[t.Name] = &PromptTemplate{
+			Name:    t.Name,
+			Content: t.Content,
+		}
+	}
+}
+
 // === 全局函数（供外部调用）===
 
 // GetPromptTemplate 获取指定名称的提示词模板（全局函数）
@@ -159,4 +176,9 @@ func GetAllPromptTemplates() []*PromptTemplate {
 // ReloadPromptTemplates 重新加载所有模板（全局函数）
 func ReloadPromptTemplates() error {
 	return globalPromptManager.ReloadTemplates(promptsDir)
+}
+
+// SetPromptTemplates 用给定列表替换全局模板缓存（全局函数）
+func SetPromptTemplates(templates []*PromptTemplate) {
+	globalPromptManager.SetTemplates(templates)
 }

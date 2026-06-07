@@ -118,6 +118,10 @@ func NewDatabase(dbPath string) (*Database, error) {
 		return nil, fmt.Errorf("初始化管理员账号失败: %w", err)
 	}
 
+	if err := database.initPromptTemplateTables(); err != nil {
+		return nil, fmt.Errorf("初始化提示词模板表失败: %w", err)
+	}
+
 	log.Printf("✅ 数据库已启用 WAL 模式和 FULL 同步,数据持久性得到保证")
 	return database, nil
 }

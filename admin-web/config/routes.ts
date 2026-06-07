@@ -31,6 +31,13 @@ export default [
     component: './ai-trader/list',
   },
   {
+    path: '/prompt-template/list',
+    name: 'Prompt 模板',
+    icon: 'fileText',
+    access: 'canAdmin',
+    component: './prompt-template/list',
+  },
+  {
     path: '/copy-trade/records',
     name: '跟单记录',
     icon: 'table',
