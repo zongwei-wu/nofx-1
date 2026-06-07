@@ -7,6 +7,7 @@ import (
 	"log"
 	"nofx/logger"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -28,6 +29,7 @@ type copyTradeAIDecisionParams struct {
 	Success        bool
 	AITraderID     string
 	AITraderName   string
+	LeadOperation  string
 }
 
 func (s *Server) insertCopyTradeAIDecision(p copyTradeAIDecisionParams) {
@@ -43,11 +45,11 @@ func (s *Server) insertCopyTradeAIDecision(p copyTradeAIDecisionParams) {
 		INSERT INTO copy_trade_ai_decisions
 		(user_id, run_id, portfolio_id, nickname, symbol, input_prompt, ai_response_raw,
 		 decision_json, feasible, recommended_qty, reasoning, suggestion, action_taken, success,
-		 ai_trader_id, ai_trader_name)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 ai_trader_id, ai_trader_name, lead_operation)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.UserID, p.RunID, p.PortfolioID, p.Nickname, p.Symbol, p.InputPrompt, p.AIResponseRaw,
 		p.DecisionJSON, feasible, p.RecommendedQty, p.Reasoning, p.Suggestion, p.ActionTaken, success,
-		p.AITraderID, p.AITraderName)
+		p.AITraderID, p.AITraderName, p.LeadOperation)
 	if err != nil {
 		log.Printf("⚠️ 写入跟单 AI 决策失败: %v", err)
 	}
@@ -71,14 +73,34 @@ type copyTradeAIDecisionRow struct {
 	Success        bool
 	AITraderID     string
 	AITraderName   string
+	LeadOperation  string
 	CreatedAt      time.Time
+}
+
+func parseLeadOperationFromPrompt(prompt string) string {
+	for _, line := range strings.Split(prompt, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "- 操作:") {
+			continue
+		}
+		op := strings.TrimSpace(strings.TrimPrefix(line, "- 操作:"))
+		switch op {
+		case "买入开多":
+			return "开多"
+		case "卖出开空":
+			return "开空"
+		default:
+			return op
+		}
+	}
+	return ""
 }
 
 func (s *Server) getLatestCopyTradeAIDecisions(userID string, limit int) ([]copyTradeAIDecisionRow, error) {
 	rows, err := s.database.DB().Query(`
 		SELECT id, user_id, run_id, portfolio_id, nickname, symbol, input_prompt, ai_response_raw,
 		       decision_json, feasible, recommended_qty, reasoning, suggestion, action_taken, success,
-		       ai_trader_id, ai_trader_name, created_at
+		       ai_trader_id, ai_trader_name, lead_operation, created_at
 		FROM copy_trade_ai_decisions
 		WHERE user_id = ?
 		ORDER BY id DESC
@@ -96,7 +118,7 @@ func (s *Server) getLatestCopyTradeAIDecisions(userID string, limit int) ([]copy
 		if err := rows.Scan(&r.ID, &r.UserID, &r.RunID, &r.PortfolioID, &r.Nickname, &r.Symbol,
 			&r.InputPrompt, &r.AIResponseRaw, &r.DecisionJSON, &feasible, &r.RecommendedQty,
 			&r.Reasoning, &r.Suggestion, &r.ActionTaken, &success,
-			&r.AITraderID, &r.AITraderName, &createdAt); err != nil {
+			&r.AITraderID, &r.AITraderName, &r.LeadOperation, &createdAt); err != nil {
 			continue
 		}
 		r.Feasible = feasible != 0
@@ -159,17 +181,26 @@ func copyTradeRowToDecisionResponse(row copyTradeAIDecisionRow) decisionRecordRe
 		decisionJSON = string(b)
 	}
 
+	leadOp := row.LeadOperation
+	if leadOp == "" {
+		leadOp = parseLeadOperationFromPrompt(row.InputPrompt)
+	}
+
 	execLog := []string{fmt.Sprintf("跟单风控: %s", row.ActionTaken)}
+	if leadOp != "" {
+		execLog = append([]string{fmt.Sprintf("跟随带单操作: %s", leadOp)}, execLog...)
+	}
 	if row.Reasoning != "" {
 		execLog = append(execLog, row.Reasoning)
 	}
 
 	meta := map[string]interface{}{
-		"nickname":     row.Nickname,
-		"portfolio_id": row.PortfolioID,
-		"action_taken": row.ActionTaken,
-		"feasible":     row.Feasible,
-		"run_id":       row.RunID,
+		"nickname":       row.Nickname,
+		"portfolio_id":   row.PortfolioID,
+		"action_taken":   row.ActionTaken,
+		"feasible":       row.Feasible,
+		"run_id":         row.RunID,
+		"lead_operation": leadOp,
 	}
 	if row.AITraderID != "" {
 		meta["ai_trader_id"] = row.AITraderID

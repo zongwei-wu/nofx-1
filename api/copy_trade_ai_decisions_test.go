@@ -37,6 +37,30 @@ func TestCopyTradeRowToDecisionResponse_AITraderMeta(t *testing.T) {
 	}
 }
 
+func TestParseLeadOperationFromPrompt(t *testing.T) {
+	prompt := "## 跟单请求\n- 带单员: LeadA\n- 操作: 买入开多\n"
+	if got := parseLeadOperationFromPrompt(prompt); got != "开多" {
+		t.Fatalf("expected 开多, got %q", got)
+	}
+}
+
+func TestCopyTradeRowToDecisionResponse_LeadOperationMeta(t *testing.T) {
+	row := copyTradeAIDecisionRow{
+		Nickname:      "LeadA",
+		Symbol:        "ETHUSDT",
+		ActionTaken:   "ai_error",
+		LeadOperation: "开多",
+		CreatedAt:     time.Now(),
+	}
+	resp := copyTradeRowToDecisionResponse(row)
+	if resp.CopyTradeMeta["lead_operation"] != "开多" {
+		t.Fatalf("expected lead_operation 开多, got %+v", resp.CopyTradeMeta)
+	}
+	if len(resp.ExecutionLog) == 0 || resp.ExecutionLog[0] != "跟随带单操作: 开多" {
+		t.Fatalf("expected lead op in execution log, got %v", resp.ExecutionLog)
+	}
+}
+
 func TestCopyTradeRowToDecisionResponse_RejectedAction(t *testing.T) {
 	row := copyTradeAIDecisionRow{
 		ActionTaken: "ai_rejected",

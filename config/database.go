@@ -402,6 +402,7 @@ func (d *Database) createTables() error {
 	d.db.Exec(`CREATE INDEX IF NOT EXISTS idx_copy_trade_ai_decisions_user ON copy_trade_ai_decisions(user_id, created_at DESC)`)
 	d.db.Exec(`ALTER TABLE copy_trade_ai_decisions ADD COLUMN ai_trader_id TEXT NOT NULL DEFAULT ''`)
 	d.db.Exec(`ALTER TABLE copy_trade_ai_decisions ADD COLUMN ai_trader_name TEXT NOT NULL DEFAULT ''`)
+	d.db.Exec(`ALTER TABLE copy_trade_ai_decisions ADD COLUMN lead_operation TEXT NOT NULL DEFAULT ''`)
 
 	d.db.Exec(`CREATE TABLE IF NOT EXISTS user_symbol_preferences (
 		user_id TEXT PRIMARY KEY,

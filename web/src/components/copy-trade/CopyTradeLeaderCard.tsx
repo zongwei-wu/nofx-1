@@ -193,25 +193,6 @@ export function CopyTradeLeaderCard({
           <label className="flex items-start gap-2 cursor-pointer">
             <input
               type="checkbox"
-              checked={cfg.copy_open_only}
-              disabled={saving}
-              onChange={(e) => void persistConfig({ copy_open_only: e.target.checked })}
-              className="w-3.5 h-3.5 mt-0.5 rounded shrink-0"
-              style={{ accentColor: '#F0B90B' }}
-            />
-            <span className="min-w-0">
-              <span className="text-xs font-medium block" style={{ color: '#EAECEF' }}>
-                仅跟开仓
-              </span>
-              <span className="text-[10px] block mt-0.5" style={{ color: '#5E6673' }}>
-                开启后只跟带单员开仓，不自动跟平仓
-              </span>
-            </span>
-          </label>
-
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input
-              type="checkbox"
               checked={cfg.auto_follow || false}
               disabled={!cfg.enabled || saving}
               onChange={(e) => void persistConfig({ auto_follow: e.target.checked })}
@@ -224,6 +205,25 @@ export function CopyTradeLeaderCard({
               </span>
               <span className="text-[10px] block mt-0.5" style={{ color: '#5E6673' }}>
                 每 5 分钟拉取带单并 AI 分析，通过后自动下单
+              </span>
+            </span>
+          </label>
+
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={cfg.copy_open_only}
+              disabled={saving}
+              onChange={(e) => void persistConfig({ copy_open_only: e.target.checked })}
+              className="w-3.5 h-3.5 mt-0.5 rounded shrink-0"
+              style={{ accentColor: '#F0B90B' }}
+            />
+            <span className="min-w-0">
+              <span className="text-xs font-medium block" style={{ color: '#EAECEF' }}>
+                仅跟开仓
+              </span>
+              <span className="text-[10px] block mt-0.5" style={{ color: '#5E6673' }}>
+                开启后只跟带单员开仓，不自动跟平仓
               </span>
             </span>
           </label>

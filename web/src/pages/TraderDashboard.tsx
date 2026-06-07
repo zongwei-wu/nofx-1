@@ -845,6 +845,30 @@ function StatCard({
   )
 }
 
+function copyTradeOutcomeLabel(actionTaken: string | undefined, language: Language): string {
+  if (!actionTaken) return ''
+  const zh: Record<string, string> = {
+    copied_open: '已执行跟单',
+    open_failed: '跟单下单失败',
+    ai_error: 'AI 分析失败',
+    parse_failed: 'AI 解析失败',
+    ai_rejected: 'AI 拒绝跟单',
+    pending_confirm: '待确认跟单',
+    pending_open: '待开仓',
+  }
+  const en: Record<string, string> = {
+    copied_open: 'Copied',
+    open_failed: 'Order failed',
+    ai_error: 'AI error',
+    parse_failed: 'Parse failed',
+    ai_rejected: 'AI rejected',
+    pending_confirm: 'Pending confirm',
+    pending_open: 'Pending open',
+  }
+  const map = language === 'zh' ? zh : en
+  return map[actionTaken] || actionTaken
+}
+
 // Decision Card Component
 function DecisionCard({
   decision,
@@ -877,6 +901,13 @@ function DecisionCard({
                   · {decision.copy_trade_meta.nickname}
                 </span>
               )}
+              {decision.copy_trade_meta?.lead_operation && (
+                <span style={{ color: '#38BDF8' }}>
+                  {' '}
+                  · {language === 'zh' ? '跟随' : 'Follow'}{' '}
+                  {decision.copy_trade_meta.lead_operation}
+                </span>
+              )}
               {decision.copy_trade_meta?.ai_trader_name && (
                 <span style={{ color: '#848E9C' }}>
                   {' '}
@@ -898,12 +929,20 @@ function DecisionCard({
             {new Date(decision.timestamp).toLocaleString()}
             {decision.source === 'copy_trade' && decision.copy_trade_meta?.action_taken && (
               <span className="ml-2" style={{ color: '#5E6673' }}>
-                {decision.copy_trade_meta.action_taken}
+                {copyTradeOutcomeLabel(decision.copy_trade_meta.action_taken, language)}
               </span>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {decision.source === 'copy_trade' && decision.copy_trade_meta?.lead_operation && (
+            <span
+              className="px-2 py-0.5 rounded text-[10px] font-bold"
+              style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38BDF8' }}
+            >
+              {language === 'zh' ? '跟随' : 'Follow'} {decision.copy_trade_meta.lead_operation}
+            </span>
+          )}
           {decision.source === 'copy_trade' && (
             <span
               className="px-2 py-0.5 rounded text-[10px] font-bold"

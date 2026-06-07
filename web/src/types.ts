@@ -82,6 +82,7 @@ export interface DecisionRecord {
     run_id?: number
     ai_trader_id?: string
     ai_trader_name?: string
+    lead_operation?: string
   }
 }
 

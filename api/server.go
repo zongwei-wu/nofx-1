@@ -2361,6 +2361,7 @@ func (s *Server) runAutoFollowForUser(userID string, isFirstRun bool) {
 			if tradePosSide == "LONG" {
 				dir = "买入开多"
 			}
+			leadOp := leadActionDisplay(order.PositionSide, order.Side)
 
 			mcpClient := mcp.New()
 			if aiCfg.Provider == "deepseek" {
@@ -2433,6 +2434,7 @@ func (s *Server) runAutoFollowForUser(userID string, isFirstRun bool) {
 					Feasible: aiFeasible, RecommendedQty: aiQty, Reasoning: aiReason, Suggestion: aiSuggestion,
 					ActionTaken: actionTaken, Success: false,
 					AITraderID: aiResult.AITraderID, AITraderName: aiResult.AITraderName,
+					LeadOperation: leadOp,
 				})
 				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "ai_rejected",
 					order.Side, tradePosSide, ourSt, aiReason, order.OrderTime)
@@ -2460,6 +2462,7 @@ func (s *Server) runAutoFollowForUser(userID string, isFirstRun bool) {
 					Feasible: true, RecommendedQty: aiQty, Reasoning: aiReason, Suggestion: aiSuggestion,
 					ActionTaken: "open_failed", Success: false,
 					AITraderID: aiResult.AITraderID, AITraderName: aiResult.AITraderName,
+					LeadOperation: leadOp,
 				})
 				s.insertCopyTradeRunEvent(runID, userID, portfolioID, nickname, symbol, "open_failed",
 					order.Side, tradePosSide, ourSt, tradeErr.Error(), order.OrderTime)
@@ -2491,6 +2494,7 @@ func (s *Server) runAutoFollowForUser(userID string, isFirstRun bool) {
 				Feasible: true, RecommendedQty: actualQty, Reasoning: aiReason, Suggestion: aiSuggestion,
 				ActionTaken: "copied_open", Success: aiSuccess,
 				AITraderID: aiResult.AITraderID, AITraderName: aiResult.AITraderName,
+				LeadOperation: leadOp,
 			})
 
 			s.database.DB().Exec(`
@@ -3444,6 +3448,7 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 	}
 
 	fTrader := trader.NewFuturesTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, userID, exchangeCfg.Testnet)
+	leadOp := leadActionDisplay(req.PositionSide, req.Side)
 
 	copyAI, copyAIErr := s.resolveCopyTradeAI(userID)
 	aiTraderID := ""
@@ -3482,6 +3487,7 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 				Reasoning:      tradeErr.Error(),
 				ActionTaken:    "open_failed",
 				Success:        false,
+				LeadOperation:  leadOp,
 			})
 			logger.NotifyTrade(logger.TradeNotifyParams{
 				Source: "跟单-单笔", Status: logger.TradeStatusFailed, Action: "跟单开仓",
@@ -3507,6 +3513,7 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 			ActionTaken:    "copied_open",
 			Success:        true,
 			Feasible:       true,
+			LeadOperation:  leadOp,
 		})
 		s.database.DB().Exec(`
 			INSERT INTO copy_trade_records 
@@ -3650,6 +3657,7 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 		Suggestion:     suggestion,
 		ActionTaken:    actionTaken,
 		Success:        decisionSuccess,
+		LeadOperation:  leadOp,
 	})
 
 	confirmAccount := fetchCopyTradeAIAccountContext(fTrader)
