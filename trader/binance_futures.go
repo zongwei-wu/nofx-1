@@ -852,6 +852,31 @@ func (t *FuturesTrader) CheckMinNotional(symbol string, quantity float64) error 
 	return nil
 }
 
+// GetLotStepSize 获取交易对 LOT_SIZE stepSize（1 张合约对应的标的币数量）
+func (t *FuturesTrader) GetLotStepSize(symbol string) (float64, error) {
+	exchangeInfo, err := t.client.NewExchangeInfoService().Do(context.Background())
+	if err != nil {
+		return 0, fmt.Errorf("获取交易规则失败: %w", err)
+	}
+
+	for _, s := range exchangeInfo.Symbols {
+		if s.Symbol != symbol {
+			continue
+		}
+		for _, filter := range s.Filters {
+			if filter["filterType"] == "LOT_SIZE" {
+				stepSize, ok := filter["stepSize"].(string)
+				if !ok {
+					break
+				}
+				return strconv.ParseFloat(stepSize, 64)
+			}
+		}
+	}
+
+	return 0, fmt.Errorf("%s 未找到 LOT_SIZE", symbol)
+}
+
 // GetSymbolPrecision 获取交易对的数量精度
 func (t *FuturesTrader) GetSymbolPrecision(symbol string) (int, error) {
 	exchangeInfo, err := t.client.NewExchangeInfoService().Do(context.Background())

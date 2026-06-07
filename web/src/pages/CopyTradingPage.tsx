@@ -53,9 +53,23 @@ export function CopyTradingPage() {
     analysis: string
     account: any
     recommendedQty: number
+    qtyUnit: string
+    leadQtyContracts: number
+    leadQtyBase: number
     trade: any
     payload: any
-  }>({ visible: false, loading: false, analysis: '', account: null, recommendedQty: 0, trade: null, payload: null })
+  }>({
+    visible: false,
+    loading: false,
+    analysis: '',
+    account: null,
+    recommendedQty: 0,
+    qtyUnit: '',
+    leadQtyContracts: 0,
+    leadQtyBase: 0,
+    trade: null,
+    payload: null,
+  })
 
   useEffect(() => {
     const fetchData = async () => {
@@ -458,12 +472,21 @@ export function CopyTradingPage() {
                                           alert(data.message || '跟单成功')
                                           return
                                         }
+                                        const qtyUnit =
+                                          data.qty_unit ||
+                                          order.symbol?.replace('USDT', '') ||
+                                          order.baseAsset ||
+                                          ''
                                         setOrderModal(prev => ({
                                           ...prev,
                                           loading: false,
                                           analysis: data.ai_analysis || '',
                                           account: data.account,
-                                          recommendedQty: data.recommended_qty || order.executedQty,
+                                          recommendedQty: data.recommended_qty ?? 0,
+                                          qtyUnit,
+                                          leadQtyContracts:
+                                            data.lead_qty_contracts ?? order.executedQty,
+                                          leadQtyBase: data.lead_qty_base ?? 0,
                                           trade: data.trade,
                                         }))
                                       } catch(e: any) {
@@ -531,6 +554,14 @@ export function CopyTradingPage() {
                     </span>
                     <span className="text-xs" style={{ color: '#848E9C' }}>带单价 ${orderModal.trade?.price?.toLocaleString()}</span>
                   </div>
+                  {orderModal.leadQtyContracts > 0 && (
+                    <div className="text-[11px] mt-2" style={{ color: '#848E9C' }}>
+                      带单数量 {orderModal.leadQtyContracts} 张
+                      {orderModal.leadQtyBase > 0 && orderModal.qtyUnit
+                        ? `（≈ ${orderModal.leadQtyBase.toFixed(4)} ${orderModal.qtyUnit}）`
+                        : ''}
+                    </div>
+                  )}
                 </div>
 
                 {/* 账户状态 */}
@@ -558,13 +589,38 @@ export function CopyTradingPage() {
                 </div>
 
                 {/* 建议仓位 */}
-                <div className="p-3 rounded-lg" style={{ background: '#0B0E11' }}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm" style={{ color: '#848E9C' }}>建议跟单数量</span>
-                    <span className="text-lg font-bold" style={{ color: '#0ECB81' }}>
-                      {orderModal.recommendedQty?.toFixed(4)} 张
+                <div className="p-3 rounded-lg space-y-2" style={{ background: '#0B0E11' }}>
+                  <div className="text-sm" style={{ color: '#848E9C' }}>
+                    建议跟单数量（币安下单口径，可修改）
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.001}
+                      value={orderModal.recommendedQty}
+                      onChange={(e) =>
+                        setOrderModal((prev) => ({
+                          ...prev,
+                          recommendedQty: Number(e.target.value),
+                        }))
+                      }
+                      className="flex-1 px-3 py-2 rounded text-sm font-bold tabular-nums"
+                      style={{
+                        background: '#1E2329',
+                        border: '1px solid #2B3139',
+                        color: '#0ECB81',
+                      }}
+                    />
+                    <span className="text-sm font-semibold shrink-0" style={{ color: '#EAECEF' }}>
+                      {orderModal.qtyUnit || '币'}
                     </span>
                   </div>
+                  {orderModal.trade?.price > 0 && orderModal.recommendedQty > 0 && (
+                    <div className="text-[11px]" style={{ color: '#5E6673' }}>
+                      约 {(orderModal.recommendedQty * orderModal.trade.price).toFixed(2)} USDT
+                    </div>
+                  )}
                 </div>
 
                 {/* 操作按钮 */}
@@ -590,7 +646,9 @@ export function CopyTradingPage() {
                         const data = await res.json()
                         setOrderModal(prev => ({ ...prev, visible: false, loading: false }))
                         if (res.ok) {
-                          alert(`✅ 跟单成功\n${orderModal.trade?.symbol} ${orderModal.trade?.positionSide}\n数量: ${data.qty?.toFixed(4)}张\n价格: $${data.price?.toLocaleString()}`)
+                          alert(
+                            `✅ 跟单成功\n${orderModal.trade?.symbol} ${orderModal.trade?.positionSide}\n数量: ${data.qty?.toFixed(4)} ${orderModal.qtyUnit}\n价格: $${data.price?.toLocaleString()}`
+                          )
                         } else {
                           alert(`❌ ${data.error || '跟单失败'}`)
                         }

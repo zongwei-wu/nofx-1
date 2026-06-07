@@ -2342,7 +2342,8 @@ func (s *Server) runAutoFollowForUser(userID string, isFirstRun bool) {
 				continue
 			}
 
-			qty := order.ExecutedQty * sizeMultiplier
+			leadBaseQty, _ := leadContractsToBaseQty(fTrader, symbol, order.ExecutedQty)
+			qty := leadBaseQty * sizeMultiplier
 			if maxCopySize > 0 && qty*order.AvgPrice > maxCopySize {
 				qty = maxCopySize / order.AvgPrice
 			}
@@ -2373,10 +2374,9 @@ func (s *Server) runAutoFollowForUser(userID string, isFirstRun bool) {
 
 			accountCtx := fetchCopyTradeAIAccountContext(fTrader)
 			marketSection := fetchCopyTradeAIMarketSection(symbol)
-			prompt := buildCopyTradeRiskPrompt(accountCtx, marketSection, copyTradeAIPromptParams{
-				Symbol: symbol, Direction: dir, LeadNickname: nickname,
-				LeadPrice: order.AvgPrice, LeadQty: qty,
-			})
+			prompt := buildCopyTradeRiskPrompt(accountCtx, marketSection, copyTradePromptParams(
+				symbol, dir, nickname, order.AvgPrice, order.ExecutedQty, fTrader,
+			))
 
 			resp, aiErr := mcpClient.CallWithMessages("你是一个加密合约风控分析师。结合最新K线与账户资产输出JSON。", prompt)
 			aiQty := qty
@@ -2404,17 +2404,21 @@ func (s *Server) runAutoFollowForUser(userID string, isFirstRun bool) {
 					}
 				}
 				var parsedAI struct {
-					Feasible       bool    `json:"feasible"`
-					RecommendedQty float64 `json:"recommended_qty"`
-					Reasoning      string  `json:"reasoning"`
-					Suggestion     string  `json:"suggestion"`
+					Feasible         bool    `json:"feasible"`
+					RecommendedQty   float64 `json:"recommended_qty"`
+					RecommendedRatio float64 `json:"recommended_ratio"`
+					Reasoning        string  `json:"reasoning"`
+					Suggestion       string  `json:"suggestion"`
 				}
 				if json.Unmarshal([]byte(cleaned), &parsedAI) == nil {
 					aiFeasible = parsedAI.Feasible
 					aiReason = parsedAI.Reasoning
 					aiSuggestion = parsedAI.Suggestion
-					if parsedAI.RecommendedQty > 0 {
-						aiQty = parsedAI.RecommendedQty
+					if parsedAI.RecommendedQty > 0 || parsedAI.RecommendedRatio > 0 {
+						aiQty = resolveCopyRecommendedQty(
+							fTrader, symbol, order.ExecutedQty,
+							parsedAI.RecommendedQty, parsedAI.RecommendedRatio, sizeMultiplier,
+						)
 					}
 					if !aiFeasible {
 						actionTaken = "ai_rejected"
@@ -3209,8 +3213,9 @@ func (s *Server) handleSyncCopyTrade(c *gin.Context) {
 				continue
 			}
 
-			// 计算跟单数量
-			qty := order.ExecutedQty * cfg.SizeMultiplier
+			// 计算跟单数量（带单张数 → 标的币数量）
+			leadBaseQty, _ := leadContractsToBaseQty(fTrader, order.Symbol, order.ExecutedQty)
+			qty := leadBaseQty * cfg.SizeMultiplier
 			if cfg.MaxCopySize > 0 && qty*order.AvgPrice > cfg.MaxCopySize {
 				qty = cfg.MaxCopySize / order.AvgPrice
 			}
@@ -3536,7 +3541,10 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 	if copyAIErr != nil {
 		aiAnalysis = copyAIErr.Error()
 	}
-	recommendedQty := req.ExecutedQty * 0.1
+	leadContracts := req.ExecutedQty
+	leadBaseQty, _ := leadContractsToBaseQty(fTrader, req.Symbol, leadContracts)
+	baseAsset := symbolBaseAsset(req.Symbol)
+	recommendedQty := leadBaseQty * 0.1
 
 	var (
 		inputPrompt   string
@@ -3570,10 +3578,9 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 
 		accountCtx := fetchCopyTradeAIAccountContext(fTrader)
 		marketSection := fetchCopyTradeAIMarketSection(req.Symbol)
-		inputPrompt = buildCopyTradeRiskPromptDetailed(accountCtx, marketSection, copyTradeAIPromptParams{
-			Symbol: req.Symbol, Direction: dir, LeadNickname: req.Nickname,
-			LeadPrice: req.AvgPrice, LeadQty: req.ExecutedQty,
-		})
+		inputPrompt = buildCopyTradeRiskPromptDetailed(accountCtx, marketSection, copyTradePromptParams(
+			req.Symbol, dir, req.Nickname, req.AvgPrice, leadContracts, fTrader,
+		))
 
 		systemPrompt := "你是一个专业的加密合约交易风控分析师，请结合最新K线与账户资产给出合理的跟单仓位建议。回答要简洁专业。"
 
@@ -3627,11 +3634,10 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 					if parsedAI.Suggestion != "" {
 						aiAnalysis = parsedAI.Suggestion + "\n" + parsedAI.Reasoning
 					}
-					if parsedAI.RecommendedQty > 0 {
-						recommendedQty = parsedAI.RecommendedQty
-					} else if parsedAI.RecommendedRatio > 0 {
-						recommendedQty = req.ExecutedQty * parsedAI.RecommendedRatio
-					}
+					recommendedQty = resolveCopyRecommendedQty(
+						fTrader, req.Symbol, leadContracts,
+						parsedAI.RecommendedQty, parsedAI.RecommendedRatio, 0.1,
+					)
 					actionTaken = "pending_confirm"
 					decisionSuccess = true
 					log.Printf("  🤖 AI分析: 可行=%v 建议比例=%.2f 建议数量=%.4f", parsedAI.Feasible, parsedAI.RecommendedRatio, recommendedQty)
@@ -3661,10 +3667,15 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 	})
 
 	confirmAccount := fetchCopyTradeAIAccountContext(fTrader)
+	recommendedNotional := recommendedQty * req.AvgPrice
 	c.JSON(http.StatusOK, gin.H{
-		"need_confirm":    true,
-		"ai_analysis":     aiAnalysis,
-		"recommended_qty": recommendedQty,
+		"need_confirm":           true,
+		"ai_analysis":            aiAnalysis,
+		"recommended_qty":        recommendedQty,
+		"qty_unit":               baseAsset,
+		"lead_qty_contracts":     leadContracts,
+		"lead_qty_base":          leadBaseQty,
+		"recommended_notional":   recommendedNotional,
 		"account": gin.H{
 			"total_equity":   confirmAccount.TotalEquity,
 			"available":      confirmAccount.AvailableBalance,

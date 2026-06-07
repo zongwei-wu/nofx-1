@@ -17,11 +17,13 @@ type copyTradeAIAccountContext struct {
 }
 
 type copyTradeAIPromptParams struct {
-	Symbol       string
-	Direction    string
-	LeadNickname string
-	LeadPrice    float64
-	LeadQty      float64
+	Symbol            string
+	BaseAsset         string
+	Direction         string
+	LeadNickname      string
+	LeadPrice         float64
+	LeadQtyContracts  float64
+	LeadQtyBase       float64
 }
 
 func fetchCopyTradeAIAccountContext(fTrader *trader.FuturesTrader) copyTradeAIAccountContext {
@@ -144,13 +146,14 @@ func buildCopyTradeRiskPrompt(account copyTradeAIAccountContext, marketSection s
 - 交易对: %s
 - 操作: %s
 - 带单员开仓价格: $%.2f
-- 带单员开仓数量: %.4f张
+- 带单员开仓数量: %.4f 张（折合 %.6f %s）
 
 ## 分析要求
 1. 结合最新K线与账户资金评估是否适合跟单
 2. 考虑当前持仓集中度与行情波动风险
 3. 建议合理跟单仓位（相对带单员仓位）
 4. 风险过高时建议不跟单
+5. recommended_qty 必须为币安合约下单数量（标的币数量，单位 %s），不要使用「张」
 
 请以JSON输出: {"feasible":true/false,"reasoning":"理由","recommended_ratio":0.1,"recommended_qty":0.5,"suggestion":"建议"}`,
 		account.TotalEquity,
@@ -163,7 +166,10 @@ func buildCopyTradeRiskPrompt(account copyTradeAIAccountContext, marketSection s
 		p.Symbol,
 		p.Direction,
 		p.LeadPrice,
-		p.LeadQty,
+		p.LeadQtyContracts,
+		p.LeadQtyBase,
+		p.BaseAsset,
+		p.BaseAsset,
 	)
 }
 
@@ -184,13 +190,14 @@ func buildCopyTradeRiskPromptDetailed(account copyTradeAIAccountContext, marketS
 - 交易对: %s
 - 操作: %s
 - 带单员开仓价格: $%.2f
-- 带单员开仓数量: %.4f张
+- 带单员开仓数量: %.4f 张（折合 %.6f %s）
 
 ## 分析要求
 1. 结合最新K线与账户可用资金评估是否足够开仓
 2. 考虑当前持仓集中度风险
 3. 建议一个合理的跟单仓位比例（相对于带单员仓位）
 4. 如果风险过高，建议不跟单
+5. recommended_qty 必须为币安合约下单数量（标的币数量，单位 %s），不要使用「张」
 
 请以JSON格式输出，包含以下字段：
 {
@@ -211,6 +218,9 @@ func buildCopyTradeRiskPromptDetailed(account copyTradeAIAccountContext, marketS
 		p.Symbol,
 		p.Direction,
 		p.LeadPrice,
-		p.LeadQty,
+		p.LeadQtyContracts,
+		p.LeadQtyBase,
+		p.BaseAsset,
+		p.BaseAsset,
 	)
 }

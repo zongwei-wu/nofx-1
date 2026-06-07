@@ -14,8 +14,8 @@ func TestBuildCopyTradeRiskPrompt_IncludesMarketAndAccount(t *testing.T) {
 	}
 	market := "## BTCUSDT 最新市场数据\ncurrent_price = 65000\n"
 	prompt := buildCopyTradeRiskPrompt(account, market, copyTradeAIPromptParams{
-		Symbol: "BTCUSDT", Direction: "买入开多", LeadNickname: "LeadA",
-		LeadPrice: 65000, LeadQty: 1,
+		Symbol: "BTCUSDT", BaseAsset: "BTC", Direction: "买入开多", LeadNickname: "LeadA",
+		LeadPrice: 65000, LeadQtyContracts: 1000, LeadQtyBase: 1,
 	})
 
 	for _, want := range []string{
