@@ -167,7 +167,7 @@ export function CopyTradeDashboard() {
         auto_follow: false,
         max_copy_size: 1000,
         size_multiplier: 0.1,
-        copy_open_only: true,
+        copy_open_only: false,
       }, headers)
     }
     await loadData()
