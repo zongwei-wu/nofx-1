@@ -716,6 +716,11 @@ func (s *Server) handleTradeEvents(c *gin.Context) {
 		if recSyms, err := s.distinctCopyTradeSymbols(userID, portfolioID); err == nil {
 			symbolCandidates = append(symbolCandidates, recSyms)
 		}
+		if ovs, err := s.copyTradeExchangePositionOverlays(userID, symbol); err == nil {
+			positionOverlays = ovs
+		} else {
+			log.Printf("[trade-events] copy_trade position_overlays error: %v", err)
+		}
 
 		if includeLead {
 			if portfolioID != "" {
@@ -774,7 +779,7 @@ func (s *Server) handleTradeEvents(c *gin.Context) {
 		"events":  events,
 		"symbols": symList,
 	}
-	if source == "ai_copy_trade" {
+	if source == "ai_copy_trade" || source == "copy_trade" || source == "" {
 		resp["position_overlays"] = positionOverlays
 	}
 	c.JSON(http.StatusOK, resp)

@@ -173,6 +173,7 @@ func (s *Server) setupRoutes() {
 				copyTrade.GET("/copy-trade/settings", s.handleGetCopyTradeSettings)
 				copyTrade.PUT("/copy-trade/settings", s.handleUpdateCopyTradeSettings)
 				copyTrade.GET("/copy-trade/records", s.handleGetCopyTradeRecords)
+				copyTrade.GET("/copy-trade/exchange-positions", s.handleGetCopyTradeExchangePositions)
 				copyTrade.GET("/copy-trade/monitor", s.handleGetCopyTradeMonitor)
 				copyTrade.POST("/copy-trade/refresh-pnl", s.handleRefreshCopyTradePnL)
 				copyTrade.POST("/copy-trade/sync", s.handleSyncCopyTrade)

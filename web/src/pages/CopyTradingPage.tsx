@@ -1,7 +1,25 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
 import { httpClient } from '../lib/httpClient'
 import { LeadRecentReturnsLineChart } from '../components/copy-trade/LeadRecentReturnsLineChart'
+
+type CopyResultModalState = {
+  visible: boolean
+  success: boolean
+  error?: string
+  nickname?: string
+  symbol?: string
+  positionSide?: string
+  qty?: number
+  qtyUnit?: string
+  price?: number
+}
+
+const initialCopyResultModal: CopyResultModalState = {
+  visible: false,
+  success: true,
+}
 
 interface OrderRecord {
   symbol: string
@@ -39,8 +57,13 @@ interface TraderData {
   ordersLoading?: boolean
 }
 
+function positionSideLabel(side?: string) {
+  return side === 'LONG' ? '做多' : side === 'SHORT' ? '做空' : side || '—'
+}
+
 export function CopyTradingPage() {
   void useLanguage()
+  const navigate = useNavigate()
   const [pnlTraders, setPnlTraders] = useState<TraderData[]>([])
   const [roiTraders, setRoiTraders] = useState<TraderData[]>([])
   const [loading, setLoading] = useState(true)
@@ -70,6 +93,12 @@ export function CopyTradingPage() {
     trade: null,
     payload: null,
   })
+  const [copyResultModal, setCopyResultModal] =
+    useState<CopyResultModalState>(initialCopyResultModal)
+
+  const showCopyResult = (result: Omit<CopyResultModalState, 'visible'> & { visible?: boolean }) => {
+    setCopyResultModal({ ...result, visible: true })
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -464,12 +493,28 @@ export function CopyTradingPage() {
                                         const data = await res.json()
                                         if (!res.ok) {
                                           setOrderModal(prev => ({ ...prev, loading: false, visible: false }))
-                                          alert(`❌ ${data.error || '请求失败'}`)
+                                          showCopyResult({
+                                            success: false,
+                                            error: data.error || '请求失败',
+                                            nickname: trader.nickname,
+                                            symbol: order.symbol,
+                                            positionSide: order.positionSide,
+                                          })
                                           return
                                         }
                                         if (!data.need_confirm) {
                                           setOrderModal(prev => ({ ...prev, loading: false, visible: false }))
-                                          alert(data.message || '跟单成功')
+                                          const qtyUnit =
+                                            data.qty_unit || order.symbol?.replace('USDT', '') || ''
+                                          showCopyResult({
+                                            success: true,
+                                            nickname: trader.nickname,
+                                            symbol: data.symbol || order.symbol,
+                                            positionSide: data.position || order.positionSide,
+                                            qty: data.qty,
+                                            qtyUnit,
+                                            price: data.price,
+                                          })
                                           return
                                         }
                                         const qtyUnit =
@@ -489,9 +534,15 @@ export function CopyTradingPage() {
                                           leadQtyBase: data.lead_qty_base ?? 0,
                                           trade: data.trade,
                                         }))
-                                      } catch(e: any) {
-                                        setOrderModal(prev => ({ ...prev, loading: false }))
-                                        alert(`❌ ${e.message}`)
+                                      } catch (e: unknown) {
+                                        setOrderModal(prev => ({ ...prev, loading: false, visible: false }))
+                                        showCopyResult({
+                                          success: false,
+                                          error: e instanceof Error ? e.message : '网络错误',
+                                          nickname: trader.nickname,
+                                          symbol: order.symbol,
+                                          positionSide: order.positionSide,
+                                        })
                                       }
                                     }}
                                     className="px-2 py-1 rounded text-[10px] font-semibold transition-all hover:scale-105"
@@ -644,17 +695,36 @@ export function CopyTradingPage() {
                           body: JSON.stringify(p),
                         })
                         const data = await res.json()
+                        const snapshot = { ...orderModal }
                         setOrderModal(prev => ({ ...prev, visible: false, loading: false }))
                         if (res.ok) {
-                          alert(
-                            `✅ 跟单成功\n${orderModal.trade?.symbol} ${orderModal.trade?.positionSide}\n数量: ${data.qty?.toFixed(4)} ${orderModal.qtyUnit}\n价格: $${data.price?.toLocaleString()}`
-                          )
+                          showCopyResult({
+                            success: true,
+                            nickname: snapshot.payload?.nickname,
+                            symbol: data.symbol || snapshot.trade?.symbol,
+                            positionSide: data.position || snapshot.trade?.positionSide,
+                            qty: data.qty,
+                            qtyUnit: snapshot.qtyUnit,
+                            price: data.price,
+                          })
                         } else {
-                          alert(`❌ ${data.error || '跟单失败'}`)
+                          showCopyResult({
+                            success: false,
+                            error: data.error || '跟单失败',
+                            nickname: snapshot.payload?.nickname,
+                            symbol: snapshot.trade?.symbol,
+                            positionSide: snapshot.trade?.positionSide,
+                          })
                         }
-                      } catch(e: any) {
+                      } catch (e: unknown) {
                         setOrderModal(prev => ({ ...prev, loading: false }))
-                        alert(`❌ ${e.message}`)
+                        showCopyResult({
+                          success: false,
+                          error: e instanceof Error ? e.message : '网络错误',
+                          nickname: orderModal.payload?.nickname,
+                          symbol: orderModal.trade?.symbol,
+                          positionSide: orderModal.trade?.positionSide,
+                        })
                       }
                     }}
                     className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
@@ -665,6 +735,148 @@ export function CopyTradingPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 跟单结果弹窗 */}
+      {copyResultModal.visible && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setCopyResultModal(initialCopyResultModal)}
+        >
+          <div
+            className="rounded-xl max-w-md w-full overflow-hidden"
+            style={{ background: '#1E2329', border: '1px solid #2B3139' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="px-5 pt-6 pb-4 text-center"
+              style={{
+                background: copyResultModal.success
+                  ? 'linear-gradient(180deg, rgba(14,203,129,0.12) 0%, transparent 100%)'
+                  : 'linear-gradient(180deg, rgba(246,70,93,0.12) 0%, transparent 100%)',
+              }}
+            >
+              <div
+                className="w-14 h-14 mx-auto mb-3 rounded-full flex items-center justify-center text-2xl"
+                style={{
+                  background: copyResultModal.success
+                    ? 'rgba(14,203,129,0.15)'
+                    : 'rgba(246,70,93,0.15)',
+                  border: `1px solid ${copyResultModal.success ? 'rgba(14,203,129,0.35)' : 'rgba(246,70,93,0.35)'}`,
+                }}
+              >
+                {copyResultModal.success ? '✓' : '✕'}
+              </div>
+              <h3
+                className="text-lg font-bold"
+                style={{ color: copyResultModal.success ? '#0ECB81' : '#F6465D' }}
+              >
+                {copyResultModal.success ? '跟单成功' : '跟单失败'}
+              </h3>
+              {copyResultModal.nickname && (
+                <p className="text-xs mt-1" style={{ color: '#848E9C' }}>
+                  带单员 · {copyResultModal.nickname}
+                </p>
+              )}
+            </div>
+
+            <div className="px-5 pb-5 space-y-3">
+              {copyResultModal.success ? (
+                <div className="rounded-lg p-3 space-y-2.5" style={{ background: '#0B0E11' }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs" style={{ color: '#848E9C' }}>交易对</span>
+                    <span className="text-sm font-bold" style={{ color: '#F0B90B' }}>
+                      {copyResultModal.symbol?.replace('USDT', '') || '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs" style={{ color: '#848E9C' }}>方向</span>
+                    <span
+                      className="px-2 py-0.5 rounded text-xs font-semibold"
+                      style={{
+                        background:
+                          copyResultModal.positionSide === 'LONG'
+                            ? 'rgba(14,203,129,0.15)'
+                            : 'rgba(246,70,93,0.15)',
+                        color:
+                          copyResultModal.positionSide === 'LONG' ? '#0ECB81' : '#F6465D',
+                      }}
+                    >
+                      {positionSideLabel(copyResultModal.positionSide)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs" style={{ color: '#848E9C' }}>成交数量</span>
+                    <span className="text-sm font-bold tabular-nums" style={{ color: '#EAECEF' }}>
+                      {copyResultModal.qty != null
+                        ? `${copyResultModal.qty.toFixed(4)} ${copyResultModal.qtyUnit || ''}`
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs" style={{ color: '#848E9C' }}>成交价格</span>
+                    <span className="text-sm font-bold tabular-nums" style={{ color: '#EAECEF' }}>
+                      {copyResultModal.price != null
+                        ? `$${copyResultModal.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+                        : '—'}
+                    </span>
+                  </div>
+                  {copyResultModal.qty != null &&
+                    copyResultModal.price != null &&
+                    copyResultModal.qty > 0 && (
+                      <div
+                        className="flex items-center justify-between pt-2 border-t"
+                        style={{ borderColor: '#2B3139' }}
+                      >
+                        <span className="text-xs" style={{ color: '#848E9C' }}>名义价值</span>
+                        <span className="text-sm font-semibold tabular-nums" style={{ color: '#38BDF8' }}>
+                          ≈ {(copyResultModal.qty * copyResultModal.price).toFixed(2)} USDT
+                        </span>
+                      </div>
+                    )}
+                </div>
+              ) : (
+                <div
+                  className="rounded-lg p-3 text-sm leading-relaxed"
+                  style={{
+                    background: 'rgba(246,70,93,0.08)',
+                    border: '1px solid rgba(246,70,93,0.2)',
+                    color: '#F6465D',
+                  }}
+                >
+                  {copyResultModal.error || '未知错误'}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                {copyResultModal.success && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCopyResultModal(initialCopyResultModal)
+                      navigate('/copy-trade')
+                    }}
+                    className="flex-1 py-2.5 rounded-lg text-sm font-semibold"
+                    style={{ background: '#2B3139', color: '#EAECEF' }}
+                  >
+                    查看跟单记录
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setCopyResultModal(initialCopyResultModal)}
+                  className="flex-1 py-2.5 rounded-lg text-sm font-semibold"
+                  style={{
+                    background: copyResultModal.success ? '#F0B90B' : '#2B3139',
+                    color: copyResultModal.success ? '#0B0E11' : '#EAECEF',
+                  }}
+                >
+                  {copyResultModal.success ? '完成' : '关闭'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

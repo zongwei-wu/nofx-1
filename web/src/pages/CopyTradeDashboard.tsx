@@ -4,7 +4,7 @@ import { useLanguage } from '../contexts/LanguageContext'
 import { useSymbolPreferences } from '../contexts/SymbolPreferencesContext'
 import { httpClient } from '../lib/httpClient'
 import { api } from '../lib/api'
-import type { TraderInfo } from '../types'
+import type { Position, TraderInfo } from '../types'
 import { CopyTradeMonitorTab } from '../components/copy-trade/CopyTradeMonitorTab'
 import { CopyTradeCoinPnLChart } from '../components/copy-trade/CopyTradeCoinPnLChart'
 import { CopyTradePnLList } from '../components/copy-trade/CopyTradePnLList'
@@ -66,6 +66,7 @@ export function CopyTradeDashboard() {
   const navigate = useNavigate()
   const [configs, setConfigs] = useState<CopyConfig[]>([])
   const [records, setRecords] = useState<CopyRecord[]>([])
+  const [exchangePositions, setExchangePositions] = useState<Position[]>([])
   const [leaderboard, setLeaderboard] = useState<LeaderboardTrader[]>([])
   const [aiTraders, setAiTraders] = useState<TraderInfo[]>([])
   const [copyTradeSettings, setCopyTradeSettings] = useState<CopyTradeSettings>({ ai_trader_id: '' })
@@ -123,10 +124,17 @@ export function CopyTradeDashboard() {
         }
       }
 
-      const [settingsRes, tradersList] = await Promise.all([
+      const [settingsRes, tradersList, positionsRes] = await Promise.all([
         httpClient.get('/api/copy-trade/settings', headers),
         api.getTraders().catch(() => [] as TraderInfo[]),
+        httpClient.get('/api/copy-trade/exchange-positions', headers).catch(() => null),
       ])
+      if (positionsRes?.ok) {
+        const posData = await positionsRes.json()
+        setExchangePositions(Array.isArray(posData) ? posData : [])
+      } else {
+        setExchangePositions([])
+      }
       if (settingsRes.ok) {
         setCopyTradeSettings(await settingsRes.json())
       }
@@ -230,18 +238,25 @@ export function CopyTradeDashboard() {
     return sortSymbols(raw)
   }, [safeRecords, sortSymbols])
 
-  const chartPositionOverlays = useMemo(
-    () =>
-      aggregateOpenPositions(safeRecords).map((r) => ({
-        symbol: r.symbol,
-        position_side: r.position_side,
-        entry_price: r.avg_price,
-        unrealized_pnl: r.total_pnl,
-        qty: r.executed_qty,
-        label: r.nickname,
-      })),
-    [safeRecords]
-  )
+  const chartPositionOverlays = useMemo(() => {
+    if (exchangePositions.length > 0) {
+      return exchangePositions.map((p) => ({
+        symbol: p.symbol,
+        position_side: p.side,
+        entry_price: p.entry_price,
+        unrealized_pnl: p.unrealized_pnl,
+        qty: Math.abs(p.quantity),
+      }))
+    }
+    return aggregateOpenPositions(safeRecords).map((r) => ({
+      symbol: r.symbol,
+      position_side: r.position_side,
+      entry_price: r.avg_price,
+      unrealized_pnl: r.total_pnl,
+      qty: r.executed_qty,
+      label: r.nickname,
+    }))
+  }, [exchangePositions, safeRecords])
 
   const { monitored: monitoredTraders, unmonitored: unmonitoredTraders } = useMemo(
     () => partitionTradersForDashboard(leaderboard, safeConfigs),
@@ -665,7 +680,7 @@ export function CopyTradeDashboard() {
                 币种价格与跟单事件
               </div>
               <div className="text-xs mb-4" style={{ color: '#5E6673' }}>
-                含跟单记录与带单员订单推断的开/加/减/平 · 与 AI 看板「本账户成交 / AI 跟单成交」数据源不同
+                含跟单记录与带单员订单推断的开/加/减/平 · 成本线为交易所实时持仓入场价
               </div>
               <ChartErrorBoundary>
                 <TradeEventPriceChart
