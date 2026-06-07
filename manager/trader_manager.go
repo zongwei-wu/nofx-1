@@ -222,6 +222,7 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		BinanceSecretKey:      "",
 		HyperliquidPrivateKey: "",
 		BinanceTestnet:        exchangeCfg.ID == "binance" && exchangeCfg.Testnet,
+		OKXTestnet:            exchangeCfg.ID == "okx" && exchangeCfg.Testnet,
 		HyperliquidTestnet:    exchangeCfg.ID == "hyperliquid" && exchangeCfg.Testnet,
 		CoinPoolAPIURL:        effectiveCoinPoolURL,
 		UseQwen:               aiModelCfg.Provider == "qwen",
@@ -253,6 +254,11 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		traderConfig.AsterUser = exchangeCfg.AsterUser
 		traderConfig.AsterSigner = exchangeCfg.AsterSigner
 		traderConfig.AsterPrivateKey = exchangeCfg.AsterPrivateKey
+	} else if exchangeCfg.ID == "okx" {
+		traderConfig.OKXAPIKey = exchangeCfg.APIKey
+		traderConfig.OKXSecretKey = exchangeCfg.SecretKey
+		traderConfig.OKXPassphrase = exchangeCfg.Passphrase
+		traderConfig.OKXTestnet = exchangeCfg.Testnet
 	}
 
 	// 根据AI模型设置API密钥
@@ -330,6 +336,7 @@ func (tm *TraderManager) AddTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		BinanceSecretKey:      "",
 		HyperliquidPrivateKey: "",
 		BinanceTestnet:        exchangeCfg.ID == "binance" && exchangeCfg.Testnet,
+		OKXTestnet:            exchangeCfg.ID == "okx" && exchangeCfg.Testnet,
 		HyperliquidTestnet:    exchangeCfg.ID == "hyperliquid" && exchangeCfg.Testnet,
 		CoinPoolAPIURL:        effectiveCoinPoolURL,
 		UseQwen:               aiModelCfg.Provider == "qwen",
@@ -360,6 +367,11 @@ func (tm *TraderManager) AddTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		traderConfig.AsterUser = exchangeCfg.AsterUser
 		traderConfig.AsterSigner = exchangeCfg.AsterSigner
 		traderConfig.AsterPrivateKey = exchangeCfg.AsterPrivateKey
+	} else if exchangeCfg.ID == "okx" {
+		traderConfig.OKXAPIKey = exchangeCfg.APIKey
+		traderConfig.OKXSecretKey = exchangeCfg.SecretKey
+		traderConfig.OKXPassphrase = exchangeCfg.Passphrase
+		traderConfig.OKXTestnet = exchangeCfg.Testnet
 	}
 
 	// 根据AI模型设置API密钥
@@ -1065,6 +1077,7 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 		TradingCoins:         tradingCoins,
 		SystemPromptTemplate: traderCfg.SystemPromptTemplate, // 系统提示词模板
 		BinanceTestnet:       exchangeCfg.ID == "binance" && exchangeCfg.Testnet,
+		OKXTestnet:           exchangeCfg.ID == "okx" && exchangeCfg.Testnet,
 		HyperliquidTestnet:   exchangeCfg.ID == "hyperliquid" && exchangeCfg.Testnet,
 	}
 
@@ -1079,6 +1092,11 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 		traderConfig.AsterUser = exchangeCfg.AsterUser
 		traderConfig.AsterSigner = exchangeCfg.AsterSigner
 		traderConfig.AsterPrivateKey = exchangeCfg.AsterPrivateKey
+	} else if exchangeCfg.ID == "okx" {
+		traderConfig.OKXAPIKey = exchangeCfg.APIKey
+		traderConfig.OKXSecretKey = exchangeCfg.SecretKey
+		traderConfig.OKXPassphrase = exchangeCfg.Passphrase
+		traderConfig.OKXTestnet = exchangeCfg.Testnet
 	}
 
 	// 根据AI模型设置API密钥

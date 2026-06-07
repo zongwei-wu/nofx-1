@@ -30,7 +30,8 @@ interface ExchangeConfigModalProps {
     hyperliquidWalletAddr?: string,
     asterUser?: string,
     asterSigner?: string,
-    asterPrivateKey?: string
+    asterPrivateKey?: string,
+    passphrase?: string
   ) => Promise<void>
   onDelete: (exchangeId: string) => void
   onClose: () => void
@@ -227,7 +228,6 @@ export function ExchangeConfigModal({
 
   const canTestConnection = (): boolean => {
     if (!selectedExchange) return false
-    if (selectedExchange.id === 'okx') return false
 
     if (selectedExchange.id === 'binance') {
       // API Key 与 Secret 必须成对使用，避免新 Key 搭配旧 Secret 导致 -1022
@@ -245,6 +245,15 @@ export function ExchangeConfigModal({
         hasPrivateKey
       )
     }
+    if (selectedExchange.id === 'okx') {
+      const hasPassphrase =
+        Boolean(passphrase.trim()) || hasSavedCredentials
+      return (
+        Boolean(apiKey.trim()) &&
+        Boolean(secretKey.trim()) &&
+        hasPassphrase
+      )
+    }
     return Boolean(apiKey.trim()) && Boolean(secretKey.trim())
   }
 
@@ -260,18 +269,12 @@ export function ExchangeConfigModal({
       aster_user: asterUser.trim(),
       aster_signer: asterSigner.trim(),
       aster_private_key: asterPrivateKey.trim(),
+      passphrase: passphrase.trim(),
     }
   }
 
   const handleTestConnection = async () => {
     if (!selectedExchange) return
-
-    if (selectedExchange.id === 'okx') {
-      const msg = t('exchangeTestNotSupported', language)
-      setTestResult({ ok: false, message: msg })
-      toast.error(msg)
-      return
-    }
 
     if (!canTestConnection()) {
       const msg =
@@ -350,7 +353,17 @@ export function ExchangeConfigModal({
       )
     } else if (selectedExchange?.id === 'okx') {
       if (!apiKey.trim() || !secretKey.trim() || !passphrase.trim()) return
-      await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet)
+      await onSave(
+        selectedExchangeId,
+        apiKey.trim(),
+        secretKey.trim(),
+        testnet,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        passphrase.trim()
+      )
     } else {
       // 默认情况（其他CEX交易所）
       if (!apiKey.trim() || !secretKey.trim()) return

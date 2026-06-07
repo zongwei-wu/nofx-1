@@ -528,6 +528,7 @@ type UpdateExchangeConfigRequest struct {
 		AsterUser             string `json:"aster_user"`
 		AsterSigner           string `json:"aster_signer"`
 		AsterPrivateKey       string `json:"aster_private_key"`
+		Passphrase            string `json:"passphrase"`
 	} `json:"exchanges"`
 }
 
@@ -647,6 +648,13 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 				exchangeCfg.AsterUser,
 				exchangeCfg.AsterSigner,
 				exchangeCfg.AsterPrivateKey,
+			)
+		case "okx":
+			tempTrader, createErr = trader.NewOKXTrader(
+				exchangeCfg.APIKey,
+				exchangeCfg.SecretKey,
+				exchangeCfg.Passphrase,
+				exchangeCfg.Testnet,
 			)
 		default:
 			log.Printf("⚠️ 不支持的交易所类型: %s，使用用户输入的初始资金", req.ExchangeID)
@@ -1175,7 +1183,7 @@ func (s *Server) handleUpdateExchangeConfigs(c *gin.Context) {
 
 	// 更新每个交易所的配置
 	for exchangeID, exchangeData := range req.Exchanges {
-		err := s.database.UpdateExchange(userID, exchangeID, exchangeData.Enabled, exchangeData.APIKey, exchangeData.SecretKey, exchangeData.Testnet, exchangeData.HyperliquidWalletAddr, exchangeData.AsterUser, exchangeData.AsterSigner, exchangeData.AsterPrivateKey)
+		err := s.database.UpdateExchange(userID, exchangeID, exchangeData.Enabled, exchangeData.APIKey, exchangeData.SecretKey, exchangeData.Testnet, exchangeData.HyperliquidWalletAddr, exchangeData.AsterUser, exchangeData.AsterSigner, exchangeData.AsterPrivateKey, exchangeData.Passphrase)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("更新交易所 %s 失败: %v", exchangeID, err)})
 			return
@@ -2176,21 +2184,9 @@ func (s *Server) runAutoFollowForUser(userID string, isFirstRun bool) {
 		s.finishCopyTradeRun(runID, runStatusFromCounters(counters), counters, formatRunMessage(counters))
 	}()
 
-	exchanges, err := s.database.GetExchanges(userID)
-	if err != nil || len(exchanges) == 0 {
-		s.insertCopyTradeRunEvent(runID, userID, "", "", "", "no_exchange", "", "", "NONE", "未配置交易所", 0)
-		counters.failed++
-		return
-	}
-	var exchangeCfg *config.ExchangeConfig
-	for _, ex := range exchanges {
-		if ex.ID == "binance" && ex.Enabled {
-			exchangeCfg = ex
-			break
-		}
-	}
-	if exchangeCfg == nil {
-		s.insertCopyTradeRunEvent(runID, userID, "", "", "", "no_exchange", "", "", "NONE", "未启用币安交易所", 0)
+	exchangeCfg, err := s.getExecutionExchangeForUser(userID)
+	if err != nil {
+		s.insertCopyTradeRunEvent(runID, userID, "", "", "", "no_exchange", "", "", "NONE", err.Error(), 0)
 		counters.failed++
 		return
 	}
@@ -2203,7 +2199,13 @@ func (s *Server) runAutoFollowForUser(userID string, isFirstRun bool) {
 	}
 	aiCfg := aiResult.AICfg
 
-	fTrader := trader.NewFuturesTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, userID, exchangeCfg.Testnet)
+	fTrader, err := createTraderForExchange(userID, exchangeCfg)
+	if err != nil {
+		s.insertCopyTradeRunEvent(runID, userID, "", "", "", "no_exchange", "", "", "NONE", err.Error(), 0)
+		counters.failed++
+		return
+	}
+	qtyConverter := asContractQtyConverter(fTrader)
 
 	cfgRows, err := s.database.DB().Query(`
 		SELECT id, portfolio_id, nickname, max_copy_size, size_multiplier, copy_open_only, last_order_time
@@ -2343,7 +2345,7 @@ func (s *Server) runAutoFollowForUser(userID string, isFirstRun bool) {
 				continue
 			}
 
-			leadBaseQty, _ := leadContractsToBaseQty(fTrader, symbol, order.ExecutedQty)
+			leadBaseQty, _ := leadContractsToBaseQty(qtyConverter, symbol, order.ExecutedQty)
 			qty := leadBaseQty * sizeMultiplier
 			if maxCopySize > 0 && qty*order.AvgPrice > maxCopySize {
 				qty = maxCopySize / order.AvgPrice
@@ -2376,8 +2378,8 @@ func (s *Server) runAutoFollowForUser(userID string, isFirstRun bool) {
 			accountCtx := fetchCopyTradeAIAccountContext(fTrader)
 			marketSection := fetchCopyTradeAIMarketSection(symbol)
 			prompt := buildCopyTradeRiskPrompt(accountCtx, marketSection, copyTradePromptParams(
-				symbol, dir, nickname, order.AvgPrice, order.ExecutedQty, fTrader,
-			))
+				symbol, dir, nickname, order.AvgPrice, order.ExecutedQty, qtyConverter,
+			), exchangeCfg.ID)
 
 			resp, aiErr := mcpClient.CallWithMessages("你是一个加密合约风控分析师。结合最新K线与账户资产输出JSON。", prompt)
 			aiQty := qty
@@ -2417,7 +2419,7 @@ func (s *Server) runAutoFollowForUser(userID string, isFirstRun bool) {
 					aiSuggestion = parsedAI.Suggestion
 					if parsedAI.RecommendedQty > 0 || parsedAI.RecommendedRatio > 0 {
 						aiQty = resolveCopyRecommendedQty(
-							fTrader, symbol, order.ExecutedQty,
+							qtyConverter, symbol, order.ExecutedQty,
 							parsedAI.RecommendedQty, parsedAI.RecommendedRatio, sizeMultiplier,
 						)
 					}
@@ -3066,27 +3068,17 @@ func (s *Server) handleSyncCopyTrade(c *gin.Context) {
 	}()
 	userID := c.GetString("user_id")
 
-	// 获取用户交易所配置 - 查找binance
-	exchanges, err := s.database.GetExchanges(userID)
-	if err != nil || len(exchanges) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请先配置交易所"})
+	exchangeCfg, err := s.getExecutionExchangeForUser(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 找到启用的binance交易所
-	var exchangeCfg *config.ExchangeConfig
-	for _, ex := range exchanges {
-		if ex.ID == "binance" && ex.Enabled {
-			exchangeCfg = ex
-			break
-		}
+	apiKeyPreview := exchangeCfg.APIKey
+	if len(apiKeyPreview) > 8 {
+		apiKeyPreview = apiKeyPreview[:8]
 	}
-	if exchangeCfg == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请先启用币安交易所"})
-		return
-	}
-
-	log.Printf("🔍 [跟单] Binance交易所已找到, APIKey=%s... testnet=%v", exchangeCfg.APIKey[:8], exchangeCfg.Testnet)
+	log.Printf("🔍 [跟单] 执行交易所 %s 已找到, APIKey=%s... testnet=%v", exchangeCfg.ID, apiKeyPreview, exchangeCfg.Testnet)
 
 	// 读取跟单配置
 	rows, err := s.database.DB().Query(`
@@ -3127,8 +3119,12 @@ func (s *Server) handleSyncCopyTrade(c *gin.Context) {
 		return
 	}
 
-	// 创建币安交易器用于实际下单
-	fTrader := trader.NewFuturesTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, userID, exchangeCfg.Testnet)
+	fTrader, err := createTraderForExchange(userID, exchangeCfg)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	qtyConverter := asContractQtyConverter(fTrader)
 
 	runID, _ := s.startCopyTradeRun(userID, "manual")
 	syncCounters := copyTradeRunCounters{}
@@ -3215,7 +3211,7 @@ func (s *Server) handleSyncCopyTrade(c *gin.Context) {
 			}
 
 			// 计算跟单数量（带单张数 → 标的币数量）
-			leadBaseQty, _ := leadContractsToBaseQty(fTrader, order.Symbol, order.ExecutedQty)
+			leadBaseQty, _ := leadContractsToBaseQty(qtyConverter, order.Symbol, order.ExecutedQty)
 			qty := leadBaseQty * cfg.SizeMultiplier
 			if cfg.MaxCopySize > 0 && qty*order.AvgPrice > cfg.MaxCopySize {
 				qty = cfg.MaxCopySize / order.AvgPrice
@@ -3435,25 +3431,18 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 		tradePosSide = "SHORT" // BOTH+SELL=开空
 	}
 
-	// 获取交易所配置
-	exchanges, err := s.database.GetExchanges(userID)
-	if err != nil || len(exchanges) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请先配置交易所"})
-		return
-	}
-	var exchangeCfg *config.ExchangeConfig
-	for _, ex := range exchanges {
-		if ex.ID == "binance" && ex.Enabled {
-			exchangeCfg = ex
-			break
-		}
-	}
-	if exchangeCfg == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请先启用币安交易所"})
+	exchangeCfg, err := s.getExecutionExchangeForUser(userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	fTrader := trader.NewFuturesTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, userID, exchangeCfg.Testnet)
+	fTrader, err := createTraderForExchange(userID, exchangeCfg)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	qtyConverter := asContractQtyConverter(fTrader)
 	leadOp := leadActionDisplay(req.PositionSide, req.Side)
 
 	copyAI, copyAIErr := s.resolveCopyTradeAI(userID)
@@ -3543,7 +3532,7 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 		aiAnalysis = copyAIErr.Error()
 	}
 	leadContracts := req.ExecutedQty
-	leadBaseQty, _ := leadContractsToBaseQty(fTrader, req.Symbol, leadContracts)
+	leadBaseQty, _ := leadContractsToBaseQty(qtyConverter, req.Symbol, leadContracts)
 	baseAsset := symbolBaseAsset(req.Symbol)
 	recommendedQty := leadBaseQty * 0.1
 
@@ -3580,8 +3569,8 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 		accountCtx := fetchCopyTradeAIAccountContext(fTrader)
 		marketSection := fetchCopyTradeAIMarketSection(req.Symbol)
 		inputPrompt = buildCopyTradeRiskPromptDetailed(accountCtx, marketSection, copyTradePromptParams(
-			req.Symbol, dir, req.Nickname, req.AvgPrice, leadContracts, fTrader,
-		))
+			req.Symbol, dir, req.Nickname, req.AvgPrice, leadContracts, qtyConverter,
+		), exchangeCfg.ID)
 
 		systemPrompt := "你是一个专业的加密合约交易风控分析师，请结合最新K线与账户资产给出合理的跟单仓位建议。回答要简洁专业。"
 
@@ -3636,7 +3625,7 @@ func (s *Server) handleCopyOrder(c *gin.Context) {
 						aiAnalysis = parsedAI.Suggestion + "\n" + parsedAI.Reasoning
 					}
 					recommendedQty = resolveCopyRecommendedQty(
-						fTrader, req.Symbol, leadContracts,
+						qtyConverter, req.Symbol, leadContracts,
 						parsedAI.RecommendedQty, parsedAI.RecommendedRatio, 0.1,
 					)
 					actionTaken = "pending_confirm"

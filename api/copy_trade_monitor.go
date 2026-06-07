@@ -427,7 +427,7 @@ func (s *Server) getBinanceExchangeForUser(userID string) (*config.ExchangeConfi
 	return nil, fmt.Errorf("请先启用币安交易所")
 }
 
-func (s *Server) refreshCopyTradeUnrealizedPnL(userID string, fTrader *trader.FuturesTrader) (*copyTradePnLRefreshResult, error) {
+func (s *Server) refreshCopyTradeUnrealizedPnL(userID string, fTrader trader.Trader) (*copyTradePnLRefreshResult, error) {
 	positions, err := fTrader.GetPositions()
 	if err != nil {
 		return nil, fmt.Errorf("获取持仓失败: %w", err)
@@ -490,12 +490,16 @@ func (s *Server) refreshCopyTradeUnrealizedPnL(userID string, fTrader *trader.Fu
 
 func (s *Server) handleRefreshCopyTradePnL(c *gin.Context) {
 	userID := c.GetString("user_id")
-	exchangeCfg, err := s.getBinanceExchangeForUser(userID)
+	exchangeCfg, err := s.getExecutionExchangeForUser(userID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	fTrader := trader.NewFuturesTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, userID, exchangeCfg.Testnet)
+	fTrader, err := createTraderForExchange(userID, exchangeCfg)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	result, err := s.refreshCopyTradeUnrealizedPnL(userID, fTrader)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

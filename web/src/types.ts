@@ -174,6 +174,7 @@ export interface UpdateExchangeConfigRequest {
       aster_user?: string
       aster_signer?: string
       aster_private_key?: string
+      passphrase?: string
     }
   }
 }
@@ -187,6 +188,7 @@ export interface TestExchangeConnectionRequest {
   aster_user?: string
   aster_signer?: string
   aster_private_key?: string
+  passphrase?: string
 }
 
 export interface TestExchangeConnectionResponse {

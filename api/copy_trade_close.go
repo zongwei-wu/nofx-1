@@ -81,7 +81,7 @@ func (s *Server) closeCopyTradeRecords(userID, portfolioID, symbol, positionSide
 }
 
 func (s *Server) processCopyTradeClose(
-	fTrader *trader.FuturesTrader,
+	fTrader trader.Trader,
 	userID, portfolioID, nickname string,
 	runID int64,
 	order copyCloseOrder,

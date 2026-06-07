@@ -25,7 +25,7 @@ func TestCopyTradeSettingsCRUD(t *testing.T) {
 		t.Fatalf("expected empty ai_trader_id, got %q", settings.AITraderID)
 	}
 
-	if err := db.UpsertCopyTradeSettings(userID, "trader-abc"); err != nil {
+	if err := db.UpsertCopyTradeSettings(userID, "trader-abc", ""); err != nil {
 		t.Fatal(err)
 	}
 	settings, err = db.GetCopyTradeSettings(userID)
@@ -36,7 +36,7 @@ func TestCopyTradeSettingsCRUD(t *testing.T) {
 		t.Fatalf("expected trader-abc, got %q", settings.AITraderID)
 	}
 
-	if err := db.UpsertCopyTradeSettings(userID, ""); err != nil {
+	if err := db.UpsertCopyTradeSettings(userID, "", ""); err != nil {
 		t.Fatal(err)
 	}
 	settings, err = db.GetCopyTradeSettings(userID)

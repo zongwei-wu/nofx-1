@@ -56,6 +56,7 @@ type RecordsStatusTab = 'OPEN' | 'CLOSED' | 'FAILED'
 
 interface CopyTradeSettings {
   ai_trader_id: string
+  execution_exchange_id?: string
   ai_trader_name?: string
   ai_model_name?: string
   fallback_used?: boolean
@@ -69,8 +70,12 @@ export function CopyTradeDashboard() {
   const [exchangePositions, setExchangePositions] = useState<Position[]>([])
   const [leaderboard, setLeaderboard] = useState<LeaderboardTrader[]>([])
   const [aiTraders, setAiTraders] = useState<TraderInfo[]>([])
-  const [copyTradeSettings, setCopyTradeSettings] = useState<CopyTradeSettings>({ ai_trader_id: '' })
+  const [copyTradeSettings, setCopyTradeSettings] = useState<CopyTradeSettings>({
+    ai_trader_id: '',
+    execution_exchange_id: '',
+  })
   const [savingAiTrader, setSavingAiTrader] = useState(false)
+  const [savingExecutionExchange, setSavingExecutionExchange] = useState(false)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [refreshingPnl, setRefreshingPnl] = useState(false)
@@ -300,7 +305,10 @@ export function CopyTradeDashboard() {
   const handleSaveAiTrader = async (aiTraderId: string) => {
     setSavingAiTrader(true)
     try {
-      await api.updateCopyTradeSettings(aiTraderId)
+      await api.updateCopyTradeSettings(
+        aiTraderId,
+        copyTradeSettings.execution_exchange_id || ''
+      )
       const settings = await api.getCopyTradeSettings()
       setCopyTradeSettings(settings)
       setMessage(aiTraderId ? 'AI 交易员设置已保存' : '已清除 AI 交易员设置，将使用默认模型')
@@ -308,6 +316,27 @@ export function CopyTradeDashboard() {
       setMessage('保存失败: ' + (e.message || '未知错误'))
     } finally {
       setSavingAiTrader(false)
+    }
+  }
+
+  const handleSaveExecutionExchange = async (executionExchangeId: string) => {
+    setSavingExecutionExchange(true)
+    try {
+      await api.updateCopyTradeSettings(
+        copyTradeSettings.ai_trader_id || '',
+        executionExchangeId
+      )
+      const settings = await api.getCopyTradeSettings()
+      setCopyTradeSettings(settings)
+      setMessage(
+        executionExchangeId
+          ? `跟单执行交易所已设为 ${executionExchangeId === 'okx' ? 'OKX' : '币安'}`
+          : '已恢复默认执行交易所（优先币安）'
+      )
+    } catch (e: any) {
+      setMessage('保存失败: ' + (e.message || '未知错误'))
+    } finally {
+      setSavingExecutionExchange(false)
     }
   }
 
@@ -404,6 +433,23 @@ export function CopyTradeDashboard() {
                 )}
               </div>
             )}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <span style={{ color: '#848E9C' }}>跟单执行交易所</span>
+              <select
+                value={copyTradeSettings.execution_exchange_id || ''}
+                disabled={savingExecutionExchange}
+                onChange={(e) => handleSaveExecutionExchange(e.target.value)}
+                className="flex-1 min-w-[200px] px-3 py-2 rounded text-sm"
+                style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }}
+              >
+                <option value="">默认（优先币安）</option>
+                <option value="binance">币安合约</option>
+                <option value="okx">OKX 合约</option>
+              </select>
+              {savingExecutionExchange && (
+                <span style={{ color: '#F0B90B' }}>保存中…</span>
+              )}
+            </div>
             {copyTradeSettings.ai_trader_id && copyTradeSettings.ai_model_name && (
               <p style={{ color: '#5E6673' }}>
                 当前模型：{copyTradeSettings.ai_model_name}

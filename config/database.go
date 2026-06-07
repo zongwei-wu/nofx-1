@@ -29,9 +29,9 @@ type DatabaseInterface interface {
 	GetAIModels(userID string) ([]*AIModelConfig, error)
 	UpdateAIModel(userID, id string, enabled bool, apiKey, customAPIURL, customModelName string) error
 	GetExchanges(userID string) ([]*ExchangeConfig, error)
-	UpdateExchange(userID, id string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey string) error
+	UpdateExchange(userID, id string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey, passphrase string) error
 	CreateAIModel(userID, id, name, provider string, enabled bool, apiKey, customAPIURL string) error
-	CreateExchange(userID, id, name, typ string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey string) error
+	CreateExchange(userID, id, name, typ string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey, passphrase string) error
 	CreateTrader(trader *TraderRecord) error
 	GetTraders(userID string) ([]*TraderRecord, error)
 	UpdateTraderStatus(userID, id string, isRunning bool) error
@@ -49,7 +49,7 @@ type DatabaseInterface interface {
 	GetUserSymbolPreferences(userID string) (*UserSymbolPreferences, error)
 	UpsertUserSymbolPreferences(userID string, symbols []string, useCustomOrder bool, starredSymbols []string) error
 	GetCopyTradeSettings(userID string) (*CopyTradeSettings, error)
-	UpsertCopyTradeSettings(userID, aiTraderID string) error
+	UpsertCopyTradeSettings(userID, aiTraderID, executionExchangeID string) error
 	LoadBetaCodesFromFile(filePath string) error
 	ValidateBetaCode(code string) (bool, error)
 	UseBetaCode(code, userEmail string) error
@@ -158,6 +158,7 @@ func (d *Database) createTables() error {
 			aster_user TEXT DEFAULT '',
 			aster_signer TEXT DEFAULT '',
 			aster_private_key TEXT DEFAULT '',
+			passphrase TEXT DEFAULT '',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -274,6 +275,8 @@ func (d *Database) createTables() error {
 		`ALTER TABLE exchanges ADD COLUMN aster_user TEXT DEFAULT ''`,
 		`ALTER TABLE exchanges ADD COLUMN aster_signer TEXT DEFAULT ''`,
 		`ALTER TABLE exchanges ADD COLUMN aster_private_key TEXT DEFAULT ''`,
+		`ALTER TABLE exchanges ADD COLUMN passphrase TEXT DEFAULT ''`,
+		`ALTER TABLE copy_trade_settings ADD COLUMN execution_exchange_id TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE traders ADD COLUMN custom_prompt TEXT DEFAULT ''`,
 		`ALTER TABLE traders ADD COLUMN override_base_prompt BOOLEAN DEFAULT 0`,
 		`ALTER TABLE traders ADD COLUMN is_cross_margin BOOLEAN DEFAULT 1`,             // 默认为全仓模式
@@ -417,6 +420,7 @@ func (d *Database) createTables() error {
 	d.db.Exec(`CREATE TABLE IF NOT EXISTS copy_trade_settings (
 		user_id TEXT PRIMARY KEY,
 		ai_trader_id TEXT NOT NULL DEFAULT '',
+		execution_exchange_id TEXT NOT NULL DEFAULT '',
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 
@@ -450,6 +454,7 @@ func (d *Database) initDefaultData() error {
 		{"binance", "Binance Futures", "binance"},
 		{"hyperliquid", "Hyperliquid", "hyperliquid"},
 		{"aster", "Aster DEX", "aster"},
+		{"okx", "OKX Futures", "okx"},
 	}
 
 	for _, exchange := range exchanges {
@@ -524,6 +529,7 @@ func (d *Database) migrateExchangesTable() error {
 			aster_user TEXT DEFAULT '',
 			aster_signer TEXT DEFAULT '',
 			aster_private_key TEXT DEFAULT '',
+			passphrase TEXT DEFAULT '',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (id, user_id),
@@ -534,10 +540,22 @@ func (d *Database) migrateExchangesTable() error {
 		return fmt.Errorf("创建新exchanges表失败: %w", err)
 	}
 
-	// 复制数据到新表
+	// 复制数据到新表（显式列映射，兼容 passphrase 等新字段）
 	_, err = d.db.Exec(`
-		INSERT INTO exchanges_new 
-		SELECT * FROM exchanges
+		INSERT INTO exchanges_new (
+			id, user_id, name, type, enabled, api_key, secret_key, testnet,
+			hyperliquid_wallet_addr, aster_user, aster_signer, aster_private_key, passphrase,
+			created_at, updated_at
+		)
+		SELECT
+			id, user_id, name, type, enabled, api_key, secret_key, testnet,
+			COALESCE(hyperliquid_wallet_addr, ''),
+			COALESCE(aster_user, ''),
+			COALESCE(aster_signer, ''),
+			COALESCE(aster_private_key, ''),
+			COALESCE(passphrase, ''),
+			created_at, updated_at
+		FROM exchanges
 	`)
 	if err != nil {
 		return fmt.Errorf("复制数据失败: %w", err)
@@ -622,6 +640,7 @@ type ExchangeConfig struct {
 	AsterUser       string    `json:"asterUser"`
 	AsterSigner     string    `json:"asterSigner"`
 	AsterPrivateKey string    `json:"asterPrivateKey"`
+	Passphrase      string    `json:"passphrase"` // OKX Passphrase
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }
@@ -651,9 +670,10 @@ type TraderRecord struct {
 
 // CopyTradeSettings 跟单全局设置
 type CopyTradeSettings struct {
-	UserID     string    `json:"user_id"`
-	AITraderID string    `json:"ai_trader_id"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	UserID                string    `json:"user_id"`
+	AITraderID            string    `json:"ai_trader_id"`
+	ExecutionExchangeID   string    `json:"execution_exchange_id"`
+	UpdatedAt             time.Time `json:"updated_at"`
 }
 
 // UserSymbolPreferences 用户币种排序偏好
@@ -1113,6 +1133,7 @@ func (d *Database) GetExchanges(userID string) ([]*ExchangeConfig, error) {
 		       COALESCE(aster_user, '') as aster_user,
 		       COALESCE(aster_signer, '') as aster_signer,
 		       COALESCE(aster_private_key, '') as aster_private_key,
+		       COALESCE(passphrase, '') as passphrase,
 		       created_at, updated_at 
 		FROM exchanges WHERE user_id = ? ORDER BY id
 	`, userID)
@@ -1129,7 +1150,7 @@ func (d *Database) GetExchanges(userID string) ([]*ExchangeConfig, error) {
 			&exchange.ID, &exchange.UserID, &exchange.Name, &exchange.Type,
 			&exchange.Enabled, &exchange.APIKey, &exchange.SecretKey, &exchange.Testnet,
 			&exchange.HyperliquidWalletAddr, &exchange.AsterUser,
-			&exchange.AsterSigner, &exchange.AsterPrivateKey,
+			&exchange.AsterSigner, &exchange.AsterPrivateKey, &exchange.Passphrase,
 			&exchange.CreatedAt, &exchange.UpdatedAt,
 		)
 		if err != nil {
@@ -1140,6 +1161,7 @@ func (d *Database) GetExchanges(userID string) ([]*ExchangeConfig, error) {
 		exchange.APIKey = d.decryptSensitiveData(exchange.APIKey)
 		exchange.SecretKey = d.decryptSensitiveData(exchange.SecretKey)
 		exchange.AsterPrivateKey = d.decryptSensitiveData(exchange.AsterPrivateKey)
+		exchange.Passphrase = d.decryptSensitiveData(exchange.Passphrase)
 
 		exchanges = append(exchanges, &exchange)
 	}
@@ -1149,7 +1171,7 @@ func (d *Database) GetExchanges(userID string) ([]*ExchangeConfig, error) {
 
 // UpdateExchange 更新交易所配置，如果不存在则创建用户特定配置
 // 🔒 安全特性：空值不会覆盖现有的敏感字段（api_key, secret_key, aster_private_key）
-func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey string) error {
+func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey, passphrase string) error {
 	log.Printf("🔧 UpdateExchange: userID=%s, id=%s, enabled=%v", userID, id, enabled)
 
 	// 构建动态 UPDATE SET 子句
@@ -1181,6 +1203,12 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 		encryptedAsterPrivateKey := d.encryptSensitiveData(asterPrivateKey)
 		setClauses = append(setClauses, "aster_private_key = ?")
 		args = append(args, encryptedAsterPrivateKey)
+	}
+
+	if passphrase != "" {
+		encryptedPassphrase := d.encryptSensitiveData(passphrase)
+		setClauses = append(setClauses, "passphrase = ?")
+		args = append(args, encryptedPassphrase)
 	}
 
 	// WHERE 条件
@@ -1223,6 +1251,9 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 		} else if id == "aster" {
 			name = "Aster DEX"
 			typ = "dex"
+		} else if id == "okx" {
+			name = "OKX Futures"
+			typ = "cex"
 		} else {
 			name = id + " Exchange"
 			typ = "cex"
@@ -1231,11 +1262,15 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 		log.Printf("🆕 UpdateExchange: 创建新记录 ID=%s, name=%s, type=%s", id, name, typ)
 
 		// 创建用户特定的配置，使用原始的交易所ID
+		encAPIKey := d.encryptSensitiveData(apiKey)
+		encSecretKey := d.encryptSensitiveData(secretKey)
+		encAsterKey := d.encryptSensitiveData(asterPrivateKey)
+		encPassphrase := d.encryptSensitiveData(passphrase)
 		_, err = d.db.Exec(`
 			INSERT INTO exchanges (id, user_id, name, type, enabled, api_key, secret_key, testnet,
-			                       hyperliquid_wallet_addr, aster_user, aster_signer, aster_private_key, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-		`, id, userID, name, typ, enabled, apiKey, secretKey, testnet, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey)
+			                       hyperliquid_wallet_addr, aster_user, aster_signer, aster_private_key, passphrase, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+		`, id, userID, name, typ, enabled, encAPIKey, encSecretKey, testnet, hyperliquidWalletAddr, asterUser, asterSigner, encAsterKey, encPassphrase)
 
 		if err != nil {
 			log.Printf("❌ UpdateExchange: 创建记录失败: %v", err)
@@ -1259,16 +1294,17 @@ func (d *Database) CreateAIModel(userID, id, name, provider string, enabled bool
 }
 
 // CreateExchange 创建交易所配置
-func (d *Database) CreateExchange(userID, id, name, typ string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey string) error {
+func (d *Database) CreateExchange(userID, id, name, typ string, enabled bool, apiKey, secretKey string, testnet bool, hyperliquidWalletAddr, asterUser, asterSigner, asterPrivateKey, passphrase string) error {
 	// 加密敏感字段
 	encryptedAPIKey := d.encryptSensitiveData(apiKey)
 	encryptedSecretKey := d.encryptSensitiveData(secretKey)
 	encryptedAsterPrivateKey := d.encryptSensitiveData(asterPrivateKey)
+	encryptedPassphrase := d.encryptSensitiveData(passphrase)
 
 	_, err := d.db.Exec(`
-		INSERT OR IGNORE INTO exchanges (id, user_id, name, type, enabled, api_key, secret_key, testnet, hyperliquid_wallet_addr, aster_user, aster_signer, aster_private_key) 
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, id, userID, name, typ, enabled, encryptedAPIKey, encryptedSecretKey, testnet, hyperliquidWalletAddr, asterUser, asterSigner, encryptedAsterPrivateKey)
+		INSERT OR IGNORE INTO exchanges (id, user_id, name, type, enabled, api_key, secret_key, testnet, hyperliquid_wallet_addr, aster_user, aster_signer, aster_private_key, passphrase) 
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, id, userID, name, typ, enabled, encryptedAPIKey, encryptedSecretKey, testnet, hyperliquidWalletAddr, asterUser, asterSigner, encryptedAsterPrivateKey, encryptedPassphrase)
 	return err
 }
 
@@ -1388,6 +1424,7 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 			COALESCE(e.aster_user, '') as aster_user,
 			COALESCE(e.aster_signer, '') as aster_signer,
 			COALESCE(e.aster_private_key, '') as aster_private_key,
+			COALESCE(e.passphrase, '') as passphrase,
 			e.created_at, e.updated_at
 		FROM traders t
 		JOIN ai_models a ON t.ai_model_id = a.id AND t.user_id = a.user_id
@@ -1407,6 +1444,7 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 		&exchange.ID, &exchange.UserID, &exchange.Name, &exchange.Type, &exchange.Enabled,
 		&exchange.APIKey, &exchange.SecretKey, &exchange.Testnet,
 		&exchange.HyperliquidWalletAddr, &exchange.AsterUser, &exchange.AsterSigner, &exchange.AsterPrivateKey,
+		&exchange.Passphrase,
 		&exchange.CreatedAt, &exchange.UpdatedAt,
 	)
 
@@ -1419,6 +1457,7 @@ func (d *Database) GetTraderConfig(userID, traderID string) (*TraderRecord, *AIM
 	exchange.APIKey = d.decryptSensitiveData(exchange.APIKey)
 	exchange.SecretKey = d.decryptSensitiveData(exchange.SecretKey)
 	exchange.AsterPrivateKey = d.decryptSensitiveData(exchange.AsterPrivateKey)
+	exchange.Passphrase = d.decryptSensitiveData(exchange.Passphrase)
 
 	return &trader, &aiModel, &exchange, nil
 }
@@ -1503,37 +1542,40 @@ func (d *Database) GetCustomCoins() []string {
 
 // GetCopyTradeSettings 获取跟单全局设置
 func (d *Database) GetCopyTradeSettings(userID string) (*CopyTradeSettings, error) {
-	var aiTraderID string
+	var aiTraderID, executionExchangeID string
 	var updatedAt time.Time
 	err := d.db.QueryRow(`
-		SELECT ai_trader_id, updated_at
+		SELECT ai_trader_id, COALESCE(execution_exchange_id, ''), updated_at
 		FROM copy_trade_settings WHERE user_id = ?
-	`, userID).Scan(&aiTraderID, &updatedAt)
+	`, userID).Scan(&aiTraderID, &executionExchangeID, &updatedAt)
 	if err == sql.ErrNoRows {
 		return &CopyTradeSettings{
-			UserID:     userID,
-			AITraderID: "",
+			UserID:              userID,
+			AITraderID:          "",
+			ExecutionExchangeID: "",
 		}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
 	return &CopyTradeSettings{
-		UserID:     userID,
-		AITraderID: aiTraderID,
-		UpdatedAt:  updatedAt,
+		UserID:              userID,
+		AITraderID:          aiTraderID,
+		ExecutionExchangeID: executionExchangeID,
+		UpdatedAt:           updatedAt,
 	}, nil
 }
 
 // UpsertCopyTradeSettings 保存跟单全局设置
-func (d *Database) UpsertCopyTradeSettings(userID, aiTraderID string) error {
+func (d *Database) UpsertCopyTradeSettings(userID, aiTraderID, executionExchangeID string) error {
 	_, err := d.db.Exec(`
-		INSERT INTO copy_trade_settings (user_id, ai_trader_id, updated_at)
-		VALUES (?, ?, CURRENT_TIMESTAMP)
+		INSERT INTO copy_trade_settings (user_id, ai_trader_id, execution_exchange_id, updated_at)
+		VALUES (?, ?, ?, CURRENT_TIMESTAMP)
 		ON CONFLICT(user_id) DO UPDATE SET
 			ai_trader_id = excluded.ai_trader_id,
+			execution_exchange_id = excluded.execution_exchange_id,
 			updated_at = CURRENT_TIMESTAMP
-	`, userID, aiTraderID)
+	`, userID, aiTraderID, executionExchangeID)
 	return err
 }
 

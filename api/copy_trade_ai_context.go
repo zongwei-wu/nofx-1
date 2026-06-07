@@ -26,17 +26,17 @@ type copyTradeAIPromptParams struct {
 	LeadQtyBase       float64
 }
 
-func fetchCopyTradeAIAccountContext(fTrader *trader.FuturesTrader) copyTradeAIAccountContext {
+func fetchCopyTradeAIAccountContext(t trader.Trader) copyTradeAIAccountContext {
 	ctx := copyTradeAIAccountContext{
 		PositionsSummary: "  无持仓\n",
 	}
-	if fTrader == nil {
+	if t == nil {
 		return ctx
 	}
 
-	fTrader.InvalidateAccountCache()
+	invalidateTraderAccountCache(t)
 
-	balance, err := fTrader.GetBalance()
+	balance, err := t.GetBalance()
 	if err == nil && balance != nil {
 		if wb, ok := balance["totalWalletBalance"].(float64); ok {
 			ctx.TotalEquity = wb
@@ -49,7 +49,7 @@ func fetchCopyTradeAIAccountContext(fTrader *trader.FuturesTrader) copyTradeAIAc
 		}
 	}
 
-	positions, err := fTrader.GetPositions()
+	positions, err := t.GetPositions()
 	if err == nil && positions != nil {
 		var lines []string
 		for _, p := range positions {
@@ -129,7 +129,8 @@ func fetchCopyTradeAIMarketSection(symbol string) string {
 	return fetchCopyTradeAIMarketSectionFromAPI(symbol)
 }
 
-func buildCopyTradeRiskPrompt(account copyTradeAIAccountContext, marketSection string, p copyTradeAIPromptParams) string {
+func buildCopyTradeRiskPrompt(account copyTradeAIAccountContext, marketSection string, p copyTradeAIPromptParams, exchangeID string) string {
+	exchangeLabel := exchangeOrderQtyLabel(exchangeID)
 	return fmt.Sprintf(`你是一个专业的加密货币期货交易风控分析师。请分析以下跟单交易请求。
 
 ## 最新账户资产 (实时)
@@ -153,7 +154,7 @@ func buildCopyTradeRiskPrompt(account copyTradeAIAccountContext, marketSection s
 2. 考虑当前持仓集中度与行情波动风险
 3. 建议合理跟单仓位（相对带单员仓位）
 4. 风险过高时建议不跟单
-5. recommended_qty 必须为币安合约下单数量（标的币数量，单位 %s），不要使用「张」
+5. recommended_qty 必须为%s下单数量（标的币数量，单位 %s），不要使用「张」
 
 请以JSON输出: {"feasible":true/false,"reasoning":"理由","recommended_ratio":0.1,"recommended_qty":0.5,"suggestion":"建议"}`,
 		account.TotalEquity,
@@ -169,11 +170,13 @@ func buildCopyTradeRiskPrompt(account copyTradeAIAccountContext, marketSection s
 		p.LeadQtyContracts,
 		p.LeadQtyBase,
 		p.BaseAsset,
+		exchangeLabel,
 		p.BaseAsset,
 	)
 }
 
-func buildCopyTradeRiskPromptDetailed(account copyTradeAIAccountContext, marketSection string, p copyTradeAIPromptParams) string {
+func buildCopyTradeRiskPromptDetailed(account copyTradeAIAccountContext, marketSection string, p copyTradeAIPromptParams, exchangeID string) string {
+	exchangeLabel := exchangeOrderQtyLabel(exchangeID)
 	return fmt.Sprintf(`你是一个专业的加密货币期货交易风控分析师。请分析以下跟单交易请求，给出仓位大小建议。
 
 ## 最新账户资产 (实时)
@@ -197,7 +200,7 @@ func buildCopyTradeRiskPromptDetailed(account copyTradeAIAccountContext, marketS
 2. 考虑当前持仓集中度风险
 3. 建议一个合理的跟单仓位比例（相对于带单员仓位）
 4. 如果风险过高，建议不跟单
-5. recommended_qty 必须为币安合约下单数量（标的币数量，单位 %s），不要使用「张」
+5. recommended_qty 必须为%s下单数量（标的币数量，单位 %s），不要使用「张」
 
 请以JSON格式输出，包含以下字段：
 {
@@ -221,6 +224,7 @@ func buildCopyTradeRiskPromptDetailed(account copyTradeAIAccountContext, marketS
 		p.LeadQtyContracts,
 		p.LeadQtyBase,
 		p.BaseAsset,
+		exchangeLabel,
 		p.BaseAsset,
 	)
 }

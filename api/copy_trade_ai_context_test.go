@@ -16,7 +16,7 @@ func TestBuildCopyTradeRiskPrompt_IncludesMarketAndAccount(t *testing.T) {
 	prompt := buildCopyTradeRiskPrompt(account, market, copyTradeAIPromptParams{
 		Symbol: "BTCUSDT", BaseAsset: "BTC", Direction: "买入开多", LeadNickname: "LeadA",
 		LeadPrice: 65000, LeadQtyContracts: 1000, LeadQtyBase: 1,
-	})
+	}, "binance")
 
 	for _, want := range []string{
 		"最新账户资产",

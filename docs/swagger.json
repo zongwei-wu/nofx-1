@@ -659,7 +659,8 @@
               "type": "object",
               "properties": {
                 "message": { "type": "string" },
-                "ai_trader_id": { "type": "string" }
+                "ai_trader_id": { "type": "string" },
+                "execution_exchange_id": { "type": "string" }
               }
             }
           },
@@ -731,7 +732,8 @@
         "hyperliquid_wallet_addr": { "type": "string" },
         "aster_user": { "type": "string" },
         "aster_signer": { "type": "string" },
-        "aster_private_key": { "type": "string", "description": "为空时从用户已保存配置补全" }
+        "aster_private_key": { "type": "string", "description": "为空时从用户已保存配置补全" },
+        "passphrase": { "type": "string", "description": "OKX Passphrase，为空时从用户已保存配置补全" }
       }
     },
     "TestExchangeConnectionResponse": {
@@ -780,6 +782,11 @@
         "ai_trader_id": {
           "type": "string",
           "description": "AI 交易员 ID，空字符串表示未选择"
+        },
+        "execution_exchange_id": {
+          "type": "string",
+          "enum": ["", "binance", "okx"],
+          "description": "跟单执行交易所，空表示默认优先币安"
         }
       }
     },
@@ -789,6 +796,10 @@
         "ai_trader_id": {
           "type": "string",
           "description": "已选择的 AI 交易员 ID"
+        },
+        "execution_exchange_id": {
+          "type": "string",
+          "description": "跟单执行交易所 binance 或 okx"
         },
         "ai_trader_name": {
           "type": "string",

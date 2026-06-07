@@ -97,6 +97,7 @@ func TestSanitizeExchangeConfigForLog(t *testing.T) {
 		AsterUser             string `json:"aster_user"`
 		AsterSigner           string `json:"aster_signer"`
 		AsterPrivateKey       string `json:"aster_private_key"`
+		Passphrase            string `json:"passphrase"`
 	}{
 		"binance": {
 			Enabled:   true,

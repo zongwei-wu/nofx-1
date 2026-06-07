@@ -163,13 +163,23 @@ func TestValidateExchangeCredentials(t *testing.T) {
 			wantError: "主钱包地址不能为空",
 		},
 		{
-			name: "okx unsupported",
+			name: "okx missing passphrase",
 			creds: resolvedExchangeCredentials{
 				ExchangeID: "okx",
 				APIKey:     "key",
 				SecretKey:  "secret",
 			},
-			wantError: "暂不支持",
+			wantError: "Passphrase 不能为空",
+		},
+		{
+			name: "okx valid",
+			creds: resolvedExchangeCredentials{
+				ExchangeID: "okx",
+				APIKey:     "key",
+				SecretKey:  "secret",
+				Passphrase: "pass",
+			},
+			wantError: "",
 		},
 		{
 			name: "binance valid",

@@ -403,6 +403,7 @@ export const api = {
 
   async getCopyTradeSettings(): Promise<{
     ai_trader_id: string
+    execution_exchange_id?: string
     ai_trader_name?: string
     ai_model_name?: string
     fallback_used?: boolean
@@ -415,10 +416,16 @@ export const api = {
     return res.json()
   },
 
-  async updateCopyTradeSettings(aiTraderId: string): Promise<void> {
+  async updateCopyTradeSettings(
+    aiTraderId: string,
+    executionExchangeId?: string
+  ): Promise<void> {
     const res = await httpClient.put(
       `${API_BASE}/copy-trade/settings`,
-      { ai_trader_id: aiTraderId },
+      {
+        ai_trader_id: aiTraderId,
+        execution_exchange_id: executionExchangeId ?? '',
+      },
       getAuthHeaders()
     )
     if (!res.ok) {

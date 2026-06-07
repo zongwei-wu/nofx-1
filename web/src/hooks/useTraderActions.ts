@@ -497,7 +497,8 @@ export function useTraderActions({
     hyperliquidWalletAddr?: string,
     asterUser?: string,
     asterSigner?: string,
-    asterPrivateKey?: string
+    asterPrivateKey?: string,
+    passphrase?: string
   ) => {
     try {
       // 找到要配置的交易所(从supportedExchanges中)
@@ -560,6 +561,8 @@ export function useTraderActions({
               aster_user: exchange.asterUser || '',
               aster_signer: exchange.asterSigner || '',
               aster_private_key: exchange.asterPrivateKey || '',
+              passphrase:
+                exchange.id === exchangeId ? passphrase || '' : '',
             },
           ])
         ),

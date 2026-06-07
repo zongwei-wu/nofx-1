@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"nofx/config"
 
@@ -63,10 +64,11 @@ func (s *Server) handleGetCopyTradeSettings(c *gin.Context) {
 	}
 
 	resp := gin.H{
-		"ai_trader_id":   settings.AITraderID,
-		"ai_trader_name": "",
-		"ai_model_name":  "",
-		"fallback_used":  false,
+		"ai_trader_id":            settings.AITraderID,
+		"execution_exchange_id":   settings.ExecutionExchangeID,
+		"ai_trader_name":          "",
+		"ai_model_name":           "",
+		"fallback_used":           false,
 	}
 
 	if settings.AITraderID != "" {
@@ -94,7 +96,8 @@ func (s *Server) handleUpdateCopyTradeSettings(c *gin.Context) {
 	userID := c.GetString("user_id")
 
 	var req struct {
-		AITraderID string `json:"ai_trader_id"`
+		AITraderID          string `json:"ai_trader_id"`
+		ExecutionExchangeID string `json:"execution_exchange_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
@@ -109,10 +112,20 @@ func (s *Server) handleUpdateCopyTradeSettings(c *gin.Context) {
 		}
 	}
 
-	if err := s.database.UpsertCopyTradeSettings(userID, req.AITraderID); err != nil {
+	executionExchangeID := strings.TrimSpace(req.ExecutionExchangeID)
+	if executionExchangeID != "" && executionExchangeID != "binance" && executionExchangeID != "okx" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "execution_exchange_id 仅支持 binance 或 okx"})
+		return
+	}
+
+	if err := s.database.UpsertCopyTradeSettings(userID, req.AITraderID, executionExchangeID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "保存成功", "ai_trader_id": req.AITraderID})
+	c.JSON(http.StatusOK, gin.H{
+		"message":               "保存成功",
+		"ai_trader_id":          req.AITraderID,
+		"execution_exchange_id": executionExchangeID,
+	})
 }

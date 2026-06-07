@@ -38,7 +38,7 @@ func setupAdminTradersTestDB(t *testing.T) (*config.Database, string, string) {
 	if err := db.UpdateAIModel(userID, userID+"_deepseek", true, "key", "", ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.UpdateExchange(userID, "binance", true, "ak", "sk", false, "", "", "", ""); err != nil {
+	if err := db.UpdateExchange(userID, "binance", true, "ak", "sk", false, "", "", "", "", ""); err != nil {
 		t.Fatal(err)
 	}
 

@@ -24,6 +24,7 @@ type TestExchangeConnectionRequest struct {
 	AsterUser             string `json:"aster_user"`
 	AsterSigner           string `json:"aster_signer"`
 	AsterPrivateKey       string `json:"aster_private_key"`
+	Passphrase            string `json:"passphrase"`
 }
 
 // TestExchangeConnectionResponse 测试交易所连接响应
@@ -46,6 +47,7 @@ type resolvedExchangeCredentials struct {
 	AsterUser             string
 	AsterSigner           string
 	AsterPrivateKey       string
+	Passphrase            string
 }
 
 // resolveExchangeCredentials 合并表单与数据库已保存的敏感字段
@@ -53,6 +55,7 @@ func resolveExchangeCredentials(req TestExchangeConnectionRequest, saved *config
 	formAPIKey := strings.TrimSpace(req.APIKey)
 	formSecretKey := strings.TrimSpace(req.SecretKey)
 	formAsterPrivateKey := strings.TrimSpace(req.AsterPrivateKey)
+	formPassphrase := strings.TrimSpace(req.Passphrase)
 
 	creds := resolvedExchangeCredentials{
 		ExchangeID:            strings.TrimSpace(req.ExchangeID),
@@ -81,6 +84,12 @@ func resolveExchangeCredentials(req TestExchangeConnectionRequest, saved *config
 		creds.AsterPrivateKey = saved.AsterPrivateKey
 	}
 
+	if formPassphrase != "" {
+		creds.Passphrase = formPassphrase
+	} else if saved != nil {
+		creds.Passphrase = saved.Passphrase
+	}
+
 	return creds, nil
 }
 
@@ -102,7 +111,9 @@ func validateExchangeCredentials(creds resolvedExchangeCredentials) error {
 			return fmt.Errorf("Aster 用户、签名者和私钥不能为空")
 		}
 	case "okx":
-		return fmt.Errorf("暂不支持该交易所连接测试")
+		if creds.APIKey == "" || creds.SecretKey == "" || creds.Passphrase == "" {
+			return fmt.Errorf("OKX API Key、Secret Key 和 Passphrase 不能为空")
+		}
 	default:
 		return fmt.Errorf("暂不支持该交易所连接测试")
 	}
@@ -154,6 +165,8 @@ func createTempTraderForTest(userID string, creds resolvedExchangeCredentials) (
 		return trader.NewHyperliquidTrader(creds.APIKey, creds.HyperliquidWalletAddr, creds.Testnet)
 	case "aster":
 		return trader.NewAsterTrader(creds.AsterUser, creds.AsterSigner, creds.AsterPrivateKey)
+	case "okx":
+		return trader.NewOKXTrader(creds.APIKey, creds.SecretKey, creds.Passphrase, creds.Testnet)
 	default:
 		return nil, fmt.Errorf("暂不支持该交易所连接测试")
 	}

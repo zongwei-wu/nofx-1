@@ -34,7 +34,7 @@ func setupCopyTradeSettingsDB(t *testing.T) (*config.Database, string, string) {
 	if err := db.UpdateAIModel(userID, qwenID, true, "key2", "", ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.UpdateExchange(userID, "binance", true, "ak", "sk", false, "", "", "", ""); err != nil {
+	if err := db.UpdateExchange(userID, "binance", true, "ak", "sk", false, "", "", "", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	trader := &config.TraderRecord{
@@ -58,7 +58,7 @@ func TestResolveCopyTradeAI_SelectedTrader(t *testing.T) {
 	db, userID, qwenID := setupCopyTradeSettingsDB(t)
 	defer db.Close()
 
-	if err := db.UpsertCopyTradeSettings(userID, "trader-copy-1"); err != nil {
+	if err := db.UpsertCopyTradeSettings(userID, "trader-copy-1", ""); err != nil {
 		t.Fatal(err)
 	}
 

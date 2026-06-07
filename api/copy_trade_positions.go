@@ -4,8 +4,6 @@ import (
 	"net/http"
 	"strings"
 
-	"nofx/trader"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -56,15 +54,17 @@ func mapFuturesPositionsForAPI(raw []map[string]interface{}) []map[string]interf
 // handleGetCopyTradeExchangePositions 跟单账户在交易所的实时持仓（与 AI 看板 positions API 口径一致）
 func (s *Server) handleGetCopyTradeExchangePositions(c *gin.Context) {
 	userID := c.GetString("user_id")
-	exchangeCfg, err := s.getBinanceExchangeForUser(userID)
+	exchangeCfg, err := s.getExecutionExchangeForUser(userID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	fTrader := trader.NewFuturesTrader(
-		exchangeCfg.APIKey, exchangeCfg.SecretKey, userID, exchangeCfg.Testnet,
-	)
+	fTrader, err := createTraderForExchange(userID, exchangeCfg)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	raw, err := fTrader.GetPositions()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -75,13 +75,14 @@ func (s *Server) handleGetCopyTradeExchangePositions(c *gin.Context) {
 }
 
 func (s *Server) copyTradeExchangePositionOverlays(userID, symbolFilter string) ([]map[string]interface{}, error) {
-	exchangeCfg, err := s.getBinanceExchangeForUser(userID)
+	exchangeCfg, err := s.getExecutionExchangeForUser(userID)
 	if err != nil {
 		return nil, err
 	}
-	fTrader := trader.NewFuturesTrader(
-		exchangeCfg.APIKey, exchangeCfg.SecretKey, userID, exchangeCfg.Testnet,
-	)
+	fTrader, err := createTraderForExchange(userID, exchangeCfg)
+	if err != nil {
+		return nil, err
+	}
 	raw, err := fTrader.GetPositions()
 	if err != nil {
 		return nil, err
