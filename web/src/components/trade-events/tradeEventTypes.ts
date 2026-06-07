@@ -19,6 +19,16 @@ export interface KlinePoint {
   close: number
 }
 
+/** K 线持仓叠加：入场价水平线 + 未实现盈亏 */
+export interface ChartPositionOverlay {
+  symbol: string
+  position_side: string
+  entry_price: number
+  unrealized_pnl: number
+  qty?: number
+  label?: string
+}
+
 export const EVENT_TYPE_LABELS: Record<TradeEventType, string> = {
   open: '开仓',
   add: '加仓',

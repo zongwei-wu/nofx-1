@@ -230,6 +230,19 @@ export function CopyTradeDashboard() {
     return sortSymbols(raw)
   }, [safeRecords, sortSymbols])
 
+  const chartPositionOverlays = useMemo(
+    () =>
+      aggregateOpenPositions(safeRecords).map((r) => ({
+        symbol: r.symbol,
+        position_side: r.position_side,
+        entry_price: r.avg_price,
+        unrealized_pnl: r.total_pnl,
+        qty: r.executed_qty,
+        label: r.nickname,
+      })),
+    [safeRecords]
+  )
+
   const { monitored: monitoredTraders, unmonitored: unmonitoredTraders } = useMemo(
     () => partitionTradersForDashboard(leaderboard, safeConfigs),
     [leaderboard, safeConfigs]
@@ -654,6 +667,7 @@ export function CopyTradeDashboard() {
                 <TradeEventPriceChart
                   source="copy_trade"
                   symbols={chartEventSymbols}
+                  positionOverlays={chartPositionOverlays}
                 />
               </ChartErrorBoundary>
             </div>

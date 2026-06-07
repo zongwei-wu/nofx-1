@@ -18,6 +18,9 @@ import {
   pickDefaultChartSymbol,
   collectChartSymbols,
   DEFAULT_CHART_SYMBOL,
+  filterOverlaysForSymbol,
+  formatPositionLineTitle,
+  positionOverlayLineColor,
 } from './tradeEventChartUtils'
 import type { TradeEvent, KlinePoint } from './tradeEventTypes'
 
@@ -302,5 +305,48 @@ describe('tradeEventChartUtils', () => {
     const markers = mapScatterPointsToMarkers(points, event)
     expect(markers[0].color).toBe('#EAECEF')
     expect(markers[0].text).toBe('开仓')
+  })
+
+  it('filterOverlaysForSymbol matches normalized symbol', () => {
+    const overlays = [
+      {
+        symbol: 'BTCUSDT',
+        position_side: 'LONG',
+        entry_price: 100000,
+        unrealized_pnl: 10,
+      },
+      {
+        symbol: 'ETHUSDT',
+        position_side: 'SHORT',
+        entry_price: 3000,
+        unrealized_pnl: -5,
+      },
+      {
+        symbol: 'SOLUSDT',
+        position_side: 'LONG',
+        entry_price: 0,
+        unrealized_pnl: 0,
+      },
+    ]
+    const filtered = filterOverlaysForSymbol(overlays, 'BTC')
+    expect(filtered).toHaveLength(1)
+    expect(filtered[0].symbol).toBe('BTCUSDT')
+  })
+
+  it('formatPositionLineTitle includes direction price and pnl', () => {
+    const title = formatPositionLineTitle({
+      symbol: 'BTCUSDT',
+      position_side: 'LONG',
+      entry_price: 96500.5,
+      unrealized_pnl: 12.34,
+    })
+    expect(title).toContain('入场')
+    expect(title).toContain('多')
+    expect(title).toContain('+12.34')
+  })
+
+  it('positionOverlayLineColor reflects pnl sign', () => {
+    expect(positionOverlayLineColor(1)).toBe('#0ECB81')
+    expect(positionOverlayLineColor(-1)).toBe('#F6465D')
   })
 })

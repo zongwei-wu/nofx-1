@@ -159,6 +159,18 @@ export default function TraderDashboard() {
     )
   }, [positions, decisions, sortSymbols])
 
+  const exchangePositionOverlays = useMemo(
+    () =>
+      (positions ?? []).map((p) => ({
+        symbol: p.symbol,
+        position_side: p.side,
+        entry_price: p.entry_price,
+        unrealized_pnl: p.unrealized_pnl,
+        qty: Math.abs(p.quantity),
+      })),
+    [positions]
+  )
+
   const copyChartSymbols = useMemo(() => {
     if (!selectedTraderId) return []
     return sortSymbols(
@@ -680,6 +692,9 @@ export default function TraderDashboard() {
                 traderId={selectedTrader.trader_id}
                 symbols={
                   eventChartTab === 'ai_exchange' ? exchangeChartSymbols : copyChartSymbols
+                }
+                positionOverlays={
+                  eventChartTab === 'ai_exchange' ? exchangePositionOverlays : undefined
                 }
               />
             </ChartErrorBoundary>

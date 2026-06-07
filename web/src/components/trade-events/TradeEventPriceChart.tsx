@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { httpClient } from '../../lib/httpClient'
-import type { TradeEvent, KlinePoint } from './tradeEventTypes'
+import type { TradeEvent, KlinePoint, ChartPositionOverlay } from './tradeEventTypes'
 import { EVENT_TYPE_LABELS, EVENT_TYPE_COLORS } from './tradeEventTypes'
 import {
   formatEventTime,
@@ -12,6 +12,7 @@ import {
   mapKlinesToChartRows,
   mapEventsToScatterPoints,
   countEventsAtSameKline,
+  filterOverlaysForSymbol,
   CHART_DEFAULT_VISIBLE_HOURS,
   CHART_COPY_TRADE_VISIBLE_HOURS,
 } from './tradeEventChartUtils'
@@ -26,6 +27,7 @@ export interface TradeEventPriceChartProps {
   traderId?: string
   portfolioId?: string
   symbols?: string[]
+  positionOverlays?: ChartPositionOverlay[]
   height?: number
   visibleHours?: number
 }
@@ -48,6 +50,7 @@ export function TradeEventPriceChart({
   traderId,
   portfolioId,
   symbols: symbolsProp,
+  positionOverlays: positionOverlaysProp,
   height = DEFAULT_TV_CHART_HEIGHT,
   visibleHours: visibleHoursProp,
 }: TradeEventPriceChartProps) {
@@ -164,6 +167,11 @@ export function TradeEventPriceChart({
     [events, symbol]
   )
 
+  const symPositionOverlays = useMemo(
+    () => filterOverlaysForSymbol(positionOverlaysProp ?? [], symbol),
+    [positionOverlaysProp, symbol]
+  )
+
   const sortedEvents = useMemo(
     () => [...symEvents].sort((a, b) => b.time - a.time).slice(0, 50),
     [symEvents]
@@ -246,7 +254,7 @@ export function TradeEventPriceChart({
         >
           {chartLoading ? '刷新中…' : '刷新'}
         </button>
-        <div className="flex gap-2 text-[10px]" style={{ color: '#848E9C' }}>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px]" style={{ color: '#848E9C' }}>
           {(['open', 'add', 'reduce', 'close'] as const).map((t) => (
             <span key={t} className="flex items-center gap-1">
               <span
@@ -256,6 +264,13 @@ export function TradeEventPriceChart({
               {EVENT_TYPE_LABELS[t]}
             </span>
           ))}
+          <span className="flex items-center gap-1">
+            <span
+              className="w-4 h-0 border-t border-dashed inline-block"
+              style={{ borderColor: '#0ECB81' }}
+            />
+            入场价 · 未实现盈亏
+          </span>
         </div>
       </div>
 
@@ -269,6 +284,7 @@ export function TradeEventPriceChart({
         <LightweightTradeChart
           klines={klines}
           events={symEvents}
+          positionOverlays={symPositionOverlays}
           interval={interval}
           height={height}
           visibleHours={visibleHours}

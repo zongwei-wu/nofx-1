@@ -1,4 +1,9 @@
-import type { TradeEvent, TradeEventType, KlinePoint } from './tradeEventTypes'
+import type {
+  TradeEvent,
+  TradeEventType,
+  KlinePoint,
+  ChartPositionOverlay,
+} from './tradeEventTypes'
 import { EVENT_TYPE_COLORS, EVENT_TYPE_LABELS } from './tradeEventTypes'
 export const DEFAULT_CHART_SYMBOL = 'BTCUSDT'
 
@@ -123,6 +128,38 @@ export function normalizeTradingSymbol(symbol?: string): string {
 
 export function symbolsMatch(a?: string, b?: string): boolean {
   return normalizeTradingSymbol(a) === normalizeTradingSymbol(b)
+}
+
+export function positionSideDirLabel(positionSide?: string): string {
+  const ps = (positionSide || '').toUpperCase()
+  if (ps === 'LONG' || ps === 'BUY') return '多'
+  if (ps === 'SHORT' || ps === 'SELL') return '空'
+  return ''
+}
+
+export function filterOverlaysForSymbol(
+  overlays: ChartPositionOverlay[],
+  symbol: string
+): ChartPositionOverlay[] {
+  if (!symbol) return []
+  return overlays.filter(
+    (o) => o.entry_price > 0 && symbolsMatch(o.symbol, symbol)
+  )
+}
+
+export function formatPositionLineTitle(overlay: ChartPositionOverlay): string {
+  const dir = positionSideDirLabel(overlay.position_side)
+  const dirPart = dir ? `${dir} ` : ''
+  const price = overlay.entry_price.toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+  })
+  const pnl = overlay.unrealized_pnl
+  const pnlStr = `${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}`
+  return `入场 ${dirPart}${price} · ${pnlStr}`
+}
+
+export function positionOverlayLineColor(unrealizedPnl: number): string {
+  return unrealizedPnl >= 0 ? '#0ECB81' : '#F6465D'
 }
 
 /** 将事件/订单时间统一为 Unix 秒（兼容秒与毫秒） */

@@ -2,11 +2,17 @@ import { useEffect, useRef, useMemo } from 'react'
 import {
   createChart,
   ColorType,
+  LineStyle,
   type IChartApi,
+  type IPriceLine,
   type ISeriesApi,
   type Time,
 } from 'lightweight-charts'
-import type { KlinePoint, TradeEvent } from './tradeEventTypes'
+import type {
+  ChartPositionOverlay,
+  KlinePoint,
+  TradeEvent,
+} from './tradeEventTypes'
 import {
   mapKlinesToCandlestickData,
   getDefaultVisibleTimeRange,
@@ -16,6 +22,8 @@ import {
   mapScatterPointsToClusteredMarkers,
   findClusterNearTime,
   markerClickThresholdSec,
+  formatPositionLineTitle,
+  positionOverlayLineColor,
   type LwcMarkerCluster,
 } from './tradeEventChartUtils'
 import type { ChartInterval } from './tradingViewUtils'
@@ -24,6 +32,7 @@ import { DEFAULT_TV_CHART_HEIGHT } from './tradingViewUtils'
 export interface LightweightTradeChartProps {
   klines: KlinePoint[]
   events: TradeEvent[]
+  positionOverlays?: ChartPositionOverlay[]
   interval: ChartInterval
   height?: number
   loading?: boolean
@@ -35,6 +44,7 @@ export interface LightweightTradeChartProps {
 export function LightweightTradeChart({
   klines,
   events,
+  positionOverlays = [],
   interval,
   height = DEFAULT_TV_CHART_HEIGHT,
   loading = false,
@@ -45,6 +55,7 @@ export function LightweightTradeChart({
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
+  const priceLinesRef = useRef<IPriceLine[]>([])
   const clustersRef = useRef<LwcMarkerCluster[]>([])
   const onSelectRef = useRef(onSelectEvent)
   const lastClusterClickRef = useRef({ time: 0, index: 0 })
@@ -67,13 +78,44 @@ export function LightweightTradeChart({
     let clickHandler: ((param: { time?: Time }) => void) | null = null
     let rafId = 0
 
+    const clearPriceLines = () => {
+      const series = seriesRef.current
+      if (!series) {
+        priceLinesRef.current = []
+        return
+      }
+      for (const line of priceLinesRef.current) {
+        series.removePriceLine(line)
+      }
+      priceLinesRef.current = []
+    }
+
     const destroyChart = () => {
+      clearPriceLines()
       if (chartRef.current && clickHandler) {
         chartRef.current.unsubscribeClick(clickHandler)
       }
       chartRef.current?.remove()
       chartRef.current = null
       seriesRef.current = null
+    }
+
+    const applyPositionOverlays = () => {
+      const series = seriesRef.current
+      if (!series) return
+      clearPriceLines()
+      for (const overlay of positionOverlays) {
+        if (overlay.entry_price <= 0) continue
+        const line = series.createPriceLine({
+          price: overlay.entry_price,
+          color: positionOverlayLineColor(overlay.unrealized_pnl),
+          lineWidth: 1,
+          lineStyle: LineStyle.Dashed,
+          axisLabelVisible: true,
+          title: formatPositionLineTitle(overlay),
+        })
+        priceLinesRef.current.push(line)
+      }
     }
 
     const applyChartData = () => {
@@ -111,6 +153,7 @@ export function LightweightTradeChart({
       } else {
         chart.timeScale().fitContent()
       }
+      applyPositionOverlays()
     }
 
     if (candleData.length === 0) {
@@ -220,7 +263,7 @@ export function LightweightTradeChart({
       resizeObserver?.disconnect()
       destroyChart()
     }
-  }, [candleData, clusters, height, interval, visibleHours])
+  }, [candleData, clusters, height, interval, visibleHours, positionOverlays])
 
   const showEmpty = !loading && candleData.length === 0
 
