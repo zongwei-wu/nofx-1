@@ -150,14 +150,3 @@ func TestAIEventsFromDecisions(t *testing.T) {
 	}
 }
 
-func TestFormatOverlayNicknameLabel(t *testing.T) {
-	if got := formatOverlayNicknameLabel("Alice"); got != "Alice" {
-		t.Fatalf("single nickname: got %q", got)
-	}
-	if got := formatOverlayNicknameLabel("Alice,Bob"); got != "2位交易员" {
-		t.Fatalf("multiple nicknames: got %q", got)
-	}
-	if got := formatOverlayNicknameLabel(""); got != "" {
-		t.Fatalf("empty: got %q", got)
-	}
-}

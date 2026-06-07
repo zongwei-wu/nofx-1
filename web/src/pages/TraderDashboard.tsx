@@ -693,9 +693,7 @@ export default function TraderDashboard() {
                 symbols={
                   eventChartTab === 'ai_exchange' ? exchangeChartSymbols : copyChartSymbols
                 }
-                positionOverlays={
-                  eventChartTab === 'ai_exchange' ? exchangePositionOverlays : undefined
-                }
+                positionOverlays={exchangePositionOverlays}
               />
             </ChartErrorBoundary>
           </div>
