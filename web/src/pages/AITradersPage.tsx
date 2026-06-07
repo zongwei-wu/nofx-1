@@ -226,6 +226,7 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
       {showExchangeModal && (
         <ExchangeConfigModal
           allExchanges={supportedExchanges}
+          configuredExchanges={allExchanges}
           editingExchangeId={editingExchange}
           onSave={handleSaveExchange}
           onDelete={handleDeleteExchange}

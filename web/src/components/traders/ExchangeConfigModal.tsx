@@ -17,7 +17,10 @@ import { Tooltip } from './Tooltip'
 import { getShortName } from './utils'
 
 interface ExchangeConfigModalProps {
+  /** 系统支持的全部交易所（用于新建时选择） */
   allExchanges: Exchange[]
+  /** 用户已保存的交易所配置（编辑时读取 testnet 等字段） */
+  configuredExchanges?: Exchange[]
   editingExchangeId: string | null
   onSave: (
     exchangeId: string,
@@ -36,6 +39,7 @@ interface ExchangeConfigModalProps {
 
 export function ExchangeConfigModal({
   allExchanges,
+  configuredExchanges,
   editingExchangeId,
   onSave,
   onDelete,
@@ -75,28 +79,33 @@ export function ExchangeConfigModal({
     null | 'hyperliquid' | 'aster'
   >(null)
 
-  // 获取当前编辑的交易所信息
-  const selectedExchange = allExchanges?.find(
+  const configuredExchange = configuredExchanges?.find(
     (e) => e.id === selectedExchangeId
   )
 
-  // 如果是编辑现有交易所，初始化表单数据
+  // 编辑时优先用已保存配置，新建时用支持列表中的元数据
+  const selectedExchange = editingExchangeId
+    ? configuredExchange ??
+      allExchanges?.find((e) => e.id === selectedExchangeId)
+    : allExchanges?.find((e) => e.id === selectedExchangeId)
+
+  // 如果是编辑现有交易所，从用户已保存配置初始化表单
   useEffect(() => {
-    if (editingExchangeId && selectedExchange) {
-      setApiKey(selectedExchange.apiKey || '')
-      setSecretKey(selectedExchange.secretKey || '')
+    if (editingExchangeId && configuredExchange) {
+      setApiKey(configuredExchange.apiKey || '')
+      setSecretKey(configuredExchange.secretKey || '')
       setPassphrase('') // Don't load existing passphrase for security
-      setTestnet(selectedExchange.testnet || false)
+      setTestnet(Boolean(configuredExchange.testnet))
 
-      // Aster 字段
-      setAsterUser(selectedExchange.asterUser || '')
-      setAsterSigner(selectedExchange.asterSigner || '')
-      setAsterPrivateKey('') // Don't load existing private key for security
+      setAsterUser(configuredExchange.asterUser || '')
+      setAsterSigner(configuredExchange.asterSigner || '')
+      setAsterPrivateKey('')
 
-      // Hyperliquid 字段
-      setHyperliquidWalletAddr(selectedExchange.hyperliquidWalletAddr || '')
+      setHyperliquidWalletAddr(configuredExchange.hyperliquidWalletAddr || '')
+    } else if (!editingExchangeId) {
+      setTestnet(false)
     }
-  }, [editingExchangeId, selectedExchange])
+  }, [editingExchangeId, configuredExchange])
 
   // 加载服务器IP（当选择binance时）
   useEffect(() => {
