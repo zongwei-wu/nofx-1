@@ -235,6 +235,13 @@ export function CopyTradeDashboard() {
     [leaderboard, safeConfigs]
   )
 
+  const recordsByStatus = useMemo(() => {
+    const open = safeRecords.filter((r) => r.status === 'OPEN')
+    const closed = safeRecords.filter((r) => r.status === 'CLOSED')
+    const failed = safeRecords.filter((r) => r.status === 'FAILED')
+    return { open, closed, failed }
+  }, [safeRecords])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -248,13 +255,6 @@ export function CopyTradeDashboard() {
   const showAiTraderWarning = hasAutoFollow && !copyTradeSettings.ai_trader_id
   const uniqueOpenCount = countUniqueOpenPositions(safeRecords)
   const openAggregated = aggregateOpenPositions(safeRecords)
-
-  const recordsByStatus = useMemo(() => {
-    const open = safeRecords.filter((r) => r.status === 'OPEN')
-    const closed = safeRecords.filter((r) => r.status === 'CLOSED')
-    const failed = safeRecords.filter((r) => r.status === 'FAILED')
-    return { open, closed, failed }
-  }, [safeRecords])
 
   const recordsStatusTabs: { key: RecordsStatusTab; label: string; count: number }[] = [
     { key: 'OPEN', label: '持仓中', count: recordsByStatus.open.length },
