@@ -394,6 +394,8 @@ export const translations = {
     testConnectionSuccess: 'Connected. Account equity: {equity} USDT',
     testConnectionFailed: 'Connection test failed',
     testConnectionFillRequired: 'Please fill in required API credentials first',
+    testConnectionKeyPairRequired:
+      'API Key and Secret Key must be filled in as a pair',
     exchangeTestNotSupported: 'Connection test is not supported for this exchange',
 
     // Error Messages
@@ -1222,6 +1224,7 @@ export const translations = {
     testConnectionSuccess: '连接成功，账户净值 {equity} USDT',
     testConnectionFailed: '连接测试失败',
     testConnectionFillRequired: '请先填写必要的 API 凭证',
+    testConnectionKeyPairRequired: 'API Key 与 Secret Key 必须成对填写',
     exchangeTestNotSupported: '暂不支持该交易所连接测试',
 
     // Error Messages

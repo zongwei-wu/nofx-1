@@ -21,7 +21,10 @@ func TestResolveExchangeCredentials_MergesSavedSecrets(t *testing.T) {
 		Testnet:      false,
 	}
 
-	creds := resolveExchangeCredentials(req, saved)
+	creds, err := resolveExchangeCredentials(req, saved)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if creds.APIKey != "saved-api-key" {
 		t.Errorf("APIKey = %q, want saved-api-key", creds.APIKey)
@@ -49,7 +52,10 @@ func TestResolveExchangeCredentials_FormOverridesSaved(t *testing.T) {
 		Testnet:    false,
 	}
 
-	creds := resolveExchangeCredentials(req, saved)
+	creds, err := resolveExchangeCredentials(req, saved)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if creds.APIKey != "form-api-key" {
 		t.Errorf("APIKey = %q, want form-api-key", creds.APIKey)
@@ -67,13 +73,40 @@ func TestResolveExchangeCredentials_NoSaved(t *testing.T) {
 		Testnet:    true,
 	}
 
-	creds := resolveExchangeCredentials(req, nil)
+	creds, err := resolveExchangeCredentials(req, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if creds.APIKey != "only-form-key" {
 		t.Errorf("APIKey = %q, want only-form-key", creds.APIKey)
 	}
 	if !creds.Testnet {
 		t.Error("Testnet should be true")
+	}
+}
+
+func TestResolveExchangeCredentials_RejectsPartialPair(t *testing.T) {
+	saved := &config.ExchangeConfig{
+		ID:        "binance",
+		APIKey:    "saved-api-key",
+		SecretKey: "saved-secret-key",
+	}
+
+	_, err := resolveExchangeCredentials(TestExchangeConnectionRequest{
+		ExchangeID: "binance",
+		APIKey:     "new-api-key",
+	}, saved)
+	if err == nil || !strings.Contains(err.Error(), "成对填写") {
+		t.Fatalf("expected partial pair error, got %v", err)
+	}
+
+	_, err = resolveExchangeCredentials(TestExchangeConnectionRequest{
+		ExchangeID: "binance",
+		SecretKey:  "new-secret-key",
+	}, saved)
+	if err == nil || !strings.Contains(err.Error(), "成对填写") {
+		t.Fatalf("expected partial pair error, got %v", err)
 	}
 }
 

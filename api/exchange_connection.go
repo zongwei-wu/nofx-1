@@ -49,33 +49,39 @@ type resolvedExchangeCredentials struct {
 }
 
 // resolveExchangeCredentials 合并表单与数据库已保存的敏感字段
-func resolveExchangeCredentials(req TestExchangeConnectionRequest, saved *config.ExchangeConfig) resolvedExchangeCredentials {
+func resolveExchangeCredentials(req TestExchangeConnectionRequest, saved *config.ExchangeConfig) (resolvedExchangeCredentials, error) {
+	formAPIKey := strings.TrimSpace(req.APIKey)
+	formSecretKey := strings.TrimSpace(req.SecretKey)
+	formAsterPrivateKey := strings.TrimSpace(req.AsterPrivateKey)
+
 	creds := resolvedExchangeCredentials{
 		ExchangeID:            strings.TrimSpace(req.ExchangeID),
-		APIKey:                strings.TrimSpace(req.APIKey),
-		SecretKey:             strings.TrimSpace(req.SecretKey),
 		Testnet:               req.Testnet,
 		HyperliquidWalletAddr: strings.TrimSpace(req.HyperliquidWalletAddr),
 		AsterUser:             strings.TrimSpace(req.AsterUser),
 		AsterSigner:           strings.TrimSpace(req.AsterSigner),
-		AsterPrivateKey:       strings.TrimSpace(req.AsterPrivateKey),
 	}
 
-	if saved == nil {
-		return creds
+	switch {
+	case formAPIKey != "" && formSecretKey != "":
+		creds.APIKey = formAPIKey
+		creds.SecretKey = formSecretKey
+	case formAPIKey == "" && formSecretKey == "":
+		if saved != nil {
+			creds.APIKey = saved.APIKey
+			creds.SecretKey = saved.SecretKey
+		}
+	default:
+		return creds, fmt.Errorf("API Key 和 Secret Key 必须成对填写，不能仅填写其中一个")
 	}
 
-	if creds.APIKey == "" {
-		creds.APIKey = saved.APIKey
-	}
-	if creds.SecretKey == "" {
-		creds.SecretKey = saved.SecretKey
-	}
-	if creds.AsterPrivateKey == "" {
+	if formAsterPrivateKey != "" {
+		creds.AsterPrivateKey = formAsterPrivateKey
+	} else if saved != nil {
 		creds.AsterPrivateKey = saved.AsterPrivateKey
 	}
 
-	return creds
+	return creds, nil
 }
 
 func validateExchangeCredentials(creds resolvedExchangeCredentials) error {
@@ -174,11 +180,15 @@ func testExchangeConnection(userID string, creds resolvedExchangeCredentials) Te
 	balanceInfo, balanceErr := tempTrader.GetBalance()
 	if balanceErr != nil {
 		log.Printf("❌ 交易所连接测试失败 [%s] testnet=%v: %v", creds.ExchangeID, creds.Testnet, balanceErr)
+		errMsg := balanceErr.Error()
+		if strings.Contains(errMsg, "code=-1022") {
+			errMsg = "签名无效（code=-1022）：请确认 API Key 与 Secret Key 成对匹配、无多余空格，且 Secret 未填错"
+		}
 		return TestExchangeConnectionResponse{
 			Success:    false,
 			ExchangeID: creds.ExchangeID,
 			Testnet:    creds.Testnet,
-			Error:      balanceErr.Error(),
+			Error:      errMsg,
 		}
 	}
 
@@ -254,7 +264,17 @@ func (s *Server) handleTestExchangeConnection(c *gin.Context) {
 		}
 	}
 
-	creds := resolveExchangeCredentials(req, saved)
+	creds, credErr := resolveExchangeCredentials(req, saved)
+	if credErr != nil {
+		c.JSON(http.StatusOK, TestExchangeConnectionResponse{
+			Success:    false,
+			ExchangeID: strings.TrimSpace(req.ExchangeID),
+			Testnet:    req.Testnet,
+			Error:      credErr.Error(),
+		})
+		return
+	}
+
 	result := testExchangeConnection(userID, creds)
 	c.JSON(http.StatusOK, result)
 }

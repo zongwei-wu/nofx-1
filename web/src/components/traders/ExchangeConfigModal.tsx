@@ -230,9 +230,8 @@ export function ExchangeConfigModal({
     if (selectedExchange.id === 'okx') return false
 
     if (selectedExchange.id === 'binance') {
-      const hasKey = Boolean(apiKey.trim()) || hasSavedCredentials
-      const hasSecret = Boolean(secretKey.trim()) || hasSavedCredentials
-      return hasKey && hasSecret
+      // API Key 与 Secret 必须成对使用，避免新 Key 搭配旧 Secret 导致 -1022
+      return Boolean(apiKey.trim()) && Boolean(secretKey.trim())
     }
     if (selectedExchange.id === 'hyperliquid') {
       return Boolean(apiKey.trim()) && Boolean(hyperliquidWalletAddr.trim())
@@ -275,7 +274,10 @@ export function ExchangeConfigModal({
     }
 
     if (!canTestConnection()) {
-      const msg = t('testConnectionFillRequired', language)
+      const msg =
+        selectedExchange.id === 'binance'
+          ? t('testConnectionKeyPairRequired', language)
+          : t('testConnectionFillRequired', language)
       setTestResult({ ok: false, message: msg })
       toast.error(msg)
       return
