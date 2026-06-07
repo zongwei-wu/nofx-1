@@ -427,6 +427,10 @@ export function CopyTradeDashboard() {
                 ：仅对已启用带单员生效，每 5 分钟由所选 AI 交易员分析并自动跟单
               </li>
               <li>
+                <span style={{ color: '#EAECEF' }}>跟单倍数 / 最大金额 / 仅跟开仓</span>
+                ：在带单员卡片内设置，影响自动监控与手动同步的下单数量与是否跟平仓
+              </li>
+              <li>
                 <span style={{ color: '#EAECEF' }}>手动跟单同步</span>
                 ：立即对所有已启用带单员执行一次同步（拉带单、对齐交易所持仓与记录）
               </li>
