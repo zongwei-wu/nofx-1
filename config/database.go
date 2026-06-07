@@ -277,6 +277,7 @@ func (d *Database) createTables() error {
 		`ALTER TABLE exchanges ADD COLUMN aster_private_key TEXT DEFAULT ''`,
 		`ALTER TABLE exchanges ADD COLUMN passphrase TEXT DEFAULT ''`,
 		`ALTER TABLE copy_trade_settings ADD COLUMN execution_exchange_id TEXT NOT NULL DEFAULT ''`,
+		`UPDATE exchanges SET type = 'cex' WHERE id = 'okx' AND type = 'okx'`,
 		`ALTER TABLE traders ADD COLUMN custom_prompt TEXT DEFAULT ''`,
 		`ALTER TABLE traders ADD COLUMN override_base_prompt BOOLEAN DEFAULT 0`,
 		`ALTER TABLE traders ADD COLUMN is_cross_margin BOOLEAN DEFAULT 1`,             // 默认为全仓模式
@@ -454,7 +455,7 @@ func (d *Database) initDefaultData() error {
 		{"binance", "Binance Futures", "binance"},
 		{"hyperliquid", "Hyperliquid", "hyperliquid"},
 		{"aster", "Aster DEX", "aster"},
-		{"okx", "OKX Futures", "okx"},
+		{"okx", "OKX Futures", "cex"},
 	}
 
 	for _, exchange := range exchanges {
@@ -1253,7 +1254,7 @@ func (d *Database) UpdateExchange(userID, id string, enabled bool, apiKey, secre
 			typ = "dex"
 		} else if id == "okx" {
 			name = "OKX Futures"
-			typ = "cex"
+			typ = "cex" // 与 binance 等 CEX 一致，前端按 cex 展示 API 表单
 		} else {
 			name = id + " Exchange"
 			typ = "cex"

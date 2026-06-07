@@ -352,7 +352,12 @@ export function ExchangeConfigModal({
         asterPrivateKey.trim()
       )
     } else if (selectedExchange?.id === 'okx') {
-      if (!apiKey.trim() || !secretKey.trim() || !passphrase.trim()) return
+      const hasPassphrase =
+        Boolean(passphrase.trim()) || hasSavedCredentials
+      if (!apiKey.trim() || !secretKey.trim() || !hasPassphrase) {
+        toast.error(t('enterPassphrase', language))
+        return
+      }
       await onSave(
         selectedExchangeId,
         apiKey.trim(),
@@ -545,6 +550,7 @@ export function ExchangeConfigModal({
               <>
                 {/* Binance 和其他 CEX 交易所的字段 */}
                 {(selectedExchange.id === 'binance' ||
+                  selectedExchange.id === 'okx' ||
                   selectedExchange.type === 'cex') &&
                   selectedExchange.id !== 'hyperliquid' &&
                   selectedExchange.id !== 'aster' && (
@@ -1029,7 +1035,6 @@ export function ExchangeConfigModal({
               disabled={
                 testingConnection ||
                 !selectedExchange ||
-                selectedExchange.id === 'okx' ||
                 !canTestConnection()
               }
               className="w-full px-4 py-2 rounded text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
@@ -1058,7 +1063,7 @@ export function ExchangeConfigModal({
                   (selectedExchange.id === 'okx' &&
                     (!apiKey.trim() ||
                       !secretKey.trim() ||
-                      !passphrase.trim())) ||
+                      (!passphrase.trim() && !hasSavedCredentials))) ||
                   (selectedExchange.id === 'hyperliquid' &&
                     (!apiKey.trim() || !hyperliquidWalletAddr.trim())) ||
                   (selectedExchange.id === 'aster' &&
