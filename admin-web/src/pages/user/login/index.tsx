@@ -2,12 +2,20 @@ import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { LoginForm, ProFormText } from '@ant-design/pro-components';
 import { history, useModel } from '@umijs/max';
 import { message } from 'antd';
+import { useEffect } from 'react';
 import { login } from '@/services/admin/api';
 
 const TOKEN_KEY = 'admin_token';
+const DEFAULT_HOME = '/user/list';
 
 export default function LoginPage() {
-  const { setInitialState } = useModel('@@initialState');
+  const { initialState, setInitialState } = useModel('@@initialState');
+
+  useEffect(() => {
+    if (initialState?.currentUser) {
+      history.replace(DEFAULT_HOME);
+    }
+  }, [initialState?.currentUser]);
 
   return (
     <div
@@ -44,7 +52,7 @@ export default function LoginPage() {
               },
             });
             message.success('登录成功');
-            history.push('/user/list');
+            history.replace(DEFAULT_HOME);
             return true;
           } catch (err: unknown) {
             const e = err as { data?: { error?: string } };
@@ -56,9 +64,8 @@ export default function LoginPage() {
         <ProFormText
           name="email"
           fieldProps={{ size: 'large', prefix: <UserOutlined /> }}
-          placeholder="admin@localhost"
+          placeholder="请输入邮箱"
           rules={[{ required: true, message: '请输入邮箱' }]}
-          initialValue="admin@localhost"
         />
         <ProFormText.Password
           name="password"
