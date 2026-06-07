@@ -671,9 +671,81 @@
           }
         }
       }
+    },
+    "/exchanges/test": {
+      "post": {
+        "tags": ["Exchanges"],
+        "summary": "测试交易所 API 密钥连接",
+        "description": "使用当前表单或数据库已保存的密钥临时调用交易所余额接口，验证连接是否正常。请求体须为 RSA+AES 加密载荷（EncryptedPayload），解密后 JSON 结构见 TestExchangeConnectionRequest。不写入数据库。需 ai_trader 功能权限。",
+        "security": [{ "BearerAuth": [] }],
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/EncryptedPayload" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "测试完成（含业务失败，见 success 字段）",
+            "schema": { "$ref": "#/definitions/TestExchangeConnectionResponse" }
+          },
+          "400": {
+            "description": "非加密请求、解密失败或参数无效"
+          },
+          "401": {
+            "description": "未登录"
+          },
+          "403": {
+            "description": "无 ai_trader 权限"
+          }
+        }
+      }
     }
   },
   "definitions": {
+    "EncryptedPayload": {
+      "type": "object",
+      "required": ["wrappedKey", "iv", "ciphertext"],
+      "properties": {
+        "wrappedKey": { "type": "string", "description": "RSA-OAEP 加密的 AES 密钥" },
+        "iv": { "type": "string", "description": "AES-GCM IV" },
+        "ciphertext": { "type": "string", "description": "AES-GCM 密文（含 tag）" },
+        "aad": { "type": "string" },
+        "kid": { "type": "string" },
+        "ts": { "type": "integer", "format": "int64" }
+      }
+    },
+    "TestExchangeConnectionRequest": {
+      "type": "object",
+      "required": ["exchange_id"],
+      "description": "加密载荷解密后的明文 JSON 结构",
+      "properties": {
+        "exchange_id": { "type": "string", "enum": ["binance", "hyperliquid", "aster", "okx"] },
+        "api_key": { "type": "string", "description": "为空时从用户已保存配置补全" },
+        "secret_key": { "type": "string", "description": "为空时从用户已保存配置补全" },
+        "testnet": { "type": "boolean", "description": "始终以表单值为准" },
+        "hyperliquid_wallet_addr": { "type": "string" },
+        "aster_user": { "type": "string" },
+        "aster_signer": { "type": "string" },
+        "aster_private_key": { "type": "string", "description": "为空时从用户已保存配置补全" }
+      }
+    },
+    "TestExchangeConnectionResponse": {
+      "type": "object",
+      "properties": {
+        "success": { "type": "boolean" },
+        "exchange_id": { "type": "string" },
+        "testnet": { "type": "boolean" },
+        "total_equity": { "type": "number", "format": "double" },
+        "available_balance": { "type": "number", "format": "double" },
+        "message": { "type": "string" },
+        "error": { "type": "string" }
+      }
+    },
     "TradeEvent": {
       "type": "object",
       "properties": {

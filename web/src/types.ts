@@ -177,6 +177,27 @@ export interface UpdateExchangeConfigRequest {
   }
 }
 
+export interface TestExchangeConnectionRequest {
+  exchange_id: string
+  api_key?: string
+  secret_key?: string
+  testnet?: boolean
+  hyperliquid_wallet_addr?: string
+  aster_user?: string
+  aster_signer?: string
+  aster_private_key?: string
+}
+
+export interface TestExchangeConnectionResponse {
+  success: boolean
+  exchange_id?: string
+  testnet?: boolean
+  total_equity?: number
+  available_balance?: number
+  message?: string
+  error?: string
+}
+
 // Competition related types
 export interface CompetitionTraderData {
   trader_id: string

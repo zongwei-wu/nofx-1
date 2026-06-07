@@ -11,6 +11,8 @@ import type {
   CreateTraderRequest,
   UpdateModelConfigRequest,
   UpdateExchangeConfigRequest,
+  TestExchangeConnectionRequest,
+  TestExchangeConnectionResponse,
   CompetitionData,
 } from '../types'
 import { CryptoService } from './crypto'
@@ -211,6 +213,37 @@ export const api = {
       getAuthHeaders()
     )
     if (!res.ok) throw new Error('更新交易所配置失败')
+  },
+
+  // 使用加密传输测试交易所 API 密钥连接
+  async testExchangeConnectionEncrypted(
+    request: TestExchangeConnectionRequest
+  ): Promise<TestExchangeConnectionResponse> {
+    const publicKey = await CryptoService.fetchPublicKey()
+    await CryptoService.initialize(publicKey)
+
+    const userId = localStorage.getItem('user_id') || ''
+    const sessionId = sessionStorage.getItem('session_id') || ''
+
+    const encryptedPayload = await CryptoService.encryptSensitiveData(
+      JSON.stringify(request),
+      userId,
+      sessionId
+    )
+
+    const res = await httpClient.post(
+      `${API_BASE}/exchanges/test`,
+      encryptedPayload,
+      getAuthHeaders()
+    )
+
+    const data = (await res.json()) as TestExchangeConnectionResponse & {
+      error?: string
+    }
+    if (!res.ok) {
+      throw new Error(data.error || '测试交易所连接失败')
+    }
+    return data
   },
 
   // 获取系统状态（支持trader_id）

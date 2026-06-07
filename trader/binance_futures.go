@@ -15,6 +15,9 @@ import (
 	"github.com/adshao/go-binance/v2/futures"
 )
 
+// FuturesMainnetBaseURL 币安合约主网
+const FuturesMainnetBaseURL = "https://fapi.binance.com"
+
 // FuturesTestnetBaseURL 币安合约测试网
 const FuturesTestnetBaseURL = "https://testnet.binancefuture.com"
 
@@ -74,10 +77,13 @@ func NewFuturesTrader(apiKey, secretKey string, userId string, testnet bool) *Fu
 		client = hookRes.GetResult()
 	}
 
-	// hook 可能返回主网 client，测试网必须在 hook 之后再次设置 BaseURL
+	// hook 可能改写 client，必须在 hook 之后按 testnet 显式设置 BaseURL
 	if testnet {
 		client.BaseURL = FuturesTestnetBaseURL
 		log.Printf("  🔬 使用币安合约测试网: %s", FuturesTestnetBaseURL)
+	} else {
+		client.BaseURL = FuturesMainnetBaseURL
+		log.Printf("  🌐 使用币安合约主网: %s", FuturesMainnetBaseURL)
 	}
 
 	// 同步时间，避免 Timestamp ahead 错误
@@ -162,7 +168,7 @@ func (t *FuturesTrader) GetBalance() (map[string]interface{}, error) {
 	log.Printf("🔄 缓存过期，正在调用币安API获取账户余额...")
 	account, err := t.client.NewGetAccountService().Do(context.Background())
 	if err != nil {
-		log.Printf("❌ 币安API调用失败: %v", err)
+		log.Printf("❌ 币安API调用失败 (testnet=%v, baseURL=%s): %v", t.testnet, t.client.BaseURL, err)
 		return nil, fmt.Errorf("获取账户信息失败: %w", err)
 	}
 

@@ -849,6 +849,23 @@ func (tm *TraderManager) LoadUserTraders(database *config.Database, userID strin
 	return nil
 }
 
+// ReloadUserTraders 强制重新加载用户的所有交易员（先停止并移除内存中的旧实例）
+func (tm *TraderManager) ReloadUserTraders(database *config.Database, userID string) error {
+	traders, err := database.GetTraders(userID)
+	if err != nil {
+		return fmt.Errorf("获取用户 %s 的交易员列表失败: %w", userID, err)
+	}
+
+	for _, traderCfg := range traders {
+		if at, getErr := tm.GetTrader(traderCfg.ID); getErr == nil && at != nil {
+			at.Stop()
+		}
+		tm.RemoveTrader(traderCfg.ID)
+	}
+
+	return tm.LoadUserTraders(database, userID)
+}
+
 // LoadTraderByID 加载指定ID的单个交易员到内存
 // 此方法会自动查询所需的所有配置（AI模型、交易所、系统配置等）
 // 参数:

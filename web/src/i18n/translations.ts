@@ -389,6 +389,12 @@ export const translations = {
     ipCopied: 'IP Copied',
     copyIPFailed: 'Failed to copy IP address. Please copy manually',
     loadingServerIP: 'Loading server IP...',
+    testConnection: 'Test Connection',
+    testingConnection: 'Testing connection...',
+    testConnectionSuccess: 'Connected. Account equity: {equity} USDT',
+    testConnectionFailed: 'Connection test failed',
+    testConnectionFillRequired: 'Please fill in required API credentials first',
+    exchangeTestNotSupported: 'Connection test is not supported for this exchange',
 
     // Error Messages
     createTraderFailed: 'Failed to create trader',
@@ -1211,6 +1217,12 @@ export const translations = {
     ipCopied: 'IP已复制',
     copyIPFailed: 'IP地址复制失败，请手动复制',
     loadingServerIP: '正在加载服务器IP...',
+    testConnection: '测试连接',
+    testingConnection: '正在测试连接...',
+    testConnectionSuccess: '连接成功，账户净值 {equity} USDT',
+    testConnectionFailed: '连接测试失败',
+    testConnectionFillRequired: '请先填写必要的 API 凭证',
+    exchangeTestNotSupported: '暂不支持该交易所连接测试',
 
     // Error Messages
     createTraderFailed: '创建交易员失败',

@@ -152,6 +152,7 @@ func (s *Server) setupRoutes() {
 				aiTrader.PUT("/models", s.handleUpdateModelConfigs)
 				aiTrader.GET("/exchanges", s.handleGetExchangeConfigs)
 				aiTrader.PUT("/exchanges", s.handleUpdateExchangeConfigs)
+				aiTrader.POST("/exchanges/test", s.handleTestExchangeConnection)
 				aiTrader.GET("/user/signal-sources", s.handleGetUserSignalSource)
 				aiTrader.POST("/user/signal-sources", s.handleSaveUserSignalSource)
 				aiTrader.GET("/status", s.handleStatus)
@@ -1081,8 +1082,8 @@ func (s *Server) handleUpdateModelConfigs(c *gin.Context) {
 		}
 	}
 
-	// 重新加载该用户的所有交易员，使新配置立即生效
-	err = s.traderManager.LoadUserTraders(s.database, userID)
+	// 强制重新加载该用户的所有交易员，使新配置立即生效
+	err = s.traderManager.ReloadUserTraders(s.database, userID)
 	if err != nil {
 		log.Printf("⚠️ 重新加载用户交易员到内存失败: %v", err)
 		// 这里不返回错误，因为模型配置已经成功更新到数据库
@@ -1180,8 +1181,8 @@ func (s *Server) handleUpdateExchangeConfigs(c *gin.Context) {
 		}
 	}
 
-	// 重新加载该用户的所有交易员，使新配置立即生效
-	err = s.traderManager.LoadUserTraders(s.database, userID)
+	// 强制重新加载该用户的所有交易员，使新配置立即生效
+	err = s.traderManager.ReloadUserTraders(s.database, userID)
 	if err != nil {
 		log.Printf("⚠️ 重新加载用户交易员到内存失败: %v", err)
 		// 这里不返回错误，因为交易所配置已经成功更新到数据库

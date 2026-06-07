@@ -11,7 +11,7 @@ import {
   WebCryptoEnvironmentCheck,
   type WebCryptoCheckStatus,
 } from '../WebCryptoEnvironmentCheck'
-import { BookOpen, Trash2, HelpCircle } from 'lucide-react'
+import { BookOpen, Trash2, HelpCircle, PlugZap } from 'lucide-react'
 import { toast } from 'sonner'
 import { Tooltip } from './Tooltip'
 import { getShortName } from './utils'
@@ -62,6 +62,11 @@ export function ExchangeConfigModal({
   const [copiedIP, setCopiedIP] = useState(false)
   const [webCryptoStatus, setWebCryptoStatus] =
     useState<WebCryptoCheckStatus>('idle')
+  const [testingConnection, setTestingConnection] = useState(false)
+  const [testResult, setTestResult] = useState<{
+    ok: boolean
+    message: string
+  } | null>(null)
 
   // 币安配置指南展开状态
   const [showBinanceGuide, setShowBinanceGuide] = useState(false)
@@ -106,6 +111,19 @@ export function ExchangeConfigModal({
       setTestnet(false)
     }
   }, [editingExchangeId, configuredExchange])
+
+  useEffect(() => {
+    setTestResult(null)
+  }, [
+    selectedExchangeId,
+    apiKey,
+    secretKey,
+    testnet,
+    hyperliquidWalletAddr,
+    asterUser,
+    asterSigner,
+    asterPrivateKey,
+  ])
 
   // 加载服务器IP（当选择binance时）
   useEffect(() => {
@@ -202,6 +220,100 @@ export function ExchangeConfigModal({
       '*'.repeat(Math.max(secret.length - 8, 4)) +
       secret.slice(-4)
     )
+  }
+
+  const hasSavedCredentials =
+    Boolean(editingExchangeId) && Boolean(configuredExchange)
+
+  const canTestConnection = (): boolean => {
+    if (!selectedExchange) return false
+    if (selectedExchange.id === 'okx') return false
+
+    if (selectedExchange.id === 'binance') {
+      const hasKey = Boolean(apiKey.trim()) || hasSavedCredentials
+      const hasSecret = Boolean(secretKey.trim()) || hasSavedCredentials
+      return hasKey && hasSecret
+    }
+    if (selectedExchange.id === 'hyperliquid') {
+      return Boolean(apiKey.trim()) && Boolean(hyperliquidWalletAddr.trim())
+    }
+    if (selectedExchange.id === 'aster') {
+      const hasPrivateKey =
+        Boolean(asterPrivateKey.trim()) || hasSavedCredentials
+      return (
+        Boolean(asterUser.trim()) &&
+        Boolean(asterSigner.trim()) &&
+        hasPrivateKey
+      )
+    }
+    return Boolean(apiKey.trim()) && Boolean(secretKey.trim())
+  }
+
+  const buildTestPayload = () => {
+    if (!selectedExchange) return null
+
+    return {
+      exchange_id: selectedExchange.id,
+      api_key: apiKey.trim(),
+      secret_key: secretKey.trim(),
+      testnet,
+      hyperliquid_wallet_addr: hyperliquidWalletAddr.trim(),
+      aster_user: asterUser.trim(),
+      aster_signer: asterSigner.trim(),
+      aster_private_key: asterPrivateKey.trim(),
+    }
+  }
+
+  const handleTestConnection = async () => {
+    if (!selectedExchange) return
+
+    if (selectedExchange.id === 'okx') {
+      const msg = t('exchangeTestNotSupported', language)
+      setTestResult({ ok: false, message: msg })
+      toast.error(msg)
+      return
+    }
+
+    if (!canTestConnection()) {
+      const msg = t('testConnectionFillRequired', language)
+      setTestResult({ ok: false, message: msg })
+      toast.error(msg)
+      return
+    }
+
+    const payload = buildTestPayload()
+    if (!payload) return
+
+    setTestingConnection(true)
+    setTestResult(null)
+
+    try {
+      const result = await api.testExchangeConnectionEncrypted(payload)
+      if (result.success) {
+        const equity = result.total_equity ?? 0
+        const msg = t('testConnectionSuccess', language, {
+          equity: equity.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }),
+        })
+        setTestResult({ ok: true, message: msg })
+        toast.success(msg)
+      } else {
+        const msg = result.error || t('testConnectionFailed', language)
+        setTestResult({ ok: false, message: msg })
+        toast.error(msg)
+      }
+    } catch (error) {
+      const msg =
+        error instanceof Error
+          ? error.message
+          : t('testConnectionFailed', language)
+      setTestResult({ ok: false, message: msg })
+      toast.error(msg)
+    } finally {
+      setTestingConnection(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -877,46 +989,80 @@ export function ExchangeConfigModal({
             )}
           </div>
 
+          {testResult && (
+            <div
+              className="mt-4 px-3 py-2 rounded text-xs"
+              style={{
+                background: testResult.ok
+                  ? 'rgba(14, 203, 129, 0.1)'
+                  : 'rgba(246, 70, 93, 0.1)',
+                border: `1px solid ${testResult.ok ? 'rgba(14, 203, 129, 0.3)' : 'rgba(246, 70, 93, 0.3)'}`,
+                color: testResult.ok ? '#0ECB81' : '#F6465D',
+              }}
+            >
+              {testResult.message}
+            </div>
+          )}
+
           <div
-            className="flex gap-3 mt-6 pt-4 sticky bottom-0"
+            className="flex flex-col gap-3 mt-6 pt-4 sticky bottom-0"
             style={{ background: '#1E2329' }}
           >
             <button
               type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 rounded text-sm font-semibold"
-              style={{ background: '#2B3139', color: '#848E9C' }}
-            >
-              {t('cancel', language)}
-            </button>
-            <button
-              type="submit"
+              onClick={handleTestConnection}
               disabled={
+                testingConnection ||
                 !selectedExchange ||
-                (selectedExchange.id === 'binance' &&
-                  (!apiKey.trim() || !secretKey.trim())) ||
-                (selectedExchange.id === 'okx' &&
-                  (!apiKey.trim() ||
-                    !secretKey.trim() ||
-                    !passphrase.trim())) ||
-                (selectedExchange.id === 'hyperliquid' &&
-                  (!apiKey.trim() || !hyperliquidWalletAddr.trim())) || // 验证私钥和钱包地址
-                (selectedExchange.id === 'aster' &&
-                  (!asterUser.trim() ||
-                    !asterSigner.trim() ||
-                    !asterPrivateKey.trim())) ||
-                (selectedExchange.type === 'cex' &&
-                  selectedExchange.id !== 'hyperliquid' &&
-                  selectedExchange.id !== 'aster' &&
-                  selectedExchange.id !== 'binance' &&
-                  selectedExchange.id !== 'okx' &&
-                  (!apiKey.trim() || !secretKey.trim()))
+                selectedExchange.id === 'okx' ||
+                !canTestConnection()
               }
-              className="flex-1 px-4 py-2 rounded text-sm font-semibold disabled:opacity-50"
-              style={{ background: '#F0B90B', color: '#000' }}
+              className="w-full px-4 py-2 rounded text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ background: '#2B3139', color: '#EAECEF' }}
             >
-              {t('saveConfig', language)}
+              <PlugZap className="w-4 h-4" />
+              {testingConnection
+                ? t('testingConnection', language)
+                : t('testConnection', language)}
             </button>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 px-4 py-2 rounded text-sm font-semibold"
+                style={{ background: '#2B3139', color: '#848E9C' }}
+              >
+                {t('cancel', language)}
+              </button>
+              <button
+                type="submit"
+                disabled={
+                  !selectedExchange ||
+                  (selectedExchange.id === 'binance' &&
+                    (!apiKey.trim() || !secretKey.trim())) ||
+                  (selectedExchange.id === 'okx' &&
+                    (!apiKey.trim() ||
+                      !secretKey.trim() ||
+                      !passphrase.trim())) ||
+                  (selectedExchange.id === 'hyperliquid' &&
+                    (!apiKey.trim() || !hyperliquidWalletAddr.trim())) ||
+                  (selectedExchange.id === 'aster' &&
+                    (!asterUser.trim() ||
+                      !asterSigner.trim() ||
+                      !asterPrivateKey.trim())) ||
+                  (selectedExchange.type === 'cex' &&
+                    selectedExchange.id !== 'hyperliquid' &&
+                    selectedExchange.id !== 'aster' &&
+                    selectedExchange.id !== 'binance' &&
+                    selectedExchange.id !== 'okx' &&
+                    (!apiKey.trim() || !secretKey.trim()))
+                }
+                className="flex-1 px-4 py-2 rounded text-sm font-semibold disabled:opacity-50"
+                style={{ background: '#F0B90B', color: '#000' }}
+              >
+                {t('saveConfig', language)}
+              </button>
+            </div>
           </div>
         </form>
       </div>
