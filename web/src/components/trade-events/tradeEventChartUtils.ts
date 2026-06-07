@@ -88,33 +88,30 @@ export function collectChartSymbols(
   return [...merged]
 }
 
-/** 默认选中比特币；若当前选项仍有效则保留用户选择 */
+/** 默认选中 preferred 中第一个可用币种；若当前选项仍有效则保留用户选择 */
 export function pickDefaultChartSymbol(
   available: string[],
   preferred: string[],
   current: string
 ): string {
   const pool = new Set(
-    [...available, ...preferred, DEFAULT_CHART_SYMBOL]
+    [...available, ...preferred]
       .map(normalizeTradingSymbol)
       .filter(Boolean)
   )
-  const list = [...pool]
 
   if (current) {
     const norm = normalizeTradingSymbol(current)
     if (pool.has(norm)) return norm
   }
 
-  const btc = normalizeTradingSymbol(DEFAULT_CHART_SYMBOL)
-  if (pool.has(btc)) return btc
-
   for (const s of preferred) {
     const norm = normalizeTradingSymbol(s)
     if (pool.has(norm)) return norm
   }
 
-  return list[0] || btc
+  const list = [...pool]
+  return list[0] || DEFAULT_CHART_SYMBOL
 }
 
 /** 统一为 XXXUSDT，避免 PUMPBTC 与 PUMPBTCUSDT 过滤不一致 */

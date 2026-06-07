@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useSymbolPreferences } from '../contexts/SymbolPreferencesContext'
 import { httpClient } from '../lib/httpClient'
 import { api } from '../lib/api'
 import type { TraderInfo } from '../types'
@@ -414,17 +415,19 @@ export function CopyTradeDashboard() {
   const safeRecords = records ?? []
   const safeConfigs = configs ?? []
 
-  const chartEventSymbols = useMemo(
-    () => [
+  const { sortSymbols } = useSymbolPreferences()
+
+  const chartEventSymbols = useMemo(() => {
+    const raw = [
       ...new Set(
         safeRecords
           .filter((r) => r.status === 'OPEN' || r.status === 'CLOSED')
           .map((r) => r.symbol)
           .filter(Boolean)
       ),
-    ],
-    [safeRecords]
-  )
+    ]
+    return sortSymbols(raw)
+  }, [safeRecords, sortSymbols])
 
   const { monitored: monitoredTraders, unmonitored: unmonitoredTraders } = useMemo(
     () => partitionTradersForDashboard(leaderboard, safeConfigs),

@@ -55,7 +55,7 @@ export function TradeEventPriceChart({
     visibleHoursProp ??
     (source === 'copy_trade' ? CHART_COPY_TRADE_VISIBLE_HOURS : CHART_DEFAULT_VISIBLE_HOURS)
   const [interval, setInterval] = useState<ChartInterval>('1h')
-  const [symbol, setSymbol] = useState(DEFAULT_CHART_SYMBOL)
+  const [symbol, setSymbol] = useState('')
   const [symbols, setSymbols] = useState<string[]>(symbolsProp || [])
   const [events, setEvents] = useState<TradeEvent[]>([])
   const [klines, setKlines] = useState<KlinePoint[]>([])
@@ -145,14 +145,15 @@ export function TradeEventPriceChart({
       }
       return merged
     })
+    const sortedPreferred = sortSymbols(normalized)
     setSymbol((prev) =>
       pickDefaultChartSymbol(
-        [...normalized, ...events.map((e) => e.symbol)],
-        normalized,
+        [...sortedPreferred, ...events.map((e) => e.symbol)],
+        sortedPreferred,
         prev
       )
     )
-  }, [symbolsPropKey, events])
+  }, [symbolsPropKey, events, sortSymbols])
 
   useEffect(() => {
     setSelectedEvent(null)
@@ -169,7 +170,7 @@ export function TradeEventPriceChart({
   )
 
   const symbolOptions = useMemo(() => {
-    const merged = new Set<string>([DEFAULT_CHART_SYMBOL])
+    const merged = new Set<string>()
     for (const s of symbols) {
       const n = normalizeTradingSymbol(s)
       if (n) merged.add(n)
@@ -177,8 +178,19 @@ export function TradeEventPriceChart({
     for (const e of events) {
       if (e.symbol) merged.add(e.symbol)
     }
-    return sortSymbols([...merged])
+    const sorted = sortSymbols([...merged])
+    if (sorted.length > 0) return sorted
+    return [DEFAULT_CHART_SYMBOL]
   }, [symbols, events, sortSymbols])
+
+  useEffect(() => {
+    if (symbolOptions.length === 0) return
+    setSymbol((prev) => {
+      const norm = normalizeTradingSymbol(prev)
+      if (norm && symbolOptions.includes(norm)) return norm
+      return symbolOptions[0]
+    })
+  }, [symbolOptions])
 
   const selectedDetail = useMemo(() => {
     if (!selectedEvent) return null

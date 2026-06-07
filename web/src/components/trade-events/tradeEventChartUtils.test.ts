@@ -118,10 +118,10 @@ describe('tradeEventChartUtils', () => {
     expect(syms).toEqual(['BTCUSDT'])
   })
 
-  it('pickDefaultChartSymbol prefers BTC', () => {
+  it('pickDefaultChartSymbol prefers first in preferred order', () => {
     expect(
-      pickDefaultChartSymbol(['ETHUSDT', 'SOLUSDT'], ['ETHUSDT'], '')
-    ).toBe(DEFAULT_CHART_SYMBOL)
+      pickDefaultChartSymbol(['ETHUSDT', 'SOLUSDT'], ['SOLUSDT', 'ETHUSDT'], '')
+    ).toBe('SOLUSDT')
     expect(
       pickDefaultChartSymbol(['ETHUSDT'], ['ETHUSDT'], 'ETHUSDT')
     ).toBe('ETHUSDT')
