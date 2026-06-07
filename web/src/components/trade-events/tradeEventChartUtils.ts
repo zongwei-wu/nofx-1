@@ -158,8 +158,11 @@ export function formatPositionLineTitle(overlay: ChartPositionOverlay): string {
   return `入场 ${dirPart}${price} · ${pnlStr}`
 }
 
-export function positionOverlayLineColor(unrealizedPnl: number): string {
-  return unrealizedPnl >= 0 ? '#0ECB81' : '#F6465D'
+/** 持仓成本线颜色（固定色，与开/平事件红绿区分） */
+export const POSITION_OVERLAY_LINE_COLOR = '#22D3EE'
+
+export function positionOverlayLineColor(_unrealizedPnl?: number): string {
+  return POSITION_OVERLAY_LINE_COLOR
 }
 
 /** 将事件/订单时间统一为 Unix 秒（兼容秒与毫秒） */

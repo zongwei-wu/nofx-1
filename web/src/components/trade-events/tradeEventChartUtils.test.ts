@@ -345,8 +345,8 @@ describe('tradeEventChartUtils', () => {
     expect(title).toContain('+12.34')
   })
 
-  it('positionOverlayLineColor reflects pnl sign', () => {
-    expect(positionOverlayLineColor(1)).toBe('#0ECB81')
-    expect(positionOverlayLineColor(-1)).toBe('#F6465D')
+  it('positionOverlayLineColor uses fixed accent color', () => {
+    expect(positionOverlayLineColor(1)).toBe('#22D3EE')
+    expect(positionOverlayLineColor(-1)).toBe('#22D3EE')
   })
 })
