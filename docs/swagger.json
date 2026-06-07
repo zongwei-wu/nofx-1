@@ -50,7 +50,7 @@
       "get": {
         "tags": ["TradeEvents"],
         "summary": "统一交易事件",
-        "description": "按数据源返回开/加/减/平事件，供 K 线标注图使用。ai_trader=AI 本账户成交；ai_copy_trade=指定 AI 交易员参与的跟单成交；copy_trade=跟单管理全量（含带单员订单推断）",
+        "description": "按数据源返回开/加/减/平事件，供 K 线标注图使用。ai_trader=AI 本账户成交；ai_copy_trade=指定 AI 交易员参与的跟单成交；copy_trade=跟单 DB 记录（默认不含带单员推断，不含 exchange 持仓同步记录）；include_lead=1 时追加带单员订单推断事件（source=lead）",
         "security": [{ "BearerAuth": [] }],
         "parameters": [
           {
@@ -97,6 +97,14 @@
             "type": "integer",
             "format": "int64",
             "description": "结束时间（毫秒时间戳）"
+          },
+          {
+            "name": "include_lead",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": ["1"],
+            "description": "copy_trade 时设为 1 可追加带单员订单推断事件（source=lead）"
           }
         ],
         "responses": {

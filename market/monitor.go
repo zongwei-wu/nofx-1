@@ -232,9 +232,24 @@ func (m *WSMonitor) processKlineUpdate(symbol string, wsData KlineWSData, _time 
 	klineDataMap.Store(symbol, klines)
 }
 
+func (m *WSMonitor) refreshKlinesREST(symbol, duration string) error {
+	apiClient := NewAPIClient()
+	klines, err := apiClient.GetKlines(symbol, duration, 100)
+	if err != nil {
+		return err
+	}
+	if len(klines) == 0 {
+		return fmt.Errorf("%s %s K线为空", symbol, duration)
+	}
+	m.getKlineDataMap(duration).Store(strings.ToUpper(symbol), klines)
+	log.Printf("REST回补 %s %s K线: %d 条", strings.ToUpper(symbol), duration, len(klines))
+	return nil
+}
+
 func (m *WSMonitor) GetCurrentKlines(symbol string, duration string) ([]Kline, error) {
-	// 对每一个进来的symbol检测是否存在内类 是否的话就订阅它
-	value, exists := m.getKlineDataMap(duration).Load(symbol)
+	symbol = strings.ToUpper(symbol)
+	klineDataMap := m.getKlineDataMap(duration)
+	value, exists := klineDataMap.Load(symbol)
 	if !exists {
 		// 如果Ws数据未初始化完成时,单独使用api获取 - 兼容性代码 (防止在未初始化完成是,已经有交易员运行)
 		apiClient := NewAPIClient()
@@ -254,14 +269,20 @@ func (m *WSMonitor) GetCurrentKlines(symbol string, duration string) ([]Kline, e
 			log.Printf("警告: 动态订阅%v分钟K线失败: %v (使用API数据)", duration, subErr)
 		}
 
-		// ✅ FIX: 返回深拷贝而非引用
 		result := make([]Kline, len(klines))
 		copy(result, klines)
 		return result, nil
 	}
 
-	// ✅ FIX: 返回深拷贝而非引用，避免并发竞态条件
 	klines := value.([]Kline)
+	if isKlineCacheStale(klines, duration) {
+		if err := m.refreshKlinesREST(symbol, duration); err != nil {
+			log.Printf("WS缓存过期，REST回补 %s %s 失败: %v", symbol, duration, err)
+		} else if refreshed, ok := klineDataMap.Load(symbol); ok {
+			klines = refreshed.([]Kline)
+		}
+	}
+
 	result := make([]Kline, len(klines))
 	copy(result, klines)
 	return result, nil

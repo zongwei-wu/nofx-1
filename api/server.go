@@ -1561,33 +1561,14 @@ func (s *Server) handleEquityHistory(c *gin.Context) {
 
 	var history []EquityPoint
 	for _, record := range records {
-		// TotalBalance字段实际存储的是TotalEquity
-		// totalEquity := record.AccountState.TotalBalance
-		// TotalUnrealizedProfit字段实际存储的是TotalPnL（相对初始余额）
-		// totalPnL := record.AccountState.TotalUnrealizedProfit
-		walletBalance := record.AccountState.TotalBalance
-		unrealizedPnL := record.AccountState.TotalUnrealizedProfit
-		totalEquity := walletBalance + unrealizedPnL
-
-		// 🔄 使用历史记录中保存的initial_balance（如果有）
-		// 这样可以保持历史PNL%的准确性，即使用户后来更新了initial_balance
-		if record.AccountState.InitialBalance > 0 {
-			base = record.AccountState.InitialBalance
-		}
-
-		totalPnL := totalEquity - base
-		// 计算盈亏百分比
-		totalPnLPct := 0.0
-		if base > 0 {
-			totalPnLPct = (totalPnL / base) * 100
-		}
+		metrics := logger.ComputeEquityMetrics(record.AccountState, base)
 
 		history = append(history, EquityPoint{
 			Timestamp:        record.Timestamp.Format("2006-01-02 15:04:05"),
-			TotalEquity:      totalEquity,
+			TotalEquity:      metrics.TotalEquity,
 			AvailableBalance: record.AccountState.AvailableBalance,
-			TotalPnL:         totalPnL,
-			TotalPnLPct:      totalPnLPct,
+			TotalPnL:         metrics.TotalPnL,
+			TotalPnLPct:      metrics.TotalPnLPct,
 			PositionCount:    record.AccountState.PositionCount,
 			MarginUsedPct:    record.AccountState.MarginUsedPct,
 			CycleNumber:      record.CycleNumber,
@@ -2729,17 +2710,26 @@ func (s *Server) getEquityHistoryForTraders(traderIDs []string) map[string]inter
 			continue
 		}
 
-		// 构建收益率历史数据
+		base := 0.0
+		if status := trader.GetStatus(); status != nil {
+			if ib, ok := status["initial_balance"].(float64); ok && ib > 0 {
+				base = ib
+			}
+		}
+
 		history := make([]map[string]interface{}, 0, len(records))
 		for _, record := range records {
-			// 计算总权益（余额+未实现盈亏）
-			totalEquity := record.AccountState.TotalBalance + record.AccountState.TotalUnrealizedProfit
-
+			metrics := logger.ComputeEquityMetrics(record.AccountState, base)
 			history = append(history, map[string]interface{}{
-				"timestamp":    record.Timestamp,
-				"total_equity": totalEquity,
-				"total_pnl":    record.AccountState.TotalUnrealizedProfit,
-				"balance":      record.AccountState.TotalBalance,
+				"timestamp":         record.Timestamp.Format("2006-01-02 15:04:05"),
+				"total_equity":      metrics.TotalEquity,
+				"total_pnl":         metrics.TotalPnL,
+				"total_pnl_pct":     metrics.TotalPnLPct,
+				"available_balance": record.AccountState.AvailableBalance,
+				"balance":           metrics.WalletBalance,
+				"position_count":    record.AccountState.PositionCount,
+				"margin_used_pct":   record.AccountState.MarginUsedPct,
+				"cycle_number":      record.CycleNumber,
 			})
 		}
 
@@ -3047,7 +3037,7 @@ func (s *Server) handleGetCopyTradeRecords(c *gin.Context) {
 			"id": id, "portfolio_id": portfolioID, "nickname": nickname,
 			"order_id": orderID, "symbol": symbol, "side": side,
 			"position_side": posSide, "executed_qty": qty, "avg_price": price,
-			"total_pnl": pnl, "status": status, "lead_order_time": leadTime,
+			"total_pnl": pnl, "pnl_kind": copyTradePnLKind(status), "status": status, "lead_order_time": leadTime,
 			"copy_time": copyTime, "close_time": closeTime,
 			"close_price": closePrice, "error_message": errorMessage,
 		}
@@ -3360,19 +3350,24 @@ func (s *Server) handleSyncCopyTrade(c *gin.Context) {
 			}
 		}
 		rows, err := s.database.DB().Query(
-			"SELECT id, symbol, position_side FROM copy_trade_records WHERE user_id=? AND status='OPEN'",
+			"SELECT id, symbol, position_side, executed_qty, avg_price FROM copy_trade_records WHERE user_id=? AND status='OPEN'",
 			userID)
 		if err == nil {
 			for rows.Next() {
 				var rid int
 				var sym, posSide string
-				if err := rows.Scan(&rid, &sym, &posSide); err != nil {
+				var qty, entryPrice float64
+				if err := rows.Scan(&rid, &sym, &posSide, &qty, &entryPrice); err != nil {
 					continue
 				}
 				if !activeKeys[sym+"|"+posSide] {
+					closePrice := entryPrice
+					realizedPnL := computeCopyTradeRealizedPnL(posSide, qty, entryPrice, closePrice)
 					s.database.DB().Exec(
-						"UPDATE copy_trade_records SET status='CLOSED', close_time=CURRENT_TIMESTAMP, close_price=avg_price WHERE id=?",
-						rid)
+						`UPDATE copy_trade_records
+						 SET status='CLOSED', close_time=CURRENT_TIMESTAMP, close_price=?, total_pnl=?
+						 WHERE id=?`,
+						closePrice, realizedPnL, rid)
 					log.Printf("  🔒 %s %s 已平仓，标记为 CLOSED (ID=%d)", sym, posSide, rid)
 				}
 			}

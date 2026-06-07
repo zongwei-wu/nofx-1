@@ -36,10 +36,20 @@ func Get(symbol string) (*Data, error) {
 		return nil, fmt.Errorf("获取3分钟K线失败: %v", err)
 	}
 
-	// Data staleness detection: Prevent DOGEUSDT-style price freeze issues
 	if isStaleData(klines3m, symbol) {
-		log.Printf("⚠️  WARNING: %s detected stale data (consecutive price freeze), skipping symbol", symbol)
-		return nil, fmt.Errorf("%s data is stale, possible cache failure", symbol)
+		log.Printf("⚠️  %s 检测到价格冻结，尝试 REST 回补", symbol)
+		if WSMonitorCli != nil {
+			if err := WSMonitorCli.refreshKlinesREST(symbol, "3m"); err == nil {
+				klines3m, err = WSMonitorCli.GetCurrentKlines(symbol, "3m")
+				if err != nil {
+					return nil, fmt.Errorf("REST回补后获取3分钟K线失败: %v", err)
+				}
+			}
+		}
+		if isStaleData(klines3m, symbol) {
+			log.Printf("⚠️  WARNING: %s detected stale data (consecutive price freeze), skipping symbol", symbol)
+			return nil, fmt.Errorf("%s data is stale, possible cache failure", symbol)
+		}
 	}
 
 	// 获取4小时K线数据 (最近10个)

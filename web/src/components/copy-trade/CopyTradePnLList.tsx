@@ -30,11 +30,21 @@ function pnlRate(rec: CopyTradePnLRecord) {
   return (rec.total_pnl / notional) * 100
 }
 
-function PnlCell({ value }: { value: number }) {
+function pnlKindLabel(rec: CopyTradePnLRecord) {
+  const kind = rec.pnl_kind ?? (rec.status === 'CLOSED' ? 'realized' : 'unrealized')
+  return kind === 'realized' ? '已实现' : '未实现'
+}
+
+function PnlCell({ value, kind }: { value: number; kind?: string }) {
   const color = value >= 0 ? '#0ECB81' : '#F6465D'
   return (
-    <span className="font-semibold" style={{ color }}>
-      {value >= 0 ? '+' : ''}${value.toFixed(2)}
+    <span className="font-semibold inline-flex flex-col items-end leading-tight" style={{ color }}>
+      <span>{value >= 0 ? '+' : ''}${value.toFixed(2)}</span>
+      {kind && (
+        <span className="text-[9px] font-normal" style={{ color: '#5E6673' }}>
+          {kind}
+        </span>
+      )}
     </span>
   )
 }
@@ -44,6 +54,7 @@ function PnlRow({ rec }: { rec: CopyTradePnLRecord }) {
   const rate = pnlRate(rec)
   const notional = rec.avg_price * rec.executed_qty
   const timeLabel = rec.status === 'CLOSED' ? formatTime(rec.close_time) : formatTime(rec.copy_time || rec.lead_order_time)
+  const pnlKind = pnlKindLabel(rec)
 
   return (
     <>
@@ -80,7 +91,7 @@ function PnlRow({ rec }: { rec: CopyTradePnLRecord }) {
           {rec.status === 'CLOSED' ? `$${Number(rec.close_price || 0).toLocaleString()}` : '-'}
         </span>
         <span className="text-right">
-          <PnlCell value={rec.total_pnl || 0} />
+          <PnlCell value={rec.total_pnl || 0} kind={pnlKind} />
         </span>
         <span className="text-right" style={{ color: rate !== null && rate >= 0 ? '#0ECB81' : '#F6465D' }}>
           {rate !== null ? `${rate >= 0 ? '+' : ''}${rate.toFixed(2)}%` : '-'}
@@ -164,7 +175,7 @@ function PnlRow({ rec }: { rec: CopyTradePnLRecord }) {
         </div>
         <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor: '#1E2329' }}>
           <span style={{ color: '#848E9C' }}>盈亏</span>
-          <PnlCell value={rec.total_pnl || 0} />
+          <PnlCell value={rec.total_pnl || 0} kind={pnlKind} />
         </div>
       </div>
     </>

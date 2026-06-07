@@ -10,6 +10,7 @@ export interface CopyTradePnLRecord {
   avg_price: number
   close_price?: number
   total_pnl: number
+  pnl_kind?: 'unrealized' | 'realized'
   status: string
   error_message?: string
   lead_order_time: number

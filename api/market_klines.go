@@ -71,8 +71,9 @@ func (s *Server) handleMarketKlines(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"symbol":   symbol,
-		"interval": interval,
-		"klines":   out,
+		"symbol":      symbol,
+		"interval":    interval,
+		"data_source": "rest",
+		"klines":      out,
 	})
 }

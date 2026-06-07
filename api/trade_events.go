@@ -166,7 +166,8 @@ func (s *Server) copyTradeEventsFromRecords(userID, portfolioID, symbolFilter st
 	q := `
 		SELECT portfolio_id, nickname, symbol, side, position_side, executed_qty, avg_price,
 		       status, lead_order_time, copy_time, close_time, close_price
-		FROM copy_trade_records WHERE user_id = ?`
+		FROM copy_trade_records
+		WHERE user_id = ? AND portfolio_id != 'exchange'`
 	args := []interface{}{userID}
 	if portfolioID != "" {
 		q += " AND portfolio_id = ?"
@@ -230,8 +231,11 @@ func (s *Server) copyTradeEventsFromRecords(userID, portfolioID, symbolFilter st
 
 func leadOrderPositionSide(o LeadOrder) string {
 	if isLeadOpenOrder(o.PositionSide, o.Side) {
-		ps := o.PositionSide
+		ps := strings.ToUpper(strings.TrimSpace(o.PositionSide))
 		if ps == "BOTH" {
+			if strings.ToUpper(strings.TrimSpace(o.Side)) == "BUY" {
+				return "LONG"
+			}
 			return "SHORT"
 		}
 		return ps
@@ -592,9 +596,10 @@ func filterEventsByTime(events []TradeEvent, fromMs, toMs int64) []TradeEvent {
 }
 
 // handleTradeEvents 统一交易事件
-// GET /api/trade-events?source=copy_trade|ai_trader|ai_copy_trade&trader_id=&portfolio_id=&symbol=&from=&to=
+// GET /api/trade-events?source=copy_trade|ai_trader|ai_copy_trade&trader_id=&portfolio_id=&symbol=&from=&to=&include_lead=1
 func (s *Server) handleTradeEvents(c *gin.Context) {
 	source := strings.TrimSpace(c.Query("source"))
+	includeLead := strings.TrimSpace(c.Query("include_lead")) == "1"
 	symbol := strings.ToUpper(strings.TrimSpace(c.Query("symbol")))
 	if symbol != "" && !strings.HasSuffix(symbol, "USDT") {
 		symbol += "USDT"
@@ -670,38 +675,40 @@ func (s *Server) handleTradeEvents(c *gin.Context) {
 			symbolCandidates = append(symbolCandidates, recSyms)
 		}
 
-		if portfolioID != "" {
-			var nickname string
-			_ = s.database.DB().QueryRow(
-				"SELECT nickname FROM copy_trade_config WHERE user_id=? AND portfolio_id=? LIMIT 1",
-				userID, portfolioID).Scan(&nickname)
-			if history, err := getLeadOrdersForMonitor(portfolioID, false); err == nil && history.Data != nil {
-				leadEv := leadOrderEvents(portfolioID, nickname, history.Data.List)
-				if symbol != "" {
-					for _, e := range leadEv {
-						if e.Symbol == symbol {
-							events = append(events, e)
+		if includeLead {
+			if portfolioID != "" {
+				var nickname string
+				_ = s.database.DB().QueryRow(
+					"SELECT nickname FROM copy_trade_config WHERE user_id=? AND portfolio_id=? LIMIT 1",
+					userID, portfolioID).Scan(&nickname)
+				if history, err := getLeadOrdersForMonitor(portfolioID, false); err == nil && history.Data != nil {
+					leadEv := leadOrderEvents(portfolioID, nickname, history.Data.List)
+					if symbol != "" {
+						for _, e := range leadEv {
+							if e.Symbol == symbol {
+								events = append(events, e)
+							}
+						}
+					} else {
+						events = append(events, leadEv...)
+					}
+				}
+			} else {
+				cfgRows, _ := s.database.DB().Query(
+					"SELECT portfolio_id, nickname FROM copy_trade_config WHERE user_id=? AND enabled=1",
+					userID)
+				if cfgRows != nil {
+					for cfgRows.Next() {
+						var pid, nick string
+						if cfgRows.Scan(&pid, &nick) != nil {
+							continue
+						}
+						if history, err := getLeadOrdersForMonitor(pid, false); err == nil && history.Data != nil {
+							events = append(events, leadOrderEvents(pid, nick, history.Data.List)...)
 						}
 					}
-				} else {
-					events = append(events, leadEv...)
+					cfgRows.Close()
 				}
-			}
-		} else {
-			cfgRows, _ := s.database.DB().Query(
-				"SELECT portfolio_id, nickname FROM copy_trade_config WHERE user_id=? AND enabled=1",
-				userID)
-			if cfgRows != nil {
-				for cfgRows.Next() {
-					var pid, nick string
-					if cfgRows.Scan(&pid, &nick) != nil {
-						continue
-					}
-					if history, err := getLeadOrdersForMonitor(pid, false); err == nil && history.Data != nil {
-						events = append(events, leadOrderEvents(pid, nick, history.Data.List)...)
-					}
-				}
-				cfgRows.Close()
 			}
 		}
 

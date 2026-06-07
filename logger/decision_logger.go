@@ -30,6 +30,7 @@ type DecisionRecord struct {
 }
 
 // AccountSnapshot 账户状态快照
+// TotalBalance 为钱包余额（净值减去未实现盈亏）；TotalUnrealizedProfit 为未实现盈亏。
 type AccountSnapshot struct {
 	TotalBalance          float64 `json:"total_balance"`
 	AvailableBalance      float64 `json:"available_balance"`
@@ -693,15 +694,11 @@ func (l *DecisionLogger) calculateSharpeRatio(records []*DecisionRecord) float64
 		return 0.0
 	}
 
-	// 提取每个周期的账户净值
-	// 注意：TotalBalance字段实际存储的是TotalEquity（账户总净值）
-	// TotalUnrealizedProfit字段实际存储的是TotalPnL（相对初始余额的盈亏）
 	var equities []float64
 	for _, record := range records {
-		// 直接使用TotalBalance，因为它已经是完整的账户净值
-		equity := record.AccountState.TotalBalance
-		if equity > 0 {
-			equities = append(equities, equity)
+		metrics := ComputeEquityMetrics(record.AccountState, 0)
+		if metrics.TotalEquity > 0 {
+			equities = append(equities, metrics.TotalEquity)
 		}
 	}
 

@@ -68,6 +68,7 @@ export function TraderConfigModal({
     scan_interval_minutes: 3,
   })
   const [isSaving, setIsSaving] = useState(false)
+  const [originalScanInterval, setOriginalScanInterval] = useState<number | null>(null)
   const [availableCoins, setAvailableCoins] = useState<string[]>([])
   const [selectedCoins, setSelectedCoins] = useState<string[]>([])
   const [showCoinSelector, setShowCoinSelector] = useState(false)
@@ -78,6 +79,7 @@ export function TraderConfigModal({
   useEffect(() => {
     if (traderData) {
       setFormData(traderData)
+      setOriginalScanInterval(traderData.scan_interval_minutes ?? 3)
       // 设置已选择的币种
       if (traderData.trading_symbols) {
         const coins = traderData.trading_symbols
@@ -87,6 +89,7 @@ export function TraderConfigModal({
         setSelectedCoins(coins)
       }
     } else if (!isEditMode) {
+      setOriginalScanInterval(null)
       setFormData({
         trader_name: '',
         ai_model: availableModels[0]?.id || '',
@@ -507,6 +510,13 @@ export function TraderConfigModal({
                   <p className="text-xs text-gray-500 mt-1">
                     {t('scanIntervalRecommend', language)}
                   </p>
+                  {isEditMode &&
+                    originalScanInterval !== null &&
+                    formData.scan_interval_minutes !== originalScanInterval && (
+                      <p className="text-xs text-[#F0B90B] mt-1">
+                        {t('scanIntervalRestartHint', language)}
+                      </p>
+                    )}
                 </div>
                 <div></div>
               </div>

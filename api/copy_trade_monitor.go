@@ -242,6 +242,7 @@ func (s *Server) handleGetCopyTradeMonitor(c *gin.Context) {
 						"executed_qty":    qty,
 						"avg_price":       price,
 						"total_pnl":       pnl,
+						"pnl_kind":        copyTradePnLKind(st),
 						"lead_order_time": lot,
 					})
 				}

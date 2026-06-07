@@ -12,12 +12,13 @@ import (
 )
 
 type CombinedStreamsClient struct {
-	conn        *websocket.Conn
-	mu          sync.RWMutex
-	subscribers map[string]chan []byte
-	reconnect   bool
-	done        chan struct{}
-	batchSize   int // 每批订阅的流数量
+	conn              *websocket.Conn
+	mu                sync.RWMutex
+	subscribers       map[string]chan []byte
+	subscribedStreams []string
+	reconnect         bool
+	done              chan struct{}
+	batchSize         int // 每批订阅的流数量
 }
 
 func NewCombinedStreamsClient(batchSize int) *CombinedStreamsClient {
@@ -100,14 +101,67 @@ func (c *CombinedStreamsClient) subscribeStreams(streams []string) error {
 	}
 
 	c.mu.RLock()
-	defer c.mu.RUnlock()
+	conn := c.conn
+	c.mu.RUnlock()
 
-	if c.conn == nil {
+	if conn == nil {
 		return fmt.Errorf("WebSocket未连接")
 	}
 
 	log.Printf("订阅流: %v", streams)
-	return c.conn.WriteJSON(subscribeMsg)
+	if err := conn.WriteJSON(subscribeMsg); err != nil {
+		return err
+	}
+	c.trackSubscribedStreams(streams)
+	return nil
+}
+
+func (c *CombinedStreamsClient) trackSubscribedStreams(streams []string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	seen := make(map[string]bool, len(c.subscribedStreams))
+	for _, s := range c.subscribedStreams {
+		seen[s] = true
+	}
+	for _, stream := range streams {
+		if !seen[stream] {
+			c.subscribedStreams = append(c.subscribedStreams, stream)
+			seen[stream] = true
+		}
+	}
+}
+
+func (c *CombinedStreamsClient) resubscribeAll() {
+	c.mu.RLock()
+	streams := append([]string(nil), c.subscribedStreams...)
+	batchSize := c.batchSize
+	c.mu.RUnlock()
+
+	if len(streams) == 0 {
+		return
+	}
+	if batchSize <= 0 {
+		batchSize = 50
+	}
+
+	batches := make([][]string, 0)
+	for i := 0; i < len(streams); i += batchSize {
+		end := i + batchSize
+		if end > len(streams) {
+			end = len(streams)
+		}
+		batches = append(batches, streams[i:end])
+	}
+
+	for i, batch := range batches {
+		if err := c.subscribeStreams(batch); err != nil {
+			log.Printf("重连后第 %d 批流重新订阅失败: %v", i+1, err)
+		}
+		if i < len(batches)-1 {
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+	log.Printf("重连后已重新订阅 %d 个流", len(streams))
 }
 
 func (c *CombinedStreamsClient) readMessages() {
@@ -180,7 +234,9 @@ func (c *CombinedStreamsClient) handleReconnect() {
 	if err := c.Connect(); err != nil {
 		log.Printf("组合流重新连接失败: %v", err)
 		go c.handleReconnect()
+		return
 	}
+	c.resubscribeAll()
 }
 
 func (c *CombinedStreamsClient) Close() {

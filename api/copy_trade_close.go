@@ -52,12 +52,31 @@ func (s *Server) alreadyCopiedClose(userID string, leadOrderTime int64) bool {
 }
 
 func (s *Server) closeCopyTradeRecords(userID, portfolioID, symbol, positionSide string, closePrice float64) {
-	_, err := s.database.DB().Exec(`
-		UPDATE copy_trade_records SET status='CLOSED', close_time=CURRENT_TIMESTAMP, close_price=?
+	rows, err := s.database.DB().Query(`
+		SELECT id, executed_qty, avg_price FROM copy_trade_records
 		WHERE user_id=? AND portfolio_id=? AND symbol=? AND position_side=? AND status='OPEN'`,
-		closePrice, userID, portfolioID, symbol, positionSide)
+		userID, portfolioID, symbol, positionSide)
 	if err != nil {
-		log.Printf("⚠️ 更新跟单平仓记录失败 %s %s: %v", symbol, positionSide, err)
+		log.Printf("⚠️ 查询跟单平仓记录失败 %s %s: %v", symbol, positionSide, err)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id int
+		var qty, entryPrice float64
+		if err := rows.Scan(&id, &qty, &entryPrice); err != nil {
+			continue
+		}
+		realizedPnL := computeCopyTradeRealizedPnL(positionSide, qty, entryPrice, closePrice)
+		_, err := s.database.DB().Exec(`
+			UPDATE copy_trade_records
+			SET status='CLOSED', close_time=CURRENT_TIMESTAMP, close_price=?, total_pnl=?
+			WHERE id=?`,
+			closePrice, realizedPnL, id)
+		if err != nil {
+			log.Printf("⚠️ 更新跟单平仓记录失败 %s %s id=%d: %v", symbol, positionSide, id, err)
+		}
 	}
 }
 

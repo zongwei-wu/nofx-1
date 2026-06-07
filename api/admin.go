@@ -137,7 +137,7 @@ func (s *Server) handleAdminCopyTradeRecords(c *gin.Context) {
 			"id": id, "user_id": recordUserID, "portfolio_id": portfolioID, "nickname": nickname,
 			"order_id": orderID, "symbol": symbolVal, "side": side,
 			"position_side": posSide, "executed_qty": qty, "avg_price": price,
-			"total_pnl": pnl, "status": statusVal, "lead_order_time": leadTime,
+			"total_pnl": pnl, "pnl_kind": copyTradePnLKind(statusVal), "status": statusVal, "lead_order_time": leadTime,
 			"copy_time": copyTime, "close_time": closeTime,
 			"close_price": closePrice, "error_message": errorMessage,
 		})

@@ -171,6 +171,8 @@ export const translations = {
     configureExchanges: 'Configure Exchanges',
     aiScanInterval: 'AI Scan Decision Interval (minutes)',
     scanIntervalRecommend: 'Recommended: 3-10 minutes',
+    scanIntervalRestartHint:
+      'Scan interval changed. Stop and restart this trader for the new interval to take effect.',
     useTestnet: 'Use Testnet',
     enabled: 'Enabled',
     save: 'Save',
@@ -1018,6 +1020,7 @@ export const translations = {
     configureExchanges: '配置交易所',
     aiScanInterval: 'AI 扫描决策间隔 (分钟)',
     scanIntervalRecommend: '建议: 3-10分钟',
+    scanIntervalRestartHint: '扫描间隔已修改，请停止并重新启动该交易员后才会生效。',
     useTestnet: '使用测试网',
     enabled: '启用',
     save: '保存',
