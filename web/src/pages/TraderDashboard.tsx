@@ -425,7 +425,8 @@ export default function TraderDashboard() {
         >
           <div style={{ color: '#848E9C' }}>
             <RefreshCw className="inline w-4 h-4 mr-1 align-text-bottom" />
-            Last Update: {lastUpdate} | Total Equity:{' '}
+            Last Update: {lastUpdate} | Initial:{' '}
+            {account?.initial_balance?.toFixed(2) || '0.00'} | Total Equity:{' '}
             {account?.total_equity?.toFixed(2) || '0.00'} | Available:{' '}
             {account?.available_balance?.toFixed(2) || '0.00'} | P&L:{' '}
             {account?.total_pnl?.toFixed(2) || '0.00'} (
@@ -435,7 +436,11 @@ export default function TraderDashboard() {
       )}
 
       {/* Account Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        <StatCard
+          title={t('initialBalance', language)}
+          value={`${account?.initial_balance?.toFixed(2) || '0.00'} USDT`}
+        />
         <StatCard
           title={t('totalEquity', language)}
           value={`${account?.total_equity?.toFixed(2) || '0.00'} USDT`}
