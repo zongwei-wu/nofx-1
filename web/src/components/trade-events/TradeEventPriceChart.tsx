@@ -61,6 +61,7 @@ export function TradeEventPriceChart({
   const [symbol, setSymbol] = useState('')
   const [symbols, setSymbols] = useState<string[]>(symbolsProp || [])
   const [events, setEvents] = useState<TradeEvent[]>([])
+  const [apiPositionOverlays, setApiPositionOverlays] = useState<ChartPositionOverlay[]>([])
   const [klines, setKlines] = useState<KlinePoint[]>([])
   const [eventsLoading, setEventsLoading] = useState(false)
   const [klinesLoading, setKlinesLoading] = useState(false)
@@ -92,6 +93,12 @@ export function TradeEventPriceChart({
         symbol: normalizeTradingSymbol(e.symbol),
       }))
       setEvents(list)
+      setApiPositionOverlays(
+        (data.position_overlays || []).map((o: ChartPositionOverlay) => ({
+          ...o,
+          symbol: normalizeTradingSymbol(o.symbol),
+        }))
+      )
       const syms: string[] = (data.symbols || []).map((s: string) => normalizeTradingSymbol(s))
       setSymbols((prev) => {
         const merged = new Set([...prev, ...syms, ...list.map((e) => e.symbol)])
@@ -100,6 +107,7 @@ export function TradeEventPriceChart({
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : '加载失败')
       setEvents([])
+      setApiPositionOverlays([])
     } finally {
       setEventsLoading(false)
     }
@@ -167,9 +175,11 @@ export function TradeEventPriceChart({
     [events, symbol]
   )
 
+  const effectivePositionOverlays = positionOverlaysProp ?? apiPositionOverlays
+
   const symPositionOverlays = useMemo(
-    () => filterOverlaysForSymbol(positionOverlaysProp ?? [], symbol),
-    [positionOverlaysProp, symbol]
+    () => filterOverlaysForSymbol(effectivePositionOverlays, symbol),
+    [effectivePositionOverlays, symbol]
   )
 
   const sortedEvents = useMemo(

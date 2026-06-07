@@ -376,6 +376,100 @@ func mergeSymbolLists(lists ...[]string) []string {
 	return out
 }
 
+func formatOverlayNicknameLabel(nicknames string) string {
+	nicknames = strings.TrimSpace(nicknames)
+	if nicknames == "" {
+		return ""
+	}
+	parts := strings.Split(nicknames, ",")
+	unique := make([]string, 0, len(parts))
+	seen := make(map[string]bool)
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" || seen[p] {
+			continue
+		}
+		seen[p] = true
+		unique = append(unique, p)
+	}
+	if len(unique) == 0 {
+		return ""
+	}
+	if len(unique) > 1 {
+		return fmt.Sprintf("%d位交易员", len(unique))
+	}
+	return unique[0]
+}
+
+// aiCopyTradePositionOverlays 该 AI 交易员跟单风控成功开仓后的 OPEN 持仓（按 symbol+方向聚合）
+func (s *Server) aiCopyTradePositionOverlays(userID, traderID, symbolFilter string) ([]map[string]interface{}, error) {
+	portfolios, err := s.aiCopyTradePortfolioIDs(userID, traderID)
+	if err != nil {
+		return nil, err
+	}
+	if len(portfolios) == 0 {
+		return []map[string]interface{}{}, nil
+	}
+
+	pids := make([]string, 0, len(portfolios))
+	for pid := range portfolios {
+		pids = append(pids, pid)
+	}
+	sort.Strings(pids)
+
+	placeholders := strings.Repeat("?,", len(pids))
+	placeholders = placeholders[:len(placeholders)-1]
+
+	q := fmt.Sprintf(`
+		SELECT symbol, position_side,
+		       SUM(executed_qty) AS executed_qty,
+		       CASE WHEN SUM(executed_qty) > 0
+		            THEN SUM(avg_price * executed_qty) / SUM(executed_qty)
+		            ELSE 0 END AS avg_price,
+		       SUM(total_pnl) AS total_pnl,
+		       GROUP_CONCAT(DISTINCT nickname) AS nicknames
+		FROM copy_trade_records
+		WHERE user_id = ? AND status = 'OPEN' AND portfolio_id IN (%s)`, placeholders)
+
+	args := []interface{}{userID}
+	for _, pid := range pids {
+		args = append(args, pid)
+	}
+	if symbolFilter != "" {
+		q += ` AND symbol = ?`
+		args = append(args, normalizeTradeSymbol(symbolFilter))
+	}
+	q += ` GROUP BY symbol, position_side ORDER BY symbol`
+
+	rows, err := s.database.DB().Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]map[string]interface{}, 0)
+	for rows.Next() {
+		var sym, posSide, nicknames string
+		var qty, avgPrice, totalPnl float64
+		if rows.Scan(&sym, &posSide, &qty, &avgPrice, &totalPnl, &nicknames) != nil {
+			continue
+		}
+		sym = normalizeTradeSymbol(sym)
+		if sym == "" {
+			continue
+		}
+		out = append(out, map[string]interface{}{
+			"symbol":          sym,
+			"position_side":   posSide,
+			"entry_price":     avgPrice,
+			"unrealized_pnl":  totalPnl,
+			"qty":             qty,
+			"label":           formatOverlayNicknameLabel(nicknames),
+		})
+	}
+	return out, nil
+}
+
 func (s *Server) aiCopyTradePortfolioIDs(userID, traderID string) (map[string]bool, error) {
 	rows, err := s.database.DB().Query(`
 		SELECT DISTINCT portfolio_id
@@ -608,6 +702,7 @@ func (s *Server) handleTradeEvents(c *gin.Context) {
 	toMs, _ := strconv.ParseInt(c.Query("to"), 10, 64)
 
 	var events []TradeEvent
+	var positionOverlays []map[string]interface{}
 
 	var symbolCandidates [][]string
 
@@ -653,6 +748,11 @@ func (s *Server) handleTradeEvents(c *gin.Context) {
 		events = append(events, aiCopyEv...)
 		if syms, err := s.distinctAICopyTradeSymbols(userID, traderID); err == nil {
 			symbolCandidates = append(symbolCandidates, syms)
+		}
+		if ovs, err := s.aiCopyTradePositionOverlays(userID, traderID, symbol); err == nil {
+			positionOverlays = ovs
+		} else {
+			log.Printf("[trade-events] ai_copy_trade position_overlays error: %v", err)
 		}
 
 	case "copy_trade", "":
@@ -728,8 +828,12 @@ func (s *Server) handleTradeEvents(c *gin.Context) {
 	}
 	symList := mergeSymbolLists(append(symbolCandidates, eventSyms)...)
 
-	c.JSON(http.StatusOK, gin.H{
+	resp := gin.H{
 		"events":  events,
 		"symbols": symList,
-	})
+	}
+	if source == "ai_copy_trade" {
+		resp["position_overlays"] = positionOverlays
+	}
+	c.JSON(http.StatusOK, resp)
 }
