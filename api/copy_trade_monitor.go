@@ -7,12 +7,63 @@ import (
 	"net/http"
 	"nofx/config"
 	"nofx/trader"
+	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
+
+func leadActionToMap(o LeadOrder) map[string]interface{} {
+	posSide := leadOrderPositionSide(o)
+	return map[string]interface{}{
+		"symbol":        o.Symbol,
+		"action":        leadActionLabel(o.PositionSide, o.Side),
+		"display":       leadActionDisplay(o.PositionSide, o.Side),
+		"side":          o.Side,
+		"position_side": posSide,
+		"order_time":    o.OrderTime,
+		"avg_price":     o.AvgPrice,
+		"executed_qty":  o.ExecutedQty,
+	}
+}
+
+// buildLatestLeadActions 按 symbol+方向去重，保留最近一次操作，按时间降序返回
+func buildLatestLeadActions(orders []LeadOrder, limit int) []map[string]interface{} {
+	if limit <= 0 {
+		limit = 5
+	}
+
+	latest := make(map[string]LeadOrder)
+	for _, o := range orders {
+		if o.Symbol == "" {
+			continue
+		}
+		posSide := leadOrderPositionSide(o)
+		key := o.Symbol + "|" + posSide
+		if existing, ok := latest[key]; !ok || o.OrderTime > existing.OrderTime {
+			latest[key] = o
+		}
+	}
+
+	list := make([]LeadOrder, 0, len(latest))
+	for _, o := range latest {
+		list = append(list, o)
+	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].OrderTime > list[j].OrderTime
+	})
+	if len(list) > limit {
+		list = list[:limit]
+	}
+
+	out := make([]map[string]interface{}, 0, len(list))
+	for _, o := range list {
+		out = append(out, leadActionToMap(o))
+	}
+	return out
+}
 
 type copyTradeRunState struct {
 	mu                      sync.RWMutex
@@ -194,24 +245,7 @@ func (s *Server) handleGetCopyTradeMonitor(c *gin.Context) {
 		mt.AutoFollow = autoFollow != 0
 
 		if history, err := getLeadOrdersForMonitor(mt.PortfolioID, false); err == nil && history.Data != nil {
-			for _, o := range history.Data.List {
-				if o.Symbol == "" {
-					continue
-				}
-				mt.LatestLeadActions = append(mt.LatestLeadActions, map[string]interface{}{
-					"symbol":        o.Symbol,
-					"action":        leadActionLabel(o.PositionSide, o.Side),
-					"display":       leadActionDisplay(o.PositionSide, o.Side),
-					"side":          o.Side,
-					"position_side": o.PositionSide,
-					"order_time":    o.OrderTime,
-					"avg_price":     o.AvgPrice,
-					"executed_qty":  o.ExecutedQty,
-				})
-				if len(mt.LatestLeadActions) >= 5 {
-					break
-				}
-			}
+			mt.LatestLeadActions = buildLatestLeadActions(history.Data.List, 5)
 		}
 
 		// 按 symbol + position_side 聚合 OPEN 持仓，避免同币种同方向多条跟单记录重复展示

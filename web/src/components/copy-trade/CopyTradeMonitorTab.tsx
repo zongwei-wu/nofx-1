@@ -50,6 +50,7 @@ interface MonitorData {
       symbol: string
       action: string
       display: string
+      position_side?: string
       order_time: number
     }>
     our_positions: Array<{
@@ -319,13 +320,18 @@ export function CopyTradeMonitorTab() {
                 </div>
                 <div className="flex flex-wrap gap-1 mb-2">
                   {t.latest_lead_actions?.length ? (
-                    t.latest_lead_actions.map((a, i) => (
+                    t.latest_lead_actions.map((a) => (
                       <span
-                        key={i}
-                        className="px-1.5 py-0.5 rounded text-[10px]"
+                        key={`${a.symbol}-${a.position_side || a.action}`}
+                        className="px-1.5 py-0.5 rounded text-[10px] inline-flex items-center gap-1"
                         style={{ background: '#0B0E11', color: '#EAECEF' }}
                       >
-                        {a.symbol?.replace('USDT', '')} {a.display || a.action}
+                        <span>
+                          {a.symbol?.replace('USDT', '')} {a.display || a.action}
+                        </span>
+                        <span style={{ color: '#5E6673' }}>
+                          {formatTime(a.order_time)}
+                        </span>
                       </span>
                     ))
                   ) : (
