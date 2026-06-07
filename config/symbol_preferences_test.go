@@ -26,7 +26,8 @@ func TestUserSymbolPreferencesCRUD(t *testing.T) {
 	}
 
 	symbols := []string{"ETHUSDT", "BTCUSDT"}
-	if err := db.UpsertUserSymbolPreferences(userID, symbols, true); err != nil {
+	starred := []string{"BTCUSDT"}
+	if err := db.UpsertUserSymbolPreferences(userID, symbols, true, starred); err != nil {
 		t.Fatal(err)
 	}
 	prefs, err = db.GetUserSymbolPreferences(userID)
@@ -36,8 +37,11 @@ func TestUserSymbolPreferencesCRUD(t *testing.T) {
 	if !prefs.UseCustomOrder || len(prefs.Symbols) != 2 || prefs.Symbols[0] != "ETHUSDT" {
 		t.Fatalf("unexpected prefs: %+v", prefs)
 	}
+	if len(prefs.StarredSymbols) != 1 || prefs.StarredSymbols[0] != "BTCUSDT" {
+		t.Fatalf("unexpected starred: %+v", prefs.StarredSymbols)
+	}
 
-	if err := db.UpsertUserSymbolPreferences(userID, symbols, false); err != nil {
+	if err := db.UpsertUserSymbolPreferences(userID, symbols, false, starred); err != nil {
 		t.Fatal(err)
 	}
 	prefs, err = db.GetUserSymbolPreferences(userID)

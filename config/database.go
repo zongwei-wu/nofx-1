@@ -47,7 +47,7 @@ type DatabaseInterface interface {
 	UpdateUserSignalSource(userID, coinPoolURL, oiTopURL string) error
 	GetCustomCoins() []string
 	GetUserSymbolPreferences(userID string) (*UserSymbolPreferences, error)
-	UpsertUserSymbolPreferences(userID string, symbols []string, useCustomOrder bool) error
+	UpsertUserSymbolPreferences(userID string, symbols []string, useCustomOrder bool, starredSymbols []string) error
 	GetCopyTradeSettings(userID string) (*CopyTradeSettings, error)
 	UpsertCopyTradeSettings(userID, aiTraderID string) error
 	LoadBetaCodesFromFile(filePath string) error
@@ -407,9 +407,11 @@ func (d *Database) createTables() error {
 		user_id TEXT PRIMARY KEY,
 		symbols TEXT NOT NULL DEFAULT '[]',
 		use_custom_order INTEGER NOT NULL DEFAULT 0,
+		starred_symbols TEXT NOT NULL DEFAULT '[]',
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 	)`)
+	d.db.Exec(`ALTER TABLE user_symbol_preferences ADD COLUMN starred_symbols TEXT NOT NULL DEFAULT '[]'`)
 
 	d.db.Exec(`CREATE TABLE IF NOT EXISTS copy_trade_settings (
 		user_id TEXT PRIMARY KEY,
@@ -657,6 +659,7 @@ type CopyTradeSettings struct {
 type UserSymbolPreferences struct {
 	UserID         string    `json:"user_id"`
 	Symbols        []string  `json:"symbols"`
+	StarredSymbols []string  `json:"starred_symbols"`
 	UseCustomOrder bool      `json:"use_custom_order"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }
@@ -1533,45 +1536,67 @@ func (d *Database) UpsertCopyTradeSettings(userID, aiTraderID string) error {
 	return err
 }
 
+func parseSymbolJSONArray(jsonStr string) ([]string, error) {
+	if jsonStr == "" {
+		return []string{}, nil
+	}
+	var symbols []string
+	if err := json.Unmarshal([]byte(jsonStr), &symbols); err != nil {
+		return nil, fmt.Errorf("解析 symbols 失败: %w", err)
+	}
+	return symbols, nil
+}
+
 // GetUserSymbolPreferences 获取用户币种排序偏好
 func (d *Database) GetUserSymbolPreferences(userID string) (*UserSymbolPreferences, error) {
-	var symbolsJSON string
+	var symbolsJSON, starredJSON string
 	var useCustom int
 	var updatedAt time.Time
 	err := d.db.QueryRow(`
-		SELECT symbols, use_custom_order, updated_at
+		SELECT symbols, COALESCE(starred_symbols, '[]'), use_custom_order, updated_at
 		FROM user_symbol_preferences WHERE user_id = ?
-	`, userID).Scan(&symbolsJSON, &useCustom, &updatedAt)
+	`, userID).Scan(&symbolsJSON, &starredJSON, &useCustom, &updatedAt)
 	if err == sql.ErrNoRows {
 		return &UserSymbolPreferences{
 			UserID:         userID,
 			Symbols:        []string{},
+			StarredSymbols: []string{},
 			UseCustomOrder: false,
 		}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	var symbols []string
-	if symbolsJSON != "" {
-		if err := json.Unmarshal([]byte(symbolsJSON), &symbols); err != nil {
-			return nil, fmt.Errorf("解析 symbols 失败: %w", err)
-		}
+	symbols, err := parseSymbolJSONArray(symbolsJSON)
+	if err != nil {
+		return nil, err
+	}
+	starred, err := parseSymbolJSONArray(starredJSON)
+	if err != nil {
+		return nil, err
 	}
 	return &UserSymbolPreferences{
 		UserID:         userID,
 		Symbols:        symbols,
+		StarredSymbols: starred,
 		UseCustomOrder: useCustom != 0,
 		UpdatedAt:      updatedAt,
 	}, nil
 }
 
 // UpsertUserSymbolPreferences 保存用户币种排序偏好
-func (d *Database) UpsertUserSymbolPreferences(userID string, symbols []string, useCustomOrder bool) error {
+func (d *Database) UpsertUserSymbolPreferences(userID string, symbols []string, useCustomOrder bool, starredSymbols []string) error {
 	if symbols == nil {
 		symbols = []string{}
 	}
+	if starredSymbols == nil {
+		starredSymbols = []string{}
+	}
 	payload, err := json.Marshal(symbols)
+	if err != nil {
+		return err
+	}
+	starredPayload, err := json.Marshal(starredSymbols)
 	if err != nil {
 		return err
 	}
@@ -1580,13 +1605,14 @@ func (d *Database) UpsertUserSymbolPreferences(userID string, symbols []string, 
 		useCustom = 1
 	}
 	_, err = d.db.Exec(`
-		INSERT INTO user_symbol_preferences (user_id, symbols, use_custom_order, updated_at)
-		VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+		INSERT INTO user_symbol_preferences (user_id, symbols, use_custom_order, starred_symbols, updated_at)
+		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
 		ON CONFLICT(user_id) DO UPDATE SET
 			symbols = excluded.symbols,
 			use_custom_order = excluded.use_custom_order,
+			starred_symbols = excluded.starred_symbols,
 			updated_at = CURRENT_TIMESTAMP
-	`, userID, string(payload), useCustom)
+	`, userID, string(payload), useCustom, string(starredPayload))
 	return err
 }
 

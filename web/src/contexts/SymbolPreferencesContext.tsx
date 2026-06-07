@@ -12,6 +12,7 @@ import { useAuth } from './AuthContext'
 
 export interface SymbolPreferencesState {
   symbols: string[]
+  starredSymbols: string[]
   useCustomOrder: boolean
   catalog: string[]
 }
@@ -22,6 +23,7 @@ type SymbolPreferencesContextValue = {
   loading: boolean
   sortSymbols: (symbols: string[]) => string[]
   saveOrder: (symbols: string[], useCustomOrder?: boolean) => Promise<void>
+  saveStarred: (starredSymbols: string[]) => Promise<void>
   resetToDefault: () => Promise<void>
   refresh: () => Promise<void>
 }
@@ -52,6 +54,7 @@ export function SymbolPreferencesProvider({ children }: { children: ReactNode })
     () =>
       fetchWithAuth<{
         symbols: string[]
+        starred_symbols?: string[]
         use_custom_order: boolean
         catalog: string[]
       }>('/api/symbol-preferences', token),
@@ -68,6 +71,7 @@ export function SymbolPreferencesProvider({ children }: { children: ReactNode })
     if (!user || !prefs) return null
     return {
       symbols: prefs.symbols ?? [],
+      starredSymbols: prefs.starred_symbols ?? [],
       useCustomOrder: !!prefs.use_custom_order,
       catalog: prefs.catalog ?? [],
     }
@@ -87,16 +91,21 @@ export function SymbolPreferencesProvider({ children }: { children: ReactNode })
         customOrder: preferences.symbols,
         useCustomOrder: preferences.useCustomOrder,
         notionalBySymbol,
+        starredOrder: preferences.starredSymbols,
       })
     },
     [preferences, notionalBySymbol]
   )
 
-  const saveOrder = useCallback(
-    async (symbols: string[], useCustomOrder = true) => {
+  const putPreferences = useCallback(
+    async (payload: {
+      symbols: string[]
+      starred_symbols: string[]
+      use_custom_order: boolean
+    }) => {
       const res = await httpClient.put(
         '/api/symbol-preferences',
-        { symbols, use_custom_order: useCustomOrder },
+        payload,
         { Authorization: token ? `Bearer ${token}` : '' }
       )
       if (!res.ok) {
@@ -106,6 +115,28 @@ export function SymbolPreferencesProvider({ children }: { children: ReactNode })
       await mutatePrefs()
     },
     [token, mutatePrefs]
+  )
+
+  const saveOrder = useCallback(
+    async (symbols: string[], useCustomOrder = true) => {
+      await putPreferences({
+        symbols,
+        starred_symbols: preferences?.starredSymbols ?? [],
+        use_custom_order: useCustomOrder,
+      })
+    },
+    [putPreferences, preferences?.starredSymbols]
+  )
+
+  const saveStarred = useCallback(
+    async (starredSymbols: string[]) => {
+      await putPreferences({
+        symbols: preferences?.symbols ?? [],
+        starred_symbols: starredSymbols,
+        use_custom_order: preferences?.useCustomOrder ?? false,
+      })
+    },
+    [putPreferences, preferences?.symbols, preferences?.useCustomOrder]
   )
 
   const resetToDefault = useCallback(async () => {
@@ -132,6 +163,7 @@ export function SymbolPreferencesProvider({ children }: { children: ReactNode })
       loading: !!user && (prefsLoading || valuesLoading),
       sortSymbols,
       saveOrder,
+      saveStarred,
       resetToDefault,
       refresh,
     }),
@@ -143,6 +175,7 @@ export function SymbolPreferencesProvider({ children }: { children: ReactNode })
       valuesLoading,
       sortSymbols,
       saveOrder,
+      saveStarred,
       resetToDefault,
       refresh,
     ]
@@ -164,6 +197,7 @@ export function useSymbolPreferences(): SymbolPreferencesContextValue {
       loading: false,
       sortSymbols: (symbols) => sortSymbolsByPreference(symbols),
       saveOrder: async () => {},
+      saveStarred: async () => {},
       resetToDefault: async () => {},
       refresh: async () => {},
     }

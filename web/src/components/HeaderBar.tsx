@@ -339,13 +339,7 @@ export default function HeaderBar({
                 )}
 
                 <button
-                  onClick={() => {
-                    if (onPageChange) {
-                      onPageChange('faq')
-                    } else {
-                      navigate('/faq')
-                    }
-                  }}
+                  onClick={() => navigate('/faq')}
                   className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
                   style={{
                     color:

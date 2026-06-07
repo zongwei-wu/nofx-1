@@ -4,6 +4,8 @@ export interface SortSymbolsOptions {
   customOrder?: string[]
   useCustomOrder?: boolean
   notionalBySymbol?: Record<string, number>
+  /** 特别关注列表，始终排在最前（按此列表顺序） */
+  starredOrder?: string[]
 }
 
 function normalizeList(symbols: string[]): string[] {
@@ -33,26 +35,50 @@ function sortByNotional(symbols: string[], notionalBySymbol: Record<string, numb
   return [...symbols].sort((a, b) => compareByNotional(a, b, notionalBySymbol))
 }
 
-/**
- * 按用户偏好或持仓名义价值排序币种列表
- */
-export function sortSymbolsByPreference(
+function sortWithoutStarred(
   symbols: string[],
-  options: SortSymbolsOptions = {}
+  options: SortSymbolsOptions
 ): string[] {
-  const normalized = normalizeList(symbols)
-  if (normalized.length <= 1) return normalized
+  if (symbols.length <= 1) return symbols
 
   const notional = options.notionalBySymbol ?? {}
   const customOrder = normalizeList(options.customOrder ?? [])
 
   if (options.useCustomOrder && customOrder.length > 0) {
     const index = new Map(customOrder.map((s, i) => [s, i]))
-    const inCustom = normalized.filter((s) => index.has(s))
-    const notInCustom = normalized.filter((s) => !index.has(s))
+    const inCustom = symbols.filter((s) => index.has(s))
+    const notInCustom = symbols.filter((s) => !index.has(s))
     inCustom.sort((a, b) => (index.get(a) ?? 0) - (index.get(b) ?? 0))
     return [...inCustom, ...sortByNotional(notInCustom, notional)]
   }
 
-  return sortByNotional(normalized, notional)
+  return sortByNotional(symbols, notional)
+}
+
+function applyStarredFirst(
+  symbols: string[],
+  starredOrder: string[],
+  options: SortSymbolsOptions
+): string[] {
+  const normalized = normalizeList(symbols)
+  const starred = normalizeList(starredOrder)
+  if (starred.length === 0) {
+    return sortWithoutStarred(normalized, options)
+  }
+
+  const symbolSet = new Set(normalized)
+  const starredFirst = starred.filter((s) => symbolSet.has(s))
+  const starredSet = new Set(starredFirst)
+  const rest = normalized.filter((s) => !starredSet.has(s))
+  return [...starredFirst, ...sortWithoutStarred(rest, options)]
+}
+
+/**
+ * 按用户偏好排序币种列表：特别关注优先，其次自定义顺序或持仓名义价值
+ */
+export function sortSymbolsByPreference(
+  symbols: string[],
+  options: SortSymbolsOptions = {}
+): string[] {
+  return applyStarredFirst(symbols, options.starredOrder ?? [], options)
 }

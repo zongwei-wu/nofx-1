@@ -121,8 +121,19 @@ func (s *Server) handleGetSymbolPreferences(c *gin.Context) {
 		seen[n] = true
 		normalized = append(normalized, n)
 	}
+	starred := make([]string, 0, len(prefs.StarredSymbols))
+	starredSeen := make(map[string]bool)
+	for _, sym := range prefs.StarredSymbols {
+		n := normalizeSymbolUSDT(sym)
+		if n == "" || starredSeen[n] {
+			continue
+		}
+		starredSeen[n] = true
+		starred = append(starred, n)
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"symbols":          normalized,
+		"starred_symbols":  starred,
 		"use_custom_order": prefs.UseCustomOrder,
 		"catalog":          mergeSymbolCatalog(s.getDefaultCoinsCatalog(), normalized),
 	})
@@ -130,6 +141,7 @@ func (s *Server) handleGetSymbolPreferences(c *gin.Context) {
 
 type symbolPreferencesRequest struct {
 	Symbols        []string `json:"symbols"`
+	StarredSymbols []string `json:"starred_symbols"`
 	UseCustomOrder bool     `json:"use_custom_order"`
 }
 
@@ -156,12 +168,23 @@ func (s *Server) handlePutSymbolPreferences(c *gin.Context) {
 		seen[n] = true
 		normalized = append(normalized, n)
 	}
-	if err := s.database.UpsertUserSymbolPreferences(userID, normalized, req.UseCustomOrder); err != nil {
+	starred := make([]string, 0, len(req.StarredSymbols))
+	starredSeen := make(map[string]bool)
+	for _, sym := range req.StarredSymbols {
+		n := normalizeSymbolUSDT(sym)
+		if n == "" || starredSeen[n] {
+			continue
+		}
+		starredSeen[n] = true
+		starred = append(starred, n)
+	}
+	if err := s.database.UpsertUserSymbolPreferences(userID, normalized, req.UseCustomOrder, starred); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"symbols":          normalized,
+		"starred_symbols":  starred,
 		"use_custom_order": req.UseCustomOrder,
 		"catalog":          mergeSymbolCatalog(s.getDefaultCoinsCatalog(), normalized),
 	})
@@ -180,12 +203,13 @@ func (s *Server) handleResetSymbolPreferences(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	if err := s.database.UpsertUserSymbolPreferences(userID, prefs.Symbols, false); err != nil {
+	if err := s.database.UpsertUserSymbolPreferences(userID, prefs.Symbols, false, prefs.StarredSymbols); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"symbols":          prefs.Symbols,
+		"starred_symbols":  prefs.StarredSymbols,
 		"use_custom_order": false,
 		"catalog":          mergeSymbolCatalog(s.getDefaultCoinsCatalog(), prefs.Symbols),
 	})
