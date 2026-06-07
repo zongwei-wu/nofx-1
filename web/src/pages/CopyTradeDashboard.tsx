@@ -273,7 +273,7 @@ export function CopyTradeDashboard() {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [refreshingPnl, setRefreshingPnl] = useState(false)
-  const [activeTab, setActiveTab] = useState<'traders' | 'records' | 'pnl' | 'monitor'>('traders')
+  const [activeTab, setActiveTab] = useState<'traders' | 'records' | 'pnl' | 'monitor'>('pnl')
   const [pnlChartTab, setPnlChartTab] = useState<'price' | 'pnl'>('price')
   const [message, setMessage] = useState('')
   const [manualSyncTrigger, setManualSyncTrigger] = useState(false)
@@ -481,6 +481,20 @@ export function CopyTradeDashboard() {
       {/* Tabs */}
       <div className="flex gap-1 mb-6 p-1 rounded-lg" style={{ background: '#1E2329' }}>
         <button
+          onClick={() => setActiveTab('pnl')}
+          className="flex-1 py-2 px-4 rounded text-sm font-semibold transition-all"
+          style={{ background: activeTab === 'pnl' ? '#F0B90B' : 'transparent', color: activeTab === 'pnl' ? '#0B0E11' : '#848E9C' }}
+        >
+          收益
+        </button>
+        <button
+          onClick={() => setActiveTab('monitor')}
+          className="flex-1 py-2 px-4 rounded text-sm font-semibold transition-all"
+          style={{ background: activeTab === 'monitor' ? '#F0B90B' : 'transparent', color: activeTab === 'monitor' ? '#0B0E11' : '#848E9C' }}
+        >
+          自动跟单
+        </button>
+        <button
           onClick={() => setActiveTab('traders')}
           className="flex-1 py-2 px-4 rounded text-sm font-semibold transition-all"
           style={{ background: activeTab === 'traders' ? '#F0B90B' : 'transparent', color: activeTab === 'traders' ? '#0B0E11' : '#848E9C' }}
@@ -493,20 +507,6 @@ export function CopyTradeDashboard() {
           style={{ background: activeTab === 'records' ? '#F0B90B' : 'transparent', color: activeTab === 'records' ? '#0B0E11' : '#848E9C' }}
         >
           跟单记录 ({safeRecords.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('pnl')}
-          className="flex-1 py-2 px-4 rounded text-sm font-semibold transition-all"
-          style={{ background: activeTab === 'pnl' ? '#F0B90B' : 'transparent', color: activeTab === 'pnl' ? '#0B0E11' : '#848E9C' }}
-        >
-          收益
-        </button>
-        <button
-          onClick={() => setActiveTab('monitor')}
-          className="flex-1 py-2 px-4 rounded text-sm font-semibold transition-all"
-          style={{ background: activeTab === 'monitor' ? '#F0B90B' : 'transparent', color: activeTab === 'monitor' ? '#0B0E11' : '#848E9C' }}
-        >
-          自动监控
         </button>
       </div>
 
