@@ -705,6 +705,160 @@
           }
         }
       }
+    },
+    "/hermes/klines": {
+      "get": {
+        "tags": ["Hermes"],
+        "summary": "Hermes K 线查询",
+        "description": "按交易所获取 K 线（binance/okx）。需 ai_trader 权限。",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "exchange_id", "in": "query", "type": "string", "default": "binance" },
+          { "name": "symbol", "in": "query", "required": true, "type": "string" },
+          { "name": "interval", "in": "query", "type": "string", "default": "1h" },
+          { "name": "limit", "in": "query", "type": "integer", "default": 200 }
+        ],
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "参数错误" },
+          "401": { "description": "未登录" },
+          "403": { "description": "无 ai_trader 权限" }
+        }
+      }
+    },
+    "/hermes/balance": {
+      "get": {
+        "tags": ["Hermes"],
+        "summary": "Hermes 账户余额",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "exchange_id", "in": "query", "required": true, "type": "string" }
+        ],
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "参数错误" },
+          "401": { "description": "未登录" },
+          "403": { "description": "无 ai_trader 权限" }
+        }
+      }
+    },
+    "/hermes/positions": {
+      "get": {
+        "tags": ["Hermes"],
+        "summary": "Hermes 持仓列表",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "exchange_id", "in": "query", "required": true, "type": "string" }
+        ],
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "参数错误" },
+          "401": { "description": "未登录" },
+          "403": { "description": "无 ai_trader 权限" }
+        }
+      }
+    },
+    "/hermes/market-price": {
+      "get": {
+        "tags": ["Hermes"],
+        "summary": "Hermes 市价",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "exchange_id", "in": "query", "required": true, "type": "string" },
+          { "name": "symbol", "in": "query", "required": true, "type": "string" }
+        ],
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "参数错误" },
+          "401": { "description": "未登录" },
+          "403": { "description": "无 ai_trader 权限" }
+        }
+      }
+    },
+    "/hermes/trade": {
+      "post": {
+        "tags": ["Hermes"],
+        "summary": "Hermes 交易执行",
+        "description": "开/平/加/减仓。action: open_long|open_short|close_long|close_short|add_long|add_short|reduce_long|reduce_short。confirmed 必须为 true。",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/HermesTradeRequest" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "参数错误或交易失败" },
+          "401": { "description": "未登录" },
+          "403": { "description": "无 ai_trader 权限" }
+        }
+      }
+    },
+    "/hermes/leverage": {
+      "post": {
+        "tags": ["Hermes"],
+        "summary": "Hermes 设置杠杆",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/HermesLeverageRequest" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "参数错误" },
+          "401": { "description": "未登录" },
+          "403": { "description": "无 ai_trader 权限" }
+        }
+      }
+    },
+    "/hermes/stop-loss": {
+      "post": {
+        "tags": ["Hermes"],
+        "summary": "Hermes 设置止损",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/HermesStopOrderRequest" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "参数错误" },
+          "401": { "description": "未登录" },
+          "403": { "description": "无 ai_trader 权限" }
+        }
+      }
+    },
+    "/hermes/take-profit": {
+      "post": {
+        "tags": ["Hermes"],
+        "summary": "Hermes 设置止盈",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/HermesStopOrderRequest" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "参数错误" },
+          "401": { "description": "未登录" },
+          "403": { "description": "无 ai_trader 权限" }
+        }
+      }
     }
   },
   "definitions": {
@@ -1095,6 +1249,41 @@
       "properties": {
         "content": { "type": "string" },
         "description": { "type": "string" }
+      }
+    },
+    "HermesTradeRequest": {
+      "type": "object",
+      "required": ["exchange_id", "action", "symbol", "confirmed"],
+      "properties": {
+        "exchange_id": { "type": "string" },
+        "action": {
+          "type": "string",
+          "enum": ["open_long", "open_short", "close_long", "close_short", "add_long", "add_short", "reduce_long", "reduce_short"]
+        },
+        "symbol": { "type": "string" },
+        "quantity": { "type": "number" },
+        "leverage": { "type": "integer" },
+        "confirmed": { "type": "boolean" }
+      }
+    },
+    "HermesLeverageRequest": {
+      "type": "object",
+      "required": ["exchange_id", "symbol", "leverage"],
+      "properties": {
+        "exchange_id": { "type": "string" },
+        "symbol": { "type": "string" },
+        "leverage": { "type": "integer" }
+      }
+    },
+    "HermesStopOrderRequest": {
+      "type": "object",
+      "required": ["exchange_id", "symbol", "position_side", "quantity", "stop_price"],
+      "properties": {
+        "exchange_id": { "type": "string" },
+        "symbol": { "type": "string" },
+        "position_side": { "type": "string", "enum": ["LONG", "SHORT"] },
+        "quantity": { "type": "number" },
+        "stop_price": { "type": "number" }
       }
     }
   }

@@ -162,6 +162,14 @@ func (s *Server) setupRoutes() {
 				aiTrader.GET("/decisions/latest", s.handleLatestDecisions)
 				aiTrader.GET("/statistics", s.handleStatistics)
 				aiTrader.GET("/performance", s.handlePerformance)
+				aiTrader.GET("/hermes/klines", s.handleHermesKlines)
+				aiTrader.GET("/hermes/balance", s.handleHermesBalance)
+				aiTrader.GET("/hermes/positions", s.handleHermesPositions)
+				aiTrader.GET("/hermes/market-price", s.handleHermesMarketPrice)
+				aiTrader.POST("/hermes/trade", s.handleHermesTrade)
+				aiTrader.POST("/hermes/leverage", s.handleHermesLeverage)
+				aiTrader.POST("/hermes/stop-loss", s.handleHermesStopLoss)
+				aiTrader.POST("/hermes/take-profit", s.handleHermesTakeProfit)
 			}
 
 			// 跟单管理（需 copy_trade 权限）

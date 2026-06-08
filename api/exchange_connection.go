@@ -9,7 +9,6 @@ import (
 
 	"nofx/config"
 	"nofx/crypto"
-	"nofx/trader"
 
 	"github.com/gin-gonic/gin"
 )
@@ -154,21 +153,6 @@ func extractBalanceSnapshot(balanceInfo map[string]interface{}) balanceSnapshot 
 	return balanceSnapshot{
 		TotalEquity:      totalWalletBalance + totalUnrealizedProfit,
 		AvailableBalance: availableBalance,
-	}
-}
-
-func createTempTraderForTest(userID string, creds resolvedExchangeCredentials) (trader.Trader, error) {
-	switch creds.ExchangeID {
-	case "binance":
-		return trader.NewFuturesTrader(creds.APIKey, creds.SecretKey, userID, creds.Testnet), nil
-	case "hyperliquid":
-		return trader.NewHyperliquidTrader(creds.APIKey, creds.HyperliquidWalletAddr, creds.Testnet)
-	case "aster":
-		return trader.NewAsterTrader(creds.AsterUser, creds.AsterSigner, creds.AsterPrivateKey)
-	case "okx":
-		return trader.NewOKXTrader(creds.APIKey, creds.SecretKey, creds.Passphrase, creds.Testnet)
-	default:
-		return nil, fmt.Errorf("暂不支持该交易所连接测试")
 	}
 }
 
