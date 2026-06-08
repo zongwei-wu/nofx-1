@@ -41,11 +41,28 @@ describe('copyTradeRecordUtils', () => {
     expect(recordStatusLabel('FAILED')).toBe('失败')
   })
 
-  it('sortCopyTradeRecords by nickname then lead_order_time desc', () => {
+  it('sortCopyTradeRecords by event time desc (newest first)', () => {
     const sorted = sortCopyTradeRecords([
-      base({ id: 1, nickname: 'Bob', lead_order_time: 100 }),
-      base({ id: 2, nickname: 'Alice', lead_order_time: 200 }),
-      base({ id: 3, nickname: 'Alice', lead_order_time: 300 }),
+      base({
+        id: 1,
+        nickname: 'Bob',
+        lead_order_time: 100,
+        copy_time: '2026-06-01T10:00:00Z',
+      }),
+      base({
+        id: 2,
+        nickname: 'Alice',
+        lead_order_time: 200,
+        copy_time: '2026-06-03T10:00:00Z',
+      }),
+      base({
+        id: 3,
+        nickname: 'Alice',
+        lead_order_time: 300,
+        status: 'CLOSED',
+        copy_time: '2026-06-02T10:00:00Z',
+        close_time: '2026-06-04T10:00:00Z',
+      }),
     ])
     expect(sorted.map((r) => r.id)).toEqual([3, 2, 1])
   })

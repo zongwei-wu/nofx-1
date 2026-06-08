@@ -30,10 +30,28 @@ export function recordStatusLabel(status: string) {
   }
 }
 
+function parseRecordTimeMs(value: number | string | undefined): number | null {
+  if (value == null || value === '') return null
+  if (typeof value === 'number') {
+    return value > 0 ? value : null
+  }
+  const parsed = Date.parse(value)
+  return Number.isNaN(parsed) ? null : parsed
+}
+
+/** 本账户成交记录排序用时间：已平仓优先 close_time，否则 copy_time，再回退 lead_order_time */
+export function recordEventTimeMs(rec: CopyTradePnLRecord): number {
+  if (rec.status === 'CLOSED') {
+    const closeMs = parseRecordTimeMs(rec.close_time)
+    if (closeMs != null) return closeMs
+  }
+  const copyMs = parseRecordTimeMs(rec.copy_time)
+  if (copyMs != null) return copyMs
+  return rec.lead_order_time || 0
+}
+
 export function sortCopyTradeRecords(records: CopyTradePnLRecord[]) {
-  return [...records].sort((a, b) => {
-    const nameCmp = (a.nickname || '').localeCompare(b.nickname || '', 'zh-CN')
-    if (nameCmp !== 0) return nameCmp
-    return (b.lead_order_time || 0) - (a.lead_order_time || 0)
-  })
+  return [...records].sort(
+    (a, b) => recordEventTimeMs(b) - recordEventTimeMs(a)
+  )
 }
