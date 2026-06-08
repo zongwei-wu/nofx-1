@@ -228,6 +228,74 @@ const tools = [
       required: ['exchange_id', 'symbol', 'position_side', 'quantity', 'stop_price'],
     },
   },
+  {
+    name: 'hermes_get_settings',
+    description: '读取 Hermes Runner 设置、就绪状态与运行摘要',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'hermes_update_settings',
+    description: '更新 Hermes 设置（交易所、AI 模型、扫描间隔、杠杆、交易币种等）',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        exchange_id: { type: 'string' },
+        ai_model_id: { type: 'string' },
+        scan_interval_minutes: { type: 'number' },
+        btc_eth_leverage: { type: 'number' },
+        altcoin_leverage: { type: 'number' },
+        trading_coins: { type: 'array', items: { type: 'string' } },
+        initial_balance: { type: 'number' },
+        system_prompt_template: { type: 'string' },
+      },
+    },
+  },
+  {
+    name: 'hermes_enable_autonomous',
+    description: '开启半自动模式（用户明确授权后 Runner 可免逐笔 confirmed 下单）',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        enabled: { type: 'boolean' },
+      },
+      required: ['enabled'],
+    },
+  },
+  {
+    name: 'hermes_start_runner',
+    description: '启动 Hermes 后台自主交易 Runner（需已配置交易所、AI 模型且 autonomous_enabled=true）',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'hermes_stop_runner',
+    description: '停止 Hermes 后台 Runner',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'hermes_get_runner_status',
+    description: '获取 Hermes Runner 运行状态',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'hermes_get_decisions',
+    description: '获取 Hermes 最近决策日志',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: { type: 'number' },
+      },
+    },
+  },
+  {
+    name: 'hermes_list_models',
+    description: '列出用户已配置的 AI 模型（供选择 Hermes ai_model_id）',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'hermes_require_exchange_setup',
+    description: '门禁检查：交易所、模型、自主授权是否就绪；未配置则返回缺项与引导',
+    inputSchema: { type: 'object', properties: {} },
+  },
 ]
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }))
@@ -439,6 +507,53 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'hermes_set_take_profit': {
         const result = await nofxClient.post('/api/hermes/take-profit', a)
+        return jsonResult(result)
+      }
+
+      case 'hermes_get_settings': {
+        const result = await nofxClient.get('/api/hermes/settings')
+        return jsonResult(result)
+      }
+
+      case 'hermes_update_settings': {
+        const result = await nofxClient.put('/api/hermes/settings', a)
+        return jsonResult(result)
+      }
+
+      case 'hermes_enable_autonomous': {
+        const result = await nofxClient.put('/api/hermes/settings', {
+          autonomous_enabled: a.enabled === true,
+        })
+        return jsonResult(result)
+      }
+
+      case 'hermes_start_runner': {
+        const result = await nofxClient.post('/api/hermes/start', {})
+        return jsonResult(result)
+      }
+
+      case 'hermes_stop_runner': {
+        const result = await nofxClient.post('/api/hermes/stop', {})
+        return jsonResult(result)
+      }
+
+      case 'hermes_get_runner_status': {
+        const result = await nofxClient.get('/api/hermes/status')
+        return jsonResult(result)
+      }
+
+      case 'hermes_get_decisions': {
+        const result = await nofxClient.get('/api/hermes/decisions')
+        return jsonResult(result)
+      }
+
+      case 'hermes_list_models': {
+        const result = await nofxClient.get('/api/models')
+        return jsonResult(result)
+      }
+
+      case 'hermes_require_exchange_setup': {
+        const result = await nofxClient.get('/api/hermes/require-setup')
         return jsonResult(result)
       }
 

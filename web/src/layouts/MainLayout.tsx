@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import HeaderBar from '../components/HeaderBar'
 import { Container } from '../components/Container'
+import { ExchangeOnboardingGate } from '../components/onboarding/ExchangeOnboardingGate'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useAuth } from '../contexts/AuthContext'
 import { t } from '../i18n/translations'
@@ -61,6 +62,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
       />
 
       {/* Main Content */}
+      <ExchangeOnboardingGate />
+
       <Container as="main" className="py-6 pt-24">
         {children || <Outlet />}
       </Container>

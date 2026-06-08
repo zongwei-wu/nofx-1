@@ -71,12 +71,32 @@ npm run build
 | `hermes_set_leverage` | 设置杠杆 |
 | `hermes_set_stop_loss` | 止损 |
 | `hermes_set_take_profit` | 止盈 |
+| `hermes_get_settings` | 读取 Hermes 设置与 Runner 状态 |
+| `hermes_update_settings` | 更新交易所、AI 模型、扫描间隔等 |
+| `hermes_enable_autonomous` | 开启/关闭半自动授权 |
+| `hermes_start_runner` | 启动后台自主交易 Runner |
+| `hermes_stop_runner` | 停止 Runner |
+| `hermes_get_runner_status` | Runner 运行状态 |
+| `hermes_get_decisions` | Hermes 决策日志 |
+| `hermes_list_models` | 可选 AI 模型列表 |
+| `hermes_require_exchange_setup` | 配置门禁检查 |
+
+## Hermes 自主交易
+
+Hermes 与 Web「AI 交易员」**完全独立**：
+
+1. `hermes_require_exchange_setup` → 配置交易所与 AI 模型
+2. 用户授权后 `hermes_enable_autonomous(enabled: true)`
+3. `hermes_start_runner` 启动后台循环（策略由 `prompts/hermes.txt` 决定）
+4. Runner 内部下单无需 `confirmed`；对话内 `hermes_trade` 仍须 `confirmed: true`
+
+**禁止**通过 MCP 调用 `/api/traders/*` 等 AI 交易员接口。
 
 ## 安全说明
 
 - 敏感凭证经 RSA-OAEP + AES-GCM 加密后传输，与 Web 端 [`web/src/lib/crypto.ts`](../../web/src/lib/crypto.ts) 一致
 - MCP Server 不在日志中输出完整密钥
-- 交易需 `confirmed: true`，且 Agent 应向用户二次确认
+- 手动 `hermes_trade` 需 `confirmed: true`，且 Agent 应向用户二次确认
 
 ## 测试
 

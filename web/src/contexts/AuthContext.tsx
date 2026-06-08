@@ -6,6 +6,7 @@ import React, {
   useEffect,
 } from 'react'
 import { getSystemConfig } from '../lib/config'
+import { EXCHANGE_ONBOARDING_PROMPT_KEY } from '../lib/exchangeOnboarding'
 import { reset401Flag } from '../lib/httpClient'
 
 interface User {
@@ -109,6 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('auth_token', data.token)
     localStorage.setItem('auth_user', JSON.stringify(userInfo))
     localStorage.setItem('auth_features', JSON.stringify(featureList))
+    sessionStorage.setItem(EXCHANGE_ONBOARDING_PROMPT_KEY, '1')
     // 登录后从 /api/me 拉取最新 plan/features（管理员改套餐后立即生效）
     await fetchMe(data.token)
   }

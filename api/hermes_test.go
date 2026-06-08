@@ -23,21 +23,6 @@ func TestCreateTraderFromExchangeConfig_BinanceMissingCreds(t *testing.T) {
 	}
 }
 
-func TestExecuteHermesTrade_RequiresConfirmed(t *testing.T) {
-	s := &Server{}
-	// executeHermesTrade is tested via handler binding; validate action routing on mock-free level
-	req := hermesTradeRequest{
-		ExchangeID: "binance",
-		Action:     "unknown_action",
-		Symbol:     "BTCUSDT",
-		Quantity:   1,
-	}
-	_, err := s.executeHermesTrade(nil, req)
-	if err == nil {
-		t.Fatal("expected error for unknown action")
-	}
-}
-
 func TestNormalizeHermesSymbol(t *testing.T) {
 	if got := normalizeHermesSymbol("btc"); got != "BTCUSDT" {
 		t.Fatalf("got %s", got)

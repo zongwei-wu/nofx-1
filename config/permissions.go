@@ -9,6 +9,7 @@ const (
 	FeatureLeaderboard = "leaderboard"
 	FeatureCopyTrade   = "copy_trade"
 	FeatureSymbols     = "symbols"
+	FeatureHermes      = "hermes"
 )
 
 // 用户套餐
@@ -26,6 +27,7 @@ var AllFeatures = []string{
 	FeatureLeaderboard,
 	FeatureCopyTrade,
 	FeatureSymbols,
+	FeatureHermes,
 }
 
 // PlanInfo 套餐信息
@@ -58,9 +60,9 @@ func (d *Database) initPlanData() error {
 
 	planFeatures := map[string][]string{
 		PlanBasic:    {FeatureCompetition},
-		PlanStandard: {FeatureCompetition, FeatureAITrader, FeatureSymbols},
-		PlanPro:      {FeatureCompetition, FeatureAITrader, FeatureSymbols, FeatureLeaderboard, FeatureCopyTrade},
-		PlanVIP:      {FeatureCompetition, FeatureAITrader, FeatureSymbols, FeatureLeaderboard, FeatureCopyTrade},
+		PlanStandard: {FeatureCompetition, FeatureAITrader, FeatureSymbols, FeatureHermes},
+		PlanPro:      {FeatureCompetition, FeatureAITrader, FeatureSymbols, FeatureLeaderboard, FeatureCopyTrade, FeatureHermes},
+		PlanVIP:      {FeatureCompetition, FeatureAITrader, FeatureSymbols, FeatureLeaderboard, FeatureCopyTrade, FeatureHermes},
 	}
 	for planID, features := range planFeatures {
 		for _, f := range features {

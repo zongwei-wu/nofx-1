@@ -47,6 +47,22 @@ export class NofxClient {
     return body as T
   }
 
+  async put<T>(path: string, data?: unknown): Promise<T> {
+    const res = await fetch(`${apiBase()}${path}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${this.requireToken()}`,
+        'Content-Type': 'application/json',
+      },
+      body: data ? JSON.stringify(data) : undefined,
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      throw new Error((body as { error?: string }).error || res.statusText)
+    }
+    return body as T
+  }
+
   async putEncrypted(path: string, payload: EncryptedPayload): Promise<unknown> {
     const res = await fetch(`${apiBase()}${path}`, {
       method: 'PUT',

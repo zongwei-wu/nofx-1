@@ -710,7 +710,7 @@
       "get": {
         "tags": ["Hermes"],
         "summary": "Hermes K 线查询",
-        "description": "按交易所获取 K 线（binance/okx）。需 ai_trader 权限。",
+        "description": "按交易所获取 K 线（binance/okx）。需 hermes 权限。",
         "security": [{ "BearerAuth": [] }],
         "parameters": [
           { "name": "exchange_id", "in": "query", "type": "string", "default": "binance" },
@@ -722,7 +722,7 @@
           "200": { "description": "成功" },
           "400": { "description": "参数错误" },
           "401": { "description": "未登录" },
-          "403": { "description": "无 ai_trader 权限" }
+          "403": { "description": "无 hermes 权限" }
         }
       }
     },
@@ -738,7 +738,7 @@
           "200": { "description": "成功" },
           "400": { "description": "参数错误" },
           "401": { "description": "未登录" },
-          "403": { "description": "无 ai_trader 权限" }
+          "403": { "description": "无 hermes 权限" }
         }
       }
     },
@@ -754,7 +754,7 @@
           "200": { "description": "成功" },
           "400": { "description": "参数错误" },
           "401": { "description": "未登录" },
-          "403": { "description": "无 ai_trader 权限" }
+          "403": { "description": "无 hermes 权限" }
         }
       }
     },
@@ -771,7 +771,7 @@
           "200": { "description": "成功" },
           "400": { "description": "参数错误" },
           "401": { "description": "未登录" },
-          "403": { "description": "无 ai_trader 权限" }
+          "403": { "description": "无 hermes 权限" }
         }
       }
     },
@@ -793,7 +793,7 @@
           "200": { "description": "成功" },
           "400": { "description": "参数错误或交易失败" },
           "401": { "description": "未登录" },
-          "403": { "description": "无 ai_trader 权限" }
+          "403": { "description": "无 hermes 权限" }
         }
       }
     },
@@ -814,7 +814,7 @@
           "200": { "description": "成功" },
           "400": { "description": "参数错误" },
           "401": { "description": "未登录" },
-          "403": { "description": "无 ai_trader 权限" }
+          "403": { "description": "无 hermes 权限" }
         }
       }
     },
@@ -835,7 +835,7 @@
           "200": { "description": "成功" },
           "400": { "description": "参数错误" },
           "401": { "description": "未登录" },
-          "403": { "description": "无 ai_trader 权限" }
+          "403": { "description": "无 hermes 权限" }
         }
       }
     },
@@ -856,7 +856,101 @@
           "200": { "description": "成功" },
           "400": { "description": "参数错误" },
           "401": { "description": "未登录" },
-          "403": { "description": "无 ai_trader 权限" }
+          "403": { "description": "无 hermes 权限" }
+        }
+      }
+    },
+    "/hermes/settings": {
+      "get": {
+        "tags": ["Hermes"],
+        "summary": "获取 Hermes 设置与 Runner 状态",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "成功" },
+          "401": { "description": "未登录" },
+          "403": { "description": "无 hermes 权限" }
+        }
+      },
+      "put": {
+        "tags": ["Hermes"],
+        "summary": "更新 Hermes 设置",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/HermesSettingsUpdateRequest" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "参数错误" },
+          "401": { "description": "未登录" },
+          "403": { "description": "无 hermes 权限" }
+        }
+      }
+    },
+    "/hermes/start": {
+      "post": {
+        "tags": ["Hermes"],
+        "summary": "启动 Hermes Runner",
+        "description": "需 exchange_id、ai_model_id 已配置且 autonomous_enabled=true",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "前置条件不满足" },
+          "401": { "description": "未登录" },
+          "403": { "description": "无 hermes 权限" }
+        }
+      }
+    },
+    "/hermes/stop": {
+      "post": {
+        "tags": ["Hermes"],
+        "summary": "停止 Hermes Runner",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "Runner 未运行" },
+          "401": { "description": "未登录" },
+          "403": { "description": "无 hermes 权限" }
+        }
+      }
+    },
+    "/hermes/status": {
+      "get": {
+        "tags": ["Hermes"],
+        "summary": "Hermes Runner 运行状态",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "成功" },
+          "401": { "description": "未登录" },
+          "403": { "description": "无 hermes 权限" }
+        }
+      }
+    },
+    "/hermes/decisions": {
+      "get": {
+        "tags": ["Hermes"],
+        "summary": "Hermes 决策日志",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "成功" },
+          "401": { "description": "未登录" },
+          "403": { "description": "无 hermes 权限" }
+        }
+      }
+    },
+    "/hermes/require-setup": {
+      "get": {
+        "tags": ["Hermes"],
+        "summary": "Hermes 配置门禁检查",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "成功" },
+          "401": { "description": "未登录" },
+          "403": { "description": "无 hermes 权限" }
         }
       }
     }
@@ -1264,6 +1358,20 @@
         "quantity": { "type": "number" },
         "leverage": { "type": "integer" },
         "confirmed": { "type": "boolean" }
+      }
+    },
+    "HermesSettingsUpdateRequest": {
+      "type": "object",
+      "properties": {
+        "autonomous_enabled": { "type": "boolean", "description": "半自动授权，Runner 内部下单免 confirmed" },
+        "exchange_id": { "type": "string" },
+        "ai_model_id": { "type": "string" },
+        "scan_interval_minutes": { "type": "integer" },
+        "system_prompt_template": { "type": "string", "default": "hermes" },
+        "btc_eth_leverage": { "type": "integer" },
+        "altcoin_leverage": { "type": "integer" },
+        "trading_coins": { "type": "array", "items": { "type": "string" } },
+        "initial_balance": { "type": "number" }
       }
     },
     "HermesLeverageRequest": {

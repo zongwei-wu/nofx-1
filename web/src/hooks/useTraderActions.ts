@@ -1,4 +1,5 @@
 import { api } from '../lib/api'
+import { saveExchangeConfig } from '../lib/saveExchangeConfig'
 import type {
   TraderInfo,
   CreateTraderRequest,
@@ -501,86 +502,36 @@ export function useTraderActions({
     passphrase?: string
   ) => {
     try {
-      // 找到要配置的交易所(从supportedExchanges中)
-      const exchangeToUpdate = supportedExchanges?.find(
-        (e) => e.id === exchangeId
-      )
-      if (!exchangeToUpdate) {
-        toast.error(t('exchangeNotExist', language))
-        return
-      }
-
-      // 创建或更新用户的交易所配置
-      const existingExchange = allExchanges?.find((e) => e.id === exchangeId)
-      let updatedExchanges
-
-      if (existingExchange) {
-        // 更新现有配置
-        updatedExchanges =
-          allExchanges?.map((e) =>
-            e.id === exchangeId
-              ? {
-                  ...e,
-                  apiKey,
-                  secretKey,
-                  testnet,
-                  hyperliquidWalletAddr,
-                  asterUser,
-                  asterSigner,
-                  asterPrivateKey,
-                  enabled: true,
-                }
-              : e
-          ) || []
-      } else {
-        // 添加新配置
-        const newExchange = {
-          ...exchangeToUpdate,
-          apiKey,
-          secretKey,
-          testnet,
-          hyperliquidWalletAddr,
-          asterUser,
-          asterSigner,
-          asterPrivateKey,
-          enabled: true,
-        }
-        updatedExchanges = [...(allExchanges || []), newExchange]
-      }
-
-      const request = {
-        exchanges: Object.fromEntries(
-          updatedExchanges.map((exchange) => [
-            exchange.id,
-            {
-              enabled: exchange.enabled,
-              api_key: exchange.apiKey || '',
-              secret_key: exchange.secretKey || '',
-              testnet: exchange.testnet || false,
-              hyperliquid_wallet_addr: exchange.hyperliquidWalletAddr || '',
-              aster_user: exchange.asterUser || '',
-              aster_signer: exchange.asterSigner || '',
-              aster_private_key: exchange.asterPrivateKey || '',
-              passphrase:
-                exchange.id === exchangeId ? passphrase || '' : '',
-            },
-          ])
+      const refreshedExchanges = await toast.promise(
+        saveExchangeConfig(
+          exchangeId,
+          {
+            apiKey,
+            secretKey,
+            testnet,
+            hyperliquidWalletAddr,
+            asterUser,
+            asterSigner,
+            asterPrivateKey,
+            passphrase,
+          },
+          allExchanges || [],
+          supportedExchanges || []
         ),
-      }
-
-      await toast.promise(api.updateExchangeConfigsEncrypted(request), {
-        loading: '正在更新交易所配置…',
-        success: '交易所配置已更新',
-        error: '更新交易所配置失败',
-      })
-
-      // 重新获取用户配置以确保数据同步
-      const refreshedExchanges = await api.getExchangeConfigs()
+        {
+          loading: '正在更新交易所配置…',
+          success: '交易所配置已更新',
+          error: '更新交易所配置失败',
+        }
+      )
       setAllExchanges(refreshedExchanges)
-
       setShowExchangeModal(false)
       setEditingExchange(null)
     } catch (error) {
+      if (error instanceof Error && error.message === 'EXCHANGE_NOT_EXIST') {
+        toast.error(t('exchangeNotExist', language))
+        return
+      }
       console.error('Failed to save exchange config:', error)
       toast.error(t('saveConfigFailed', language))
     }
