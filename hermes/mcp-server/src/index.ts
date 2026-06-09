@@ -24,6 +24,26 @@ function apiBase(): string {
   return (process.env.NOFX_API_URL || 'http://localhost:8080').replace(/\/$/, '')
 }
 
+// hermesPath returns the API path prefix based on auth method.
+// API key auth uses /api/mcp/hermes (apiKeyAuthMiddleware),
+// JWT auth uses /api/hermes (authMiddleware + requireFeature).
+function hermesPath(suffix: string): string {
+  const s = getSession()
+  if (s?.authMethod === 'apikey') {
+    return `/api/mcp/hermes${suffix}`
+  }
+  return `/api/hermes${suffix}`
+}
+
+// mcpPath returns API path for non-hermes MCP endpoints (exchanges, models)
+function mcpPath(suffix: string): string {
+  const s = getSession()
+  if (s?.authMethod === 'apikey') {
+    return `/api/mcp${suffix}`
+  }
+  return `/api${suffix}`
+}
+
 function textResult(text: string) {
   return { content: [{ type: 'text' as const, text }] }
 }
@@ -330,6 +350,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             token: res.token,
             userId: res.user_id,
             email: res.email || String(a.email),
+            authMethod: 'jwt',
           })
           return jsonResult({ status: 'logged_in', user_id: res.user_id, email: res.email })
         }
@@ -353,6 +374,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           token: res.token,
           userId: res.user_id,
           email: res.email,
+          authMethod: 'jwt',
         })
         return jsonResult({ status: 'logged_in', user_id: res.user_id, email: res.email })
       }
@@ -384,7 +406,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'hermes_list_exchanges': {
         const list = await nofxClient.get<
           Array<{ id: string; name: string; enabled: boolean; testnet: boolean }>
-        >('/api/exchanges')
+        >(mcpPath('/exchanges'))
         const safe = list.map((ex) => ({
           id: ex.id,
           name: ex.name,
@@ -418,7 +440,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
         if (name === 'hermes_test_exchange') {
           const result = await nofxClient.postEncrypted(
-            '/api/exchanges/test',
+            mcpPath('/exchanges/test'),
             encrypted
           )
           return jsonResult(result)
@@ -445,14 +467,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           session?.userId
         )
         const result = await nofxClient.putEncrypted(
-          '/api/exchanges',
+          mcpPath('/exchanges'),
           saveEncrypted
         )
         return jsonResult(result)
       }
 
       case 'hermes_get_klines': {
-        const result = await nofxClient.get('/api/hermes/klines', {
+        const result = await nofxClient.get(hermesPath('/klines'), {
           exchange_id: String(a.exchange_id || 'binance'),
           symbol: String(a.symbol),
           interval: String(a.interval || '1h'),
@@ -462,21 +484,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'hermes_get_balance': {
-        const result = await nofxClient.get('/api/hermes/balance', {
+        const result = await nofxClient.get(hermesPath('/balance'), {
           exchange_id: String(a.exchange_id),
         })
         return jsonResult(result)
       }
 
       case 'hermes_get_positions': {
-        const result = await nofxClient.get('/api/hermes/positions', {
+        const result = await nofxClient.get(hermesPath('/positions'), {
           exchange_id: String(a.exchange_id),
         })
         return jsonResult(result)
       }
 
       case 'hermes_get_market_price': {
-        const result = await nofxClient.get('/api/hermes/market-price', {
+        const result = await nofxClient.get(hermesPath('/market-price'), {
           exchange_id: String(a.exchange_id),
           symbol: String(a.symbol),
         })
@@ -484,7 +506,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'hermes_trade': {
-        const result = await nofxClient.post('/api/hermes/trade', {
+        const result = await nofxClient.post(hermesPath('/trade'), {
           exchange_id: a.exchange_id,
           action: a.action,
           symbol: a.symbol,
@@ -496,64 +518,64 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case 'hermes_set_leverage': {
-        const result = await nofxClient.post('/api/hermes/leverage', a)
+        const result = await nofxClient.post(hermesPath('/leverage'), a)
         return jsonResult(result)
       }
 
       case 'hermes_set_stop_loss': {
-        const result = await nofxClient.post('/api/hermes/stop-loss', a)
+        const result = await nofxClient.post(hermesPath('/stop-loss'), a)
         return jsonResult(result)
       }
 
       case 'hermes_set_take_profit': {
-        const result = await nofxClient.post('/api/hermes/take-profit', a)
+        const result = await nofxClient.post(hermesPath('/take-profit'), a)
         return jsonResult(result)
       }
 
       case 'hermes_get_settings': {
-        const result = await nofxClient.get('/api/hermes/settings')
+        const result = await nofxClient.get(hermesPath('/settings'))
         return jsonResult(result)
       }
 
       case 'hermes_update_settings': {
-        const result = await nofxClient.put('/api/hermes/settings', a)
+        const result = await nofxClient.put(hermesPath('/settings'), a)
         return jsonResult(result)
       }
 
       case 'hermes_enable_autonomous': {
-        const result = await nofxClient.put('/api/hermes/settings', {
+        const result = await nofxClient.put(hermesPath('/settings'), {
           autonomous_enabled: a.enabled === true,
         })
         return jsonResult(result)
       }
 
       case 'hermes_start_runner': {
-        const result = await nofxClient.post('/api/hermes/start', {})
+        const result = await nofxClient.post(hermesPath('/start'), {})
         return jsonResult(result)
       }
 
       case 'hermes_stop_runner': {
-        const result = await nofxClient.post('/api/hermes/stop', {})
+        const result = await nofxClient.post(hermesPath('/stop'), {})
         return jsonResult(result)
       }
 
       case 'hermes_get_runner_status': {
-        const result = await nofxClient.get('/api/hermes/status')
+        const result = await nofxClient.get(hermesPath('/status'))
         return jsonResult(result)
       }
 
       case 'hermes_get_decisions': {
-        const result = await nofxClient.get('/api/hermes/decisions')
+        const result = await nofxClient.get(hermesPath('/decisions'))
         return jsonResult(result)
       }
 
       case 'hermes_list_models': {
-        const result = await nofxClient.get('/api/models')
+        const result = await nofxClient.get(mcpPath('/models'))
         return jsonResult(result)
       }
 
       case 'hermes_require_exchange_setup': {
-        const result = await nofxClient.get('/api/hermes/require-setup')
+        const result = await nofxClient.get(hermesPath('/require-setup'))
         return jsonResult(result)
       }
 

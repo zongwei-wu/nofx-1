@@ -6,12 +6,15 @@ function apiBase(): string {
 }
 
 export class NofxClient {
-  private requireToken(): string {
+  private authHeader(): { Authorization: string } {
     const s = getSession()
     if (!s?.token) {
-      throw new Error('未登录，请先调用 hermes_login 或设置 NOFX_JWT 环境变量')
+      throw new Error('未认证，请设置 NOFX_API_KEY 或 NOFX_JWT 环境变量')
     }
-    return s.token
+    if (s.authMethod === 'apikey') {
+      return { Authorization: `ApiKey ${s.token}` }
+    }
+    return { Authorization: `Bearer ${s.token}` }
   }
 
   async get<T>(path: string, params?: Record<string, string>): Promise<T> {
@@ -22,7 +25,7 @@ export class NofxClient {
       }
     }
     const res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${this.requireToken()}` },
+      headers: this.authHeader(),
     })
     const body = await res.json().catch(() => ({}))
     if (!res.ok) {
@@ -35,7 +38,7 @@ export class NofxClient {
     const res = await fetch(`${apiBase()}${path}`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${this.requireToken()}`,
+        ...this.authHeader(),
         'Content-Type': 'application/json',
       },
       body: data ? JSON.stringify(data) : undefined,
@@ -51,7 +54,7 @@ export class NofxClient {
     const res = await fetch(`${apiBase()}${path}`, {
       method: 'PUT',
       headers: {
-        Authorization: `Bearer ${this.requireToken()}`,
+        ...this.authHeader(),
         'Content-Type': 'application/json',
       },
       body: data ? JSON.stringify(data) : undefined,
@@ -67,7 +70,7 @@ export class NofxClient {
     const res = await fetch(`${apiBase()}${path}`, {
       method: 'PUT',
       headers: {
-        Authorization: `Bearer ${this.requireToken()}`,
+        ...this.authHeader(),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
@@ -83,7 +86,7 @@ export class NofxClient {
     const res = await fetch(`${apiBase()}${path}`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${this.requireToken()}`,
+        ...this.authHeader(),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
