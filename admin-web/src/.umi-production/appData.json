@@ -53,7 +53,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 23
+        "register": 8
       },
       "enableBy": "register"
     },
@@ -66,7 +66,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 7
+        "register": 3
       },
       "enableBy": "register"
     },
@@ -83,7 +83,7 @@
             0
           ]
         },
-        "register": 8
+        "register": 5
       },
       "enableBy": "register"
     },
@@ -97,10 +97,10 @@
       "time": {
         "hooks": {
           "onStart": [
-            4
+            3
           ]
         },
-        "register": 7
+        "register": 6
       },
       "enableBy": "register"
     },
@@ -117,7 +117,7 @@
             0
           ]
         },
-        "register": 2
+        "register": 1
       },
       "enableBy": "register"
     },
@@ -130,7 +130,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 3
+        "register": 2
       },
       "enableBy": "register"
     },
@@ -144,10 +144,10 @@
       "time": {
         "hooks": {
           "modifyAppData": [
-            146
+            113
           ]
         },
-        "register": 50
+        "register": 55
       },
       "enableBy": "register"
     },
@@ -160,7 +160,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 2
+        "register": 1
       },
       "enableBy": "register"
     },
@@ -180,7 +180,7 @@
             1
           ]
         },
-        "register": 2
+        "register": 3
       },
       "enableBy": "register"
     },
@@ -197,7 +197,7 @@
             0
           ]
         },
-        "register": 2
+        "register": 1
       },
       "enableBy": "register"
     },
@@ -224,10 +224,10 @@
       "time": {
         "hooks": {
           "modifyConfig": [
-            0
+            1
           ]
         },
-        "register": 16
+        "register": 14
       },
       "enableBy": "register"
     },
@@ -1079,7 +1079,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 2
+        "register": 1
       },
       "enableBy": "config"
     },
@@ -1122,7 +1122,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 218
+        "register": 197
       },
       "enableBy": "register"
     },
@@ -1135,7 +1135,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 143
+        "register": 118
       },
       "enableBy": "config"
     },
@@ -1148,7 +1148,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 38
+        "register": 28
       },
       "enableBy": "config"
     },
@@ -1191,7 +1191,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 4
+        "register": 3
       },
       "enableBy": "config"
     },
@@ -1204,7 +1204,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 72
+        "register": 73
       }
     },
     "./node_modules/@umijs/preset-umi/dist/features/mpa/mpa": {
@@ -1229,7 +1229,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 2
+        "register": 3
       }
     },
     "./node_modules/@umijs/preset-umi/dist/features/overrides/overrides": {
@@ -1241,7 +1241,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 1
+        "register": 0
       },
       "enableBy": "register"
     },
@@ -1268,10 +1268,10 @@
       "time": {
         "hooks": {
           "modifyConfig": [
-            1
+            20
           ]
         },
-        "register": 6
+        "register": 5
       }
     },
     "./node_modules/@umijs/preset-umi/dist/features/polyfill/publicPathPolyfill": {
@@ -1283,7 +1283,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 2
+        "register": 3
       },
       "enableBy": "register"
     },
@@ -1296,7 +1296,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 5
+        "register": 4
       },
       "enableBy": "register"
     },
@@ -1335,7 +1335,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 2
+        "register": 3
       },
       "enableBy": "register"
     },
@@ -1361,7 +1361,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 4
+        "register": 3
       },
       "enableBy": "config"
     },
@@ -1386,7 +1386,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 7
+        "register": 5
       },
       "enableBy": "config"
     },
@@ -1399,7 +1399,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 7
+        "register": 5
       },
       "enableBy": "register"
     },
@@ -1425,7 +1425,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 7
+        "register": 6
       },
       "enableBy": "config"
     },
@@ -1451,7 +1451,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 15
+        "register": 11
       }
     },
     "./node_modules/@umijs/preset-umi/dist/features/monorepo/redirect": {
@@ -1463,7 +1463,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 42
+        "register": 53
       },
       "enableBy": "config"
     },
@@ -1476,7 +1476,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 2
+        "register": 3
       }
     },
     "./node_modules/@umijs/preset-umi/dist/features/clickToComponent/clickToComponent": {
@@ -1555,7 +1555,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 8
+        "register": 6
       }
     },
     "./node_modules/@umijs/preset-umi/dist/features/mako/mako": {
@@ -1580,7 +1580,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 3
+        "register": 2
       }
     },
     "./node_modules/@umijs/preset-umi/dist/features/hmrGuardian/hmrGuardian": {
@@ -1604,7 +1604,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 48
+        "register": 47
       }
     },
     "./node_modules/@umijs/preset-umi/dist/features/forget/forget": {
@@ -1616,7 +1616,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 4
+        "register": 2
       },
       "enableBy": "config"
     },
@@ -1642,7 +1642,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 9
+        "register": 8
       },
       "enableBy": "register"
     },
@@ -1655,7 +1655,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 132
+        "register": 130
       },
       "enableBy": "register"
     },
@@ -1668,7 +1668,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 85
+        "register": 90
       }
     },
     "./node_modules/@umijs/preset-umi/dist/commands/help": {
@@ -1680,7 +1680,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 2
+        "register": 3
       },
       "enableBy": "register"
     },
@@ -1719,7 +1719,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 3
+        "register": 2
       },
       "enableBy": "register"
     },
@@ -1732,7 +1732,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 2
+        "register": 1
       },
       "enableBy": "register"
     },
@@ -1745,7 +1745,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 6
+        "register": 4
       },
       "enableBy": "register"
     },
@@ -1771,7 +1771,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 2
+        "register": 1
       },
       "enableBy": "register"
     },
@@ -1784,7 +1784,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 3
+        "register": 2
       },
       "enableBy": "register"
     },
@@ -1823,7 +1823,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 3
+        "register": 1
       },
       "enableBy": "register"
     },
@@ -1836,7 +1836,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 3
+        "register": 2
       },
       "enableBy": "register"
     },
@@ -1849,7 +1849,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 2
+        "register": 1
       },
       "enableBy": "register"
     },
@@ -1875,7 +1875,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 2
+        "register": 1
       },
       "enableBy": "register"
     },
@@ -1914,7 +1914,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 52
+        "register": 43
       },
       "enableBy": "register"
     },
@@ -1940,7 +1940,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 5
+        "register": 4
       },
       "enableBy": "register"
     },
@@ -1953,7 +1953,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 3
+        "register": 4
       },
       "enableBy": "config"
     },
@@ -1980,7 +1980,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 17
+        "register": 15
       }
     },
     "./node_modules/@umijs/plugins/dist/dva": {
@@ -1992,7 +1992,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 20
+        "register": 22
       },
       "enableBy": "config"
     },
@@ -2030,7 +2030,7 @@
             1
           ]
         },
-        "register": 10
+        "register": 9
       },
       "enableBy": "config"
     },
@@ -2043,7 +2043,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 5
+        "register": 8
       },
       "enableBy": "config"
     },
@@ -2056,7 +2056,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 5
+        "register": 4
       },
       "enableBy": "config"
     },
@@ -2095,7 +2095,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 3
+        "register": 2
       },
       "enableBy": "register"
     },
@@ -2120,7 +2120,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 3
+        "register": 4
       }
     },
     "./node_modules/@umijs/plugins/dist/react-query": {
@@ -2145,7 +2145,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 3
+        "register": 2
       },
       "enableBy": "config"
     },
@@ -2158,7 +2158,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 5
+        "register": 3
       },
       "enableBy": "config"
     },
@@ -2171,7 +2171,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 3
+        "register": 2
       },
       "enableBy": "config"
     },
@@ -2184,7 +2184,7 @@
       "config": {},
       "time": {
         "hooks": {},
-        "register": 4
+        "register": 2
       },
       "enableBy": "config"
     },
@@ -2198,10 +2198,10 @@
       "time": {
         "hooks": {
           "modifyConfig": [
-            0
+            1
           ]
         },
-        "register": 2
+        "register": 1
       },
       "enableBy": "register"
     },
@@ -2218,7 +2218,7 @@
             0
           ]
         },
-        "register": 2
+        "register": 1
       },
       "enableBy": "register"
     },
@@ -2235,7 +2235,7 @@
             0
           ]
         },
-        "register": 2
+        "register": 1
       },
       "enableBy": "register"
     },
@@ -2293,6 +2293,13 @@
         "icon": "robot",
         "access": "canAdmin",
         "component": "./ai-trader/list"
+      },
+      {
+        "path": "/prompt-template/list",
+        "name": "Prompt 模板",
+        "icon": "fileText",
+        "access": "canAdmin",
+        "component": "./prompt-template/list"
       },
       {
         "path": "/copy-trade/records",
@@ -2405,6 +2412,13 @@
         "component": "./ai-trader/list"
       },
       {
+        "path": "/prompt-template/list",
+        "name": "Prompt 模板",
+        "icon": "fileText",
+        "access": "canAdmin",
+        "component": "./prompt-template/list"
+      },
+      {
         "path": "/copy-trade/records",
         "name": "跟单记录",
         "icon": "table",
@@ -2468,7 +2482,7 @@
       "parentId": "1",
       "id": "2",
       "absPath": "/user/login",
-      "__content": "import { LockOutlined, UserOutlined } from '@ant-design/icons';\nimport { LoginForm, ProFormText } from '@ant-design/pro-components';\nimport { history, useModel } from '@umijs/max';\nimport { message } from 'antd';\nimport { login } from '@/services/admin/api';\n\nconst TOKEN_KEY = 'admin_token';\n\nexport default function LoginPage() {\n  const { setInitialState } = useModel('@@initialState');\n\n  return (\n    <div\n      style={{\n        display: 'flex',\n        height: '100vh',\n        alignItems: 'center',\n        justifyContent: 'center',\n        background: '#f0f2f5',\n      }}\n    >\n      <LoginForm\n        title=\"NOFX 管理后台\"\n        subTitle=\"使用管理员账号登录\"\n        onFinish={async (values) => {\n          try {\n            const res = await login(values.email, values.password);\n            if (!res.token) {\n              message.error('登录失败');\n              return false;\n            }\n            if (res.role && res.role !== 'admin') {\n              message.error('该账号不是管理员');\n              return false;\n            }\n            localStorage.setItem(TOKEN_KEY, res.token);\n            await setInitialState({\n              currentUser: {\n                name: res.email,\n                email: res.email,\n                role: res.role || 'admin',\n                access: res.role || 'admin',\n              },\n            });\n            message.success('登录成功');\n            history.push('/user/list');\n            return true;\n          } catch (err: unknown) {\n            const e = err as { data?: { error?: string } };\n            message.error(e?.data?.error || '登录失败');\n            return false;\n          }\n        }}\n      >\n        <ProFormText\n          name=\"email\"\n          fieldProps={{ size: 'large', prefix: <UserOutlined /> }}\n          placeholder=\"admin@localhost\"\n          rules={[{ required: true, message: '请输入邮箱' }]}\n          initialValue=\"admin@localhost\"\n        />\n        <ProFormText.Password\n          name=\"password\"\n          fieldProps={{ size: 'large', prefix: <LockOutlined /> }}\n          placeholder=\"密码\"\n          rules={[{ required: true, message: '请输入密码' }]}\n        />\n      </LoginForm>\n    </div>\n  );\n}\n",
+      "__content": "import { LockOutlined, UserOutlined } from '@ant-design/icons';\nimport { LoginForm, ProFormText } from '@ant-design/pro-components';\nimport { history, useModel } from '@umijs/max';\nimport { message } from 'antd';\nimport { useEffect } from 'react';\nimport { login } from '@/services/admin/api';\n\nconst TOKEN_KEY = 'admin_token';\nconst DEFAULT_HOME = '/user/list';\n\nexport default function LoginPage() {\n  const { initialState, setInitialState } = useModel('@@initialState');\n\n  useEffect(() => {\n    if (initialState?.currentUser) {\n      history.replace(DEFAULT_HOME);\n    }\n  }, [initialState?.currentUser]);\n\n  return (\n    <div\n      style={{\n        display: 'flex',\n        height: '100vh',\n        alignItems: 'center',\n        justifyContent: 'center',\n        background: '#f0f2f5',\n      }}\n    >\n      <LoginForm\n        title=\"NOFX 管理后台\"\n        subTitle=\"使用管理员账号登录\"\n        onFinish={async (values) => {\n          try {\n            const res = await login(values.email, values.password);\n            if (!res.token) {\n              message.error('登录失败');\n              return false;\n            }\n            if (res.role && res.role !== 'admin') {\n              message.error('该账号不是管理员');\n              return false;\n            }\n            localStorage.setItem(TOKEN_KEY, res.token);\n            sessionStorage.removeItem('from401');\n            await setInitialState({\n              currentUser: {\n                name: res.email,\n                email: res.email,\n                role: res.role || 'admin',\n                access: res.role || 'admin',\n              },\n            });\n            message.success('登录成功');\n            history.replace(DEFAULT_HOME);\n            return true;\n          } catch (err: unknown) {\n            const e = err as { data?: { error?: string } };\n            message.error(e?.data?.error || '登录失败');\n            return false;\n          }\n        }}\n      >\n        <ProFormText\n          name=\"email\"\n          fieldProps={{ size: 'large', prefix: <UserOutlined /> }}\n          placeholder=\"请输入邮箱\"\n          rules={[{ required: true, message: '请输入邮箱' }]}\n        />\n        <ProFormText.Password\n          name=\"password\"\n          fieldProps={{ size: 'large', prefix: <LockOutlined /> }}\n          placeholder=\"密码\"\n          rules={[{ required: true, message: '请输入密码' }]}\n        />\n      </LoginForm>\n    </div>\n  );\n}\n",
       "__isJSFile": true,
       "__absFile": "/home/admin/nofx-1/admin-web/src/pages/user/login/index.tsx"
     },
@@ -2507,50 +2521,63 @@
       "parentId": "ant-design-pro-layout",
       "id": "5",
       "absPath": "/ai-trader/list",
-      "__content": "import type { ProColumns } from '@ant-design/pro-components';\nimport { PageContainer, ProTable } from '@ant-design/pro-components';\nimport {\n  Button,\n  Descriptions,\n  Drawer,\n  message,\n  Popconfirm,\n  Table,\n  Tabs,\n  Tag,\n} from 'antd';\nimport { useState } from 'react';\nimport {\n  getTraderAccount,\n  getTraderDetail,\n  getTraderPositions,\n  listTraders,\n  stopTrader,\n  type AdminTrader,\n  type AdminTraderDetail,\n} from '@/services/admin/api';\n\nexport default function AITraderListPage() {\n  const [detailOpen, setDetailOpen] = useState(false);\n  const [detail, setDetail] = useState<AdminTraderDetail | null>(null);\n  const [account, setAccount] = useState<Record<string, unknown> | null>(null);\n  const [positions, setPositions] = useState<Record<string, unknown>[]>([]);\n  const [tableKey, setTableKey] = useState(0);\n\n  const openDetail = async (record: AdminTrader) => {\n    const res = await getTraderDetail(record.id);\n    setDetail(res.data);\n    setAccount(null);\n    setPositions([]);\n    setDetailOpen(true);\n    try {\n      const acc = await getTraderAccount(record.id);\n      setAccount(acc.data);\n    } catch {\n      setAccount({ error: '交易员未运行或无法获取账户' });\n    }\n    try {\n      const pos = await getTraderPositions(record.id);\n      setPositions(pos.data || []);\n    } catch {\n      setPositions([]);\n    }\n  };\n\n  const columns: ProColumns<AdminTrader>[] = [\n    { title: '用户邮箱', dataIndex: 'email', copyable: true, width: 180, hideInTable: true },\n    { title: '用户邮箱', dataIndex: 'user_email', copyable: true, width: 180, search: false },\n    { title: '用户 ID', dataIndex: 'user_id', copyable: true, width: 140 },\n    { title: '名称', dataIndex: 'name', width: 120 },\n    { title: '交易员 ID', dataIndex: 'id', copyable: true, width: 160, search: false },\n    {\n      title: '运行状态',\n      dataIndex: 'is_running',\n      width: 100,\n      valueType: 'select',\n      valueEnum: {\n        true: { text: '运行中', status: 'Processing' },\n        false: { text: '已停止', status: 'Default' },\n      },\n      render: (_, r) =>\n        r.is_running ? (\n          <Tag color=\"green\">运行中</Tag>\n        ) : (\n          <Tag>已停止</Tag>\n        ),\n    },\n    { title: '模型', dataIndex: 'ai_model_name', search: false, width: 100 },\n    { title: '交易所', dataIndex: 'exchange_name', search: false, width: 120 },\n    {\n      title: '扫描间隔(分)',\n      dataIndex: 'scan_interval_minutes',\n      search: false,\n      width: 110,\n    },\n    {\n      title: '初始资金',\n      dataIndex: 'initial_balance',\n      search: false,\n      width: 100,\n    },\n    {\n      title: '创建时间',\n      dataIndex: 'created_at',\n      valueType: 'dateTime',\n      search: false,\n      width: 170,\n    },\n    {\n      title: '操作',\n      valueType: 'option',\n      width: 180,\n      render: (_, record) => [\n        <Button key=\"detail\" type=\"link\" size=\"small\" onClick={() => openDetail(record)}>\n          详情\n        </Button>,\n        record.is_running ? (\n          <Popconfirm\n            key=\"stop\"\n            title=\"确定强制停止该交易员？\"\n            onConfirm={async () => {\n              await stopTrader(record.id);\n              message.success('已停止');\n              setTableKey((k) => k + 1);\n            }}\n          >\n            <Button type=\"link\" size=\"small\" danger>\n              强停\n            </Button>\n          </Popconfirm>\n        ) : null,\n      ],\n    },\n  ];\n\n  return (\n    <PageContainer>\n      <ProTable<AdminTrader>\n        key={tableKey}\n        rowKey=\"id\"\n        columns={columns}\n        scroll={{ x: 1400 }}\n        request={async (params) => {\n          const res = await listTraders({\n            current: params.current,\n            pageSize: params.pageSize,\n            user_id: params.user_id as string | undefined,\n            email: params.user_email as string | undefined,\n            name: params.name as string | undefined,\n            is_running:\n              params.is_running !== undefined\n                ? String(params.is_running)\n                : undefined,\n          });\n          return { data: res.data, total: res.total, success: res.success };\n        }}\n        search={{ labelWidth: 'auto' }}\n        pagination={{ defaultPageSize: 20 }}\n      />\n\n      <Drawer\n        title={detail ? `交易员：${detail.name}` : '交易员详情'}\n        width={720}\n        open={detailOpen}\n        onClose={() => setDetailOpen(false)}\n      >\n        {detail && (\n          <Tabs\n            items={[\n              {\n                key: 'config',\n                label: '配置',\n                children: (\n                  <Descriptions column={1} bordered size=\"small\">\n                    <Descriptions.Item label=\"用户\">{detail.user_email}</Descriptions.Item>\n                    <Descriptions.Item label=\"ID\">{detail.id}</Descriptions.Item>\n                    <Descriptions.Item label=\"模型\">\n                      {detail.ai_model_name} ({detail.ai_model_provider})\n                    </Descriptions.Item>\n                    <Descriptions.Item label=\"交易所\">\n                      {detail.exchange_name} ({detail.exchange_type})\n                    </Descriptions.Item>\n                    <Descriptions.Item label=\"运行状态\">\n                      {detail.is_running ? '运行中' : '已停止'}\n                    </Descriptions.Item>\n                    <Descriptions.Item label=\"扫描间隔\">\n                      {detail.scan_interval_minutes} 分钟\n                    </Descriptions.Item>\n                    <Descriptions.Item label=\"杠杆\">\n                      BTC/ETH {detail.btc_eth_leverage}x / 山寨 {detail.altcoin_leverage}x\n                    </Descriptions.Item>\n                    <Descriptions.Item label=\"交易对\">{detail.trading_symbols || '-'}</Descriptions.Item>\n                    <Descriptions.Item label=\"Prompt 模板\">\n                      {detail.system_prompt_template}\n                    </Descriptions.Item>\n                  </Descriptions>\n                ),\n              },\n              {\n                key: 'account',\n                label: '账户',\n                children: account ? (\n                  <Descriptions column={1} bordered size=\"small\">\n                    {Object.entries(account).map(([k, v]) => (\n                      <Descriptions.Item key={k} label={k}>\n                        {String(v)}\n                      </Descriptions.Item>\n                    ))}\n                  </Descriptions>\n                ) : (\n                  '加载中...'\n                ),\n              },\n              {\n                key: 'positions',\n                label: '持仓',\n                children: (\n                  <Table\n                    size=\"small\"\n                    rowKey={(_, i) => String(i)}\n                    dataSource={positions}\n                    columns={[\n                      { title: '字段', dataIndex: 'symbol', render: (_, r) => JSON.stringify(r) },\n                    ]}\n                    pagination={false}\n                  />\n                ),\n              },\n            ]}\n          />\n        )}\n      </Drawer>\n    </PageContainer>\n  );\n}\n",
+      "__content": "import type { ProColumns } from '@ant-design/pro-components';\nimport { PageContainer, ProTable } from '@ant-design/pro-components';\nimport {\n  Button,\n  Descriptions,\n  Drawer,\n  message,\n  Popconfirm,\n  Table,\n  Tabs,\n  Tag,\n  Typography,\n} from 'antd';\nimport { useState } from 'react';\nimport {\n  getTraderAccount,\n  getTraderDetail,\n  getTraderPositions,\n  listTraders,\n  stopTrader,\n  type AdminTrader,\n  type AdminTraderDetail,\n} from '@/services/admin/api';\n\nexport default function AITraderListPage() {\n  const [detailOpen, setDetailOpen] = useState(false);\n  const [detail, setDetail] = useState<AdminTraderDetail | null>(null);\n  const [account, setAccount] = useState<Record<string, unknown> | null>(null);\n  const [positions, setPositions] = useState<Record<string, unknown>[]>([]);\n  const [tableKey, setTableKey] = useState(0);\n\n  const openDetail = async (record: AdminTrader) => {\n    const res = await getTraderDetail(record.id);\n    setDetail(res.data);\n    setAccount(null);\n    setPositions([]);\n    setDetailOpen(true);\n    try {\n      const acc = await getTraderAccount(record.id);\n      setAccount(acc.data);\n    } catch {\n      setAccount({ error: '交易员未运行或无法获取账户' });\n    }\n    try {\n      const pos = await getTraderPositions(record.id);\n      setPositions(pos.data || []);\n    } catch {\n      setPositions([]);\n    }\n  };\n\n  const columns: ProColumns<AdminTrader>[] = [\n    { title: '用户邮箱', dataIndex: 'email', copyable: true, width: 180, hideInTable: true },\n    { title: '用户邮箱', dataIndex: 'user_email', copyable: true, width: 180, search: false },\n    { title: '用户 ID', dataIndex: 'user_id', copyable: true, width: 140 },\n    { title: '名称', dataIndex: 'name', width: 120 },\n    { title: '交易员 ID', dataIndex: 'id', copyable: true, width: 160, search: false },\n    {\n      title: '运行状态',\n      dataIndex: 'is_running',\n      width: 100,\n      valueType: 'select',\n      valueEnum: {\n        true: { text: '运行中', status: 'Processing' },\n        false: { text: '已停止', status: 'Default' },\n      },\n      render: (_, r) =>\n        r.is_running ? (\n          <Tag color=\"green\">运行中</Tag>\n        ) : (\n          <Tag>已停止</Tag>\n        ),\n    },\n    { title: '模型', dataIndex: 'ai_model_name', search: false, width: 100 },\n    { title: '交易所', dataIndex: 'exchange_name', search: false, width: 120 },\n    {\n      title: '扫描间隔(分)',\n      dataIndex: 'scan_interval_minutes',\n      search: false,\n      width: 110,\n    },\n    {\n      title: '初始资金',\n      dataIndex: 'initial_balance',\n      search: false,\n      width: 100,\n    },\n    {\n      title: '创建时间',\n      dataIndex: 'created_at',\n      valueType: 'dateTime',\n      search: false,\n      width: 170,\n    },\n    {\n      title: '操作',\n      valueType: 'option',\n      width: 180,\n      render: (_, record) => [\n        <Button key=\"detail\" type=\"link\" size=\"small\" onClick={() => openDetail(record)}>\n          详情\n        </Button>,\n        record.is_running ? (\n          <Popconfirm\n            key=\"stop\"\n            title=\"确定强制停止该交易员？\"\n            onConfirm={async () => {\n              await stopTrader(record.id);\n              message.success('已停止');\n              setTableKey((k) => k + 1);\n            }}\n          >\n            <Button type=\"link\" size=\"small\" danger>\n              强停\n            </Button>\n          </Popconfirm>\n        ) : null,\n      ],\n    },\n  ];\n\n  return (\n    <PageContainer>\n      <ProTable<AdminTrader>\n        key={tableKey}\n        rowKey=\"id\"\n        columns={columns}\n        scroll={{ x: 1400 }}\n        request={async (params) => {\n          const res = await listTraders({\n            current: params.current,\n            pageSize: params.pageSize,\n            user_id: params.user_id as string | undefined,\n            email: params.user_email as string | undefined,\n            name: params.name as string | undefined,\n            is_running:\n              params.is_running !== undefined\n                ? String(params.is_running)\n                : undefined,\n          });\n          return { data: res.data, total: res.total, success: res.success };\n        }}\n        search={{ labelWidth: 'auto' }}\n        pagination={{ defaultPageSize: 20 }}\n      />\n\n      <Drawer\n        title={detail ? `交易员：${detail.name}` : '交易员详情'}\n        width={720}\n        open={detailOpen}\n        onClose={() => setDetailOpen(false)}\n      >\n        {detail && (\n          <Tabs\n            items={[\n              {\n                key: 'config',\n                label: '配置',\n                children: (\n                  <Descriptions column={1} bordered size=\"small\">\n                    <Descriptions.Item label=\"用户\">{detail.user_email}</Descriptions.Item>\n                    <Descriptions.Item label=\"ID\">{detail.id}</Descriptions.Item>\n                    <Descriptions.Item label=\"模型\">\n                      {detail.ai_model_name} ({detail.ai_model_provider})\n                    </Descriptions.Item>\n                    <Descriptions.Item label=\"交易所\">\n                      {detail.exchange_name} ({detail.exchange_type})\n                    </Descriptions.Item>\n                    <Descriptions.Item label=\"运行状态\">\n                      {detail.is_running ? '运行中' : '已停止'}\n                    </Descriptions.Item>\n                    <Descriptions.Item label=\"扫描间隔\">\n                      {detail.scan_interval_minutes} 分钟\n                    </Descriptions.Item>\n                    <Descriptions.Item label=\"杠杆\">\n                      BTC/ETH {detail.btc_eth_leverage}x / 山寨 {detail.altcoin_leverage}x\n                    </Descriptions.Item>\n                    <Descriptions.Item label=\"交易对\">{detail.trading_symbols || '-'}</Descriptions.Item>\n                    <Descriptions.Item label=\"Prompt 模板\">\n                      {detail.system_prompt_template}\n                    </Descriptions.Item>\n                    <Descriptions.Item label=\"提示词模式\">\n                      {detail.custom_prompt\n                        ? detail.override_base_prompt\n                          ? '覆盖默认'\n                          : '附加到默认'\n                        : '未设置'}\n                    </Descriptions.Item>\n                    <Descriptions.Item label=\"自定义/附加提示词\">\n                      {detail.custom_prompt ? (\n                        <Typography.Paragraph\n                          style={{\n                            marginBottom: 0,\n                            whiteSpace: 'pre-wrap',\n                            fontFamily: 'monospace',\n                            fontSize: 12,\n                            maxHeight: 240,\n                            overflow: 'auto',\n                          }}\n                        >\n                          {detail.custom_prompt}\n                        </Typography.Paragraph>\n                      ) : (\n                        '未设置自定义提示词'\n                      )}\n                    </Descriptions.Item>\n                  </Descriptions>\n                ),\n              },\n              {\n                key: 'account',\n                label: '账户',\n                children: account ? (\n                  <Descriptions column={1} bordered size=\"small\">\n                    {Object.entries(account).map(([k, v]) => (\n                      <Descriptions.Item key={k} label={k}>\n                        {String(v)}\n                      </Descriptions.Item>\n                    ))}\n                  </Descriptions>\n                ) : (\n                  '加载中...'\n                ),\n              },\n              {\n                key: 'positions',\n                label: '持仓',\n                children: (\n                  <Table\n                    size=\"small\"\n                    rowKey={(_, i) => String(i)}\n                    dataSource={positions}\n                    columns={[\n                      { title: '字段', dataIndex: 'symbol', render: (_, r) => JSON.stringify(r) },\n                    ]}\n                    pagination={false}\n                  />\n                ),\n              },\n            ]}\n          />\n        )}\n      </Drawer>\n    </PageContainer>\n  );\n}\n",
       "__isJSFile": true,
       "__absFile": "/home/admin/nofx-1/admin-web/src/pages/ai-trader/list/index.tsx"
     },
     "6": {
+      "path": "/prompt-template/list",
+      "name": "Prompt 模板",
+      "icon": "fileText",
+      "access": "canAdmin",
+      "file": "@/pages/prompt-template/list/index.tsx",
+      "parentId": "ant-design-pro-layout",
+      "id": "6",
+      "absPath": "/prompt-template/list",
+      "__content": "import type { ProColumns } from '@ant-design/pro-components';\nimport {\n  ModalForm,\n  PageContainer,\n  ProFormText,\n  ProFormTextArea,\n  ProTable,\n} from '@ant-design/pro-components';\nimport { Button, Drawer, message, Popconfirm, Typography } from 'antd';\nimport { useState } from 'react';\nimport {\n  createPromptTemplate,\n  deletePromptTemplate,\n  getPromptTemplate,\n  listPromptTemplates,\n  updatePromptTemplate,\n  type PromptTemplateItem,\n} from '@/services/admin/api';\n\nexport default function PromptTemplateListPage() {\n  const [createOpen, setCreateOpen] = useState(false);\n  const [editItem, setEditItem] = useState<PromptTemplateItem | null>(null);\n  const [viewItem, setViewItem] = useState<PromptTemplateItem | null>(null);\n  const [tableKey, setTableKey] = useState(0);\n\n  const openEdit = async (record: PromptTemplateItem) => {\n    const res = await getPromptTemplate(record.name);\n    setEditItem(res.data);\n  };\n\n  const openView = async (record: PromptTemplateItem) => {\n    const res = await getPromptTemplate(record.name);\n    setViewItem(res.data);\n  };\n\n  const columns: ProColumns<PromptTemplateItem>[] = [\n    {\n      title: '名称',\n      dataIndex: 'name',\n      copyable: true,\n      width: 140,\n    },\n    {\n      title: '描述',\n      dataIndex: 'description',\n      search: false,\n      ellipsis: true,\n      width: 180,\n      render: (_, r) => r.description || '-',\n    },\n    {\n      title: '内容预览',\n      dataIndex: 'content_preview',\n      search: false,\n      ellipsis: true,\n    },\n    {\n      title: '字数',\n      dataIndex: 'content_length',\n      search: false,\n      width: 80,\n    },\n    {\n      title: '更新时间',\n      dataIndex: 'updated_at',\n      valueType: 'dateTime',\n      search: false,\n      width: 170,\n    },\n    {\n      title: '操作',\n      valueType: 'option',\n      width: 220,\n      render: (_, record) => [\n        <Button\n          key=\"view\"\n          type=\"link\"\n          size=\"small\"\n          onClick={() => openView(record)}\n        >\n          查看\n        </Button>,\n        <Button\n          key=\"edit\"\n          type=\"link\"\n          size=\"small\"\n          onClick={() => openEdit(record)}\n        >\n          编辑\n        </Button>,\n        <Popconfirm\n          key=\"delete\"\n          title=\"确定删除该模板？\"\n          onConfirm={async () => {\n            try {\n              await deletePromptTemplate(record.name);\n              message.success('已删除');\n              setTableKey((k) => k + 1);\n            } catch (e: unknown) {\n              const err = e as { data?: { error?: string }; message?: string };\n              message.error(err?.data?.error || err?.message || '删除失败');\n            }\n          }}\n        >\n          <Button type=\"link\" size=\"small\" danger>\n            删除\n          </Button>\n        </Popconfirm>,\n      ],\n    },\n  ];\n\n  return (\n    <PageContainer\n      extra={\n        <Button type=\"primary\" onClick={() => setCreateOpen(true)}>\n          新建模板\n        </Button>\n      }\n    >\n      <ProTable<PromptTemplateItem>\n        key={tableKey}\n        rowKey=\"name\"\n        columns={columns}\n        request={async (params) => {\n          const res = await listPromptTemplates({\n            current: params.current,\n            pageSize: params.pageSize,\n            name: params.name as string | undefined,\n          });\n          return { data: res.data, total: res.total, success: res.success };\n        }}\n        search={{ labelWidth: 'auto' }}\n        pagination={{ defaultPageSize: 20 }}\n      />\n\n      <ModalForm\n        title=\"新建 Prompt 模板\"\n        open={createOpen}\n        modalProps={{\n          destroyOnClose: true,\n          onCancel: () => setCreateOpen(false),\n        }}\n        onFinish={async (values) => {\n          await createPromptTemplate({\n            name: values.name,\n            content: values.content,\n            description: values.description,\n          });\n          message.success('模板已创建');\n          setCreateOpen(false);\n          setTableKey((k) => k + 1);\n          return true;\n        }}\n      >\n        <ProFormText\n          name=\"name\"\n          label=\"名称\"\n          rules={[\n            { required: true },\n            {\n              pattern: /^[a-zA-Z0-9_-]+$/,\n              message: '仅允许字母、数字、下划线和连字符',\n            },\n          ]}\n          extra=\"创建后不可修改，与交易员 system_prompt_template 字段对应\"\n        />\n        <ProFormText name=\"description\" label=\"描述\" />\n        <ProFormTextArea\n          name=\"content\"\n          label=\"模板内容\"\n          rules={[{ required: true }]}\n          fieldProps={{ rows: 12, style: { fontFamily: 'monospace' } }}\n        />\n      </ModalForm>\n\n      <ModalForm\n        title={`编辑模板：${editItem?.name ?? ''}`}\n        open={!!editItem}\n        key={editItem?.name ?? 'edit'}\n        initialValues={{\n          description: editItem?.description,\n          content: editItem?.content,\n        }}\n        modalProps={{\n          destroyOnClose: true,\n          onCancel: () => setEditItem(null),\n        }}\n        onFinish={async (values) => {\n          if (!editItem) return false;\n          await updatePromptTemplate(editItem.name, {\n            content: values.content,\n            description: values.description,\n          });\n          message.success('模板已更新');\n          setEditItem(null);\n          setTableKey((k) => k + 1);\n          return true;\n        }}\n      >\n        <ProFormTextArea\n          name=\"content\"\n          label=\"模板内容\"\n          rules={[{ required: true }]}\n          fieldProps={{ rows: 14, style: { fontFamily: 'monospace' } }}\n        />\n        <ProFormText name=\"description\" label=\"描述\" />\n      </ModalForm>\n\n      <Drawer\n        title={viewItem ? `模板：${viewItem.name}` : '模板详情'}\n        width={720}\n        open={!!viewItem}\n        onClose={() => setViewItem(null)}\n      >\n        {viewItem && (\n          <>\n            <Typography.Paragraph type=\"secondary\">\n              {viewItem.description || '无描述'}\n            </Typography.Paragraph>\n            <Typography.Paragraph\n              style={{\n                whiteSpace: 'pre-wrap',\n                fontFamily: 'monospace',\n                fontSize: 13,\n                maxHeight: '70vh',\n                overflow: 'auto',\n              }}\n            >\n              {viewItem.content}\n            </Typography.Paragraph>\n          </>\n        )}\n      </Drawer>\n    </PageContainer>\n  );\n}\n",
+      "__isJSFile": true,
+      "__absFile": "/home/admin/nofx-1/admin-web/src/pages/prompt-template/list/index.tsx"
+    },
+    "7": {
       "path": "/copy-trade/records",
       "name": "跟单记录",
       "icon": "table",
       "access": "canAdmin",
       "file": "@/pages/copy-trade/records/index.tsx",
       "parentId": "ant-design-pro-layout",
-      "id": "6",
+      "id": "7",
       "absPath": "/copy-trade/records",
       "__content": "import type { ProColumns } from '@ant-design/pro-components';\nimport { PageContainer, ProTable } from '@ant-design/pro-components';\nimport {\n  listCopyTradeRecords,\n  type CopyTradeRecord,\n} from '@/services/admin/api';\n\nconst columns: ProColumns<CopyTradeRecord>[] = [\n  { title: 'ID', dataIndex: 'id', width: 70, search: false },\n  { title: '用户 ID', dataIndex: 'user_id', copyable: true, width: 140 },\n  { title: '带单员', dataIndex: 'nickname', search: false, width: 120 },\n  { title: '组合 ID', dataIndex: 'portfolio_id', search: false, width: 120 },\n  {\n    title: '交易对',\n    dataIndex: 'symbol',\n    width: 110,\n  },\n  {\n    title: '状态',\n    dataIndex: 'status',\n    valueEnum: {\n      OPEN: { text: '持仓中', status: 'Processing' },\n      CLOSED: { text: '已平仓', status: 'Success' },\n      FAILED: { text: '失败', status: 'Error' },\n    },\n    width: 100,\n  },\n  { title: '方向', dataIndex: 'side', search: false, width: 70 },\n  { title: '持仓侧', dataIndex: 'position_side', search: false, width: 80 },\n  {\n    title: '数量',\n    dataIndex: 'executed_qty',\n    search: false,\n    width: 90,\n  },\n  {\n    title: '均价',\n    dataIndex: 'avg_price',\n    search: false,\n    width: 100,\n  },\n  {\n    title: '盈亏',\n    dataIndex: 'total_pnl',\n    search: false,\n    width: 100,\n    render: (_, r) => (\n      <span style={{ color: r.total_pnl >= 0 ? '#3f8600' : '#cf1322' }}>\n        {r.total_pnl?.toFixed?.(2) ?? r.total_pnl}\n      </span>\n    ),\n  },\n  {\n    title: '跟单时间',\n    dataIndex: 'copy_time',\n    valueType: 'dateTime',\n    search: false,\n    width: 170,\n  },\n  {\n    title: '错误信息',\n    dataIndex: 'error_message',\n    search: false,\n    ellipsis: true,\n  },\n];\n\nexport default function CopyTradeRecordsPage() {\n  return (\n    <PageContainer>\n      <ProTable<CopyTradeRecord>\n        rowKey=\"id\"\n        columns={columns}\n        scroll={{ x: 1400 }}\n        request={async (params) => {\n          const res = await listCopyTradeRecords({\n            current: params.current,\n            pageSize: params.pageSize,\n            user_id: params.user_id as string | undefined,\n            status: params.status as string | undefined,\n            symbol: params.symbol as string | undefined,\n          });\n          return {\n            data: res.data,\n            total: res.total,\n            success: res.success,\n          };\n        }}\n        search={{ labelWidth: 'auto' }}\n        pagination={{ defaultPageSize: 20 }}\n      />\n    </PageContainer>\n  );\n}\n",
       "__isJSFile": true,
       "__absFile": "/home/admin/nofx-1/admin-web/src/pages/copy-trade/records/index.tsx"
     },
-    "7": {
+    "8": {
       "path": "/system/config",
       "name": "系统配置",
       "icon": "setting",
       "access": "canAdmin",
       "file": "@/pages/system/config/index.tsx",
       "parentId": "ant-design-pro-layout",
-      "id": "7",
+      "id": "8",
       "absPath": "/system/config",
       "__content": "import {\n  PageContainer,\n  ProForm,\n  ProFormSelect,\n  ProFormTextArea,\n} from '@ant-design/pro-components';\nimport { message } from 'antd';\nimport { useEffect, useState } from 'react';\nimport {\n  getSystemConfig,\n  updateSystemConfig,\n  type SystemConfig,\n} from '@/services/admin/api';\n\nexport default function SystemConfigPage() {\n  const [initialValues, setInitialValues] = useState<SystemConfig>({});\n\n  useEffect(() => {\n    getSystemConfig().then((res) => {\n      if (res.data) {\n        setInitialValues(res.data);\n      }\n    });\n  }, []);\n\n  return (\n    <PageContainer>\n      <ProForm<SystemConfig>\n        key={JSON.stringify(initialValues)}\n        initialValues={initialValues}\n        onFinish={async (values) => {\n          await updateSystemConfig(values);\n          message.success('配置已保存');\n          return true;\n        }}\n        submitter={{ searchConfig: { submitText: '保存配置' } }}\n      >\n        <ProFormSelect\n          name=\"registration_enabled\"\n          label=\"开放注册\"\n          options={[\n            { label: '开启', value: 'true' },\n            { label: '关闭', value: 'false' },\n          ]}\n          rules={[{ required: true }]}\n        />\n        <ProFormSelect\n          name=\"beta_mode\"\n          label=\"内测模式\"\n          options={[\n            { label: '开启', value: 'true' },\n            { label: '关闭', value: 'false' },\n          ]}\n          rules={[{ required: true }]}\n        />\n        <ProFormSelect\n          name=\"use_default_coins\"\n          label=\"使用默认币种\"\n          options={[\n            { label: '是', value: 'true' },\n            { label: '否', value: 'false' },\n          ]}\n          rules={[{ required: true }]}\n        />\n        <ProFormTextArea\n          name=\"default_coins\"\n          label=\"默认币种列表 (JSON 数组)\"\n          fieldProps={{ rows: 4 }}\n          rules={[{ required: true }]}\n        />\n        <ProFormSelect\n          name=\"btc_eth_leverage\"\n          label=\"BTC/ETH 杠杆\"\n          options={['1', '2', '3', '5', '10', '20'].map((v) => ({\n            label: `${v}x`,\n            value: v,\n          }))}\n          rules={[{ required: true }]}\n        />\n        <ProFormSelect\n          name=\"altcoin_leverage\"\n          label=\"山寨币杠杆\"\n          options={['1', '2', '3', '5', '10', '20'].map((v) => ({\n            label: `${v}x`,\n            value: v,\n          }))}\n          rules={[{ required: true }]}\n        />\n        <ProFormSelect\n          name=\"max_daily_loss\"\n          label=\"最大日损失 (%)\"\n          options={['5', '10', '15', '20'].map((v) => ({\n            label: v,\n            value: v,\n          }))}\n        />\n        <ProFormSelect\n          name=\"max_drawdown\"\n          label=\"最大回撤 (%)\"\n          options={['10', '15', '20', '30'].map((v) => ({\n            label: v,\n            value: v,\n          }))}\n        />\n        <ProFormSelect\n          name=\"stop_trading_minutes\"\n          label=\"停止交易时间 (分钟)\"\n          options={['30', '60', '120', '240'].map((v) => ({\n            label: v,\n            value: v,\n          }))}\n        />\n      </ProForm>\n    </PageContainer>\n  );\n}\n",
       "__isJSFile": true,
       "__absFile": "/home/admin/nofx-1/admin-web/src/pages/system/config/index.tsx"
     },
-    "8": {
+    "9": {
       "path": "/",
       "redirect": "/user/list",
       "parentId": "ant-design-pro-layout",
-      "id": "8",
+      "id": "9",
       "absPath": "/"
     },
-    "9": {
+    "10": {
       "path": "*",
       "layout": false,
       "file": "@/pages/user/login/index.tsx",
-      "id": "9",
+      "id": "10",
       "absPath": "/*",
-      "__content": "import { LockOutlined, UserOutlined } from '@ant-design/icons';\nimport { LoginForm, ProFormText } from '@ant-design/pro-components';\nimport { history, useModel } from '@umijs/max';\nimport { message } from 'antd';\nimport { login } from '@/services/admin/api';\n\nconst TOKEN_KEY = 'admin_token';\n\nexport default function LoginPage() {\n  const { setInitialState } = useModel('@@initialState');\n\n  return (\n    <div\n      style={{\n        display: 'flex',\n        height: '100vh',\n        alignItems: 'center',\n        justifyContent: 'center',\n        background: '#f0f2f5',\n      }}\n    >\n      <LoginForm\n        title=\"NOFX 管理后台\"\n        subTitle=\"使用管理员账号登录\"\n        onFinish={async (values) => {\n          try {\n            const res = await login(values.email, values.password);\n            if (!res.token) {\n              message.error('登录失败');\n              return false;\n            }\n            if (res.role && res.role !== 'admin') {\n              message.error('该账号不是管理员');\n              return false;\n            }\n            localStorage.setItem(TOKEN_KEY, res.token);\n            await setInitialState({\n              currentUser: {\n                name: res.email,\n                email: res.email,\n                role: res.role || 'admin',\n                access: res.role || 'admin',\n              },\n            });\n            message.success('登录成功');\n            history.push('/user/list');\n            return true;\n          } catch (err: unknown) {\n            const e = err as { data?: { error?: string } };\n            message.error(e?.data?.error || '登录失败');\n            return false;\n          }\n        }}\n      >\n        <ProFormText\n          name=\"email\"\n          fieldProps={{ size: 'large', prefix: <UserOutlined /> }}\n          placeholder=\"admin@localhost\"\n          rules={[{ required: true, message: '请输入邮箱' }]}\n          initialValue=\"admin@localhost\"\n        />\n        <ProFormText.Password\n          name=\"password\"\n          fieldProps={{ size: 'large', prefix: <LockOutlined /> }}\n          placeholder=\"密码\"\n          rules={[{ required: true, message: '请输入密码' }]}\n        />\n      </LoginForm>\n    </div>\n  );\n}\n",
+      "__content": "import { LockOutlined, UserOutlined } from '@ant-design/icons';\nimport { LoginForm, ProFormText } from '@ant-design/pro-components';\nimport { history, useModel } from '@umijs/max';\nimport { message } from 'antd';\nimport { useEffect } from 'react';\nimport { login } from '@/services/admin/api';\n\nconst TOKEN_KEY = 'admin_token';\nconst DEFAULT_HOME = '/user/list';\n\nexport default function LoginPage() {\n  const { initialState, setInitialState } = useModel('@@initialState');\n\n  useEffect(() => {\n    if (initialState?.currentUser) {\n      history.replace(DEFAULT_HOME);\n    }\n  }, [initialState?.currentUser]);\n\n  return (\n    <div\n      style={{\n        display: 'flex',\n        height: '100vh',\n        alignItems: 'center',\n        justifyContent: 'center',\n        background: '#f0f2f5',\n      }}\n    >\n      <LoginForm\n        title=\"NOFX 管理后台\"\n        subTitle=\"使用管理员账号登录\"\n        onFinish={async (values) => {\n          try {\n            const res = await login(values.email, values.password);\n            if (!res.token) {\n              message.error('登录失败');\n              return false;\n            }\n            if (res.role && res.role !== 'admin') {\n              message.error('该账号不是管理员');\n              return false;\n            }\n            localStorage.setItem(TOKEN_KEY, res.token);\n            sessionStorage.removeItem('from401');\n            await setInitialState({\n              currentUser: {\n                name: res.email,\n                email: res.email,\n                role: res.role || 'admin',\n                access: res.role || 'admin',\n              },\n            });\n            message.success('登录成功');\n            history.replace(DEFAULT_HOME);\n            return true;\n          } catch (err: unknown) {\n            const e = err as { data?: { error?: string } };\n            message.error(e?.data?.error || '登录失败');\n            return false;\n          }\n        }}\n      >\n        <ProFormText\n          name=\"email\"\n          fieldProps={{ size: 'large', prefix: <UserOutlined /> }}\n          placeholder=\"请输入邮箱\"\n          rules={[{ required: true, message: '请输入邮箱' }]}\n        />\n        <ProFormText.Password\n          name=\"password\"\n          fieldProps={{ size: 'large', prefix: <LockOutlined /> }}\n          placeholder=\"密码\"\n          rules={[{ required: true, message: '请输入密码' }]}\n        />\n      </LoginForm>\n    </div>\n  );\n}\n",
       "__isJSFile": true,
       "__absFile": "/home/admin/nofx-1/admin-web/src/pages/user/login/index.tsx"
     },

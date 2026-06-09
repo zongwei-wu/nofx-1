@@ -4,6 +4,7 @@
 import UserOutlined from '/home/admin/nofx-1/admin-web/node_modules/@umijs/plugins/node_modules/@ant-design/icons/es/icons/UserOutlined';
 import CrownOutlined from '/home/admin/nofx-1/admin-web/node_modules/@umijs/plugins/node_modules/@ant-design/icons/es/icons/CrownOutlined';
 import RobotOutlined from '/home/admin/nofx-1/admin-web/node_modules/@umijs/plugins/node_modules/@ant-design/icons/es/icons/RobotOutlined';
+import FileTextOutlined from '/home/admin/nofx-1/admin-web/node_modules/@umijs/plugins/node_modules/@ant-design/icons/es/icons/FileTextOutlined';
 import TableOutlined from '/home/admin/nofx-1/admin-web/node_modules/@umijs/plugins/node_modules/@ant-design/icons/es/icons/TableOutlined';
 import SettingOutlined from '/home/admin/nofx-1/admin-web/node_modules/@umijs/plugins/node_modules/@ant-design/icons/es/icons/SettingOutlined';
-export default { UserOutlined, CrownOutlined, RobotOutlined, TableOutlined, SettingOutlined };
+export default { UserOutlined, CrownOutlined, RobotOutlined, FileTextOutlined, TableOutlined, SettingOutlined };
