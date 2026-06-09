@@ -48,8 +48,8 @@ export const LOGGED_IN_NAV_ITEMS: NavItem[] = [
   },
   { key: 'faq', path: '/faq', feature: null, labelKey: 'faqNav' },
   {
-    key: 'api-keys',
-    path: '/api-keys',
+    key: 'access-keys',
+    path: '/access-keys',
     feature: null,
     label: 'API Keys',
   },

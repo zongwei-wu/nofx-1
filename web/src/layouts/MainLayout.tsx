@@ -34,7 +34,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
     | 'copy-trading'
     | 'copy-trade'
     | 'symbols'
-    | 'api-keys' => {
+    | 'access-keys' => {
     if (location.pathname === '/faq') return 'faq'
     if (location.pathname === '/traders') return 'traders'
     if (location.pathname === '/dashboard') return 'trader'
@@ -42,7 +42,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
     if (location.pathname === '/copy-trading') return 'copy-trading'
     if (location.pathname === '/copy-trade') return 'copy-trade'
     if (location.pathname === '/symbols') return 'symbols'
-    if (location.pathname === '/api-keys') return 'api-keys'
+    if (location.pathname === '/access-keys') return 'access-keys'
     return 'competition' // 默认
   }
 

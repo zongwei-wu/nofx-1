@@ -92,7 +92,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: '/api-keys',
+        path: '/access-keys',
         element: <ApiKeysPage />,
       },
     ],
