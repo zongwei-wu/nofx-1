@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { useLanguage } from '../contexts/LanguageContext'
 import { Container } from '../components/Container'
 import { Key, Copy, Trash2, Plus, AlertTriangle, Check, X } from 'lucide-react'
 
@@ -15,9 +14,8 @@ interface ApiKeyRecord {
 
 export default function ApiKeysPage() {
   const { token } = useAuth()
-  const { language } = useLanguage()
   const [keys, setKeys] = useState<ApiKeyRecord[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [creating, setCreating] = useState(false)
   const [newKeyName, setNewKeyName] = useState('')
@@ -25,15 +23,17 @@ export default function ApiKeysPage() {
   const [copied, setCopied] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
 
-  const headers = { Authorization: `Bearer ${token}` }
-
   const loadKeys = useCallback(async () => {
+    if (!token) return
     try {
       setLoading(true)
-      const res = await fetch('/api/api-keys', { headers })
+      setError('')
+      const res = await fetch('/api/api-keys', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       if (!res.ok) throw new Error('获取失败')
       const data = await res.json()
-      setKeys(data)
+      setKeys(Array.isArray(data) ? data : [])
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -41,17 +41,19 @@ export default function ApiKeysPage() {
     }
   }, [token])
 
-  useEffect(() => {
-    if (token) loadKeys()
-  }, [token, loadKeys])
+  useEffect(() => { loadKeys() }, [loadKeys])
 
   const handleCreate = async () => {
+    if (!token) return
     try {
       setCreating(true)
       setError('')
       const res = await fetch('/api/api-keys', {
         method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ name: newKeyName || '' }),
       })
       if (!res.ok) {
@@ -72,28 +74,26 @@ export default function ApiKeysPage() {
   const handleCopy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
     } catch {
-      // fallback
       const el = document.createElement('textarea')
       el.value = text
       document.body.appendChild(el)
       el.select()
       document.execCommand('copy')
       document.body.removeChild(el)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
     }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   const handleDelete = async (id: string) => {
+    if (!token) return
     if (!confirm('确定要撤销这个 API Key 吗？撤销后立即失效。')) return
     try {
       setDeleting(id)
       const res = await fetch(`/api/api-keys/${id}`, {
         method: 'DELETE',
-        headers,
+        headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
@@ -105,6 +105,17 @@ export default function ApiKeysPage() {
     } finally {
       setDeleting(null)
     }
+  }
+
+  if (!token) {
+    return (
+      <Container className="py-6">
+        <div className="max-w-3xl mx-auto text-center py-16">
+          <Key className="w-12 h-12 mx-auto mb-3" style={{ color: '#2B3139' }} />
+          <p style={{ color: '#848E9C', fontSize: '18px' }}>请先登录后查看 API Keys</p>
+        </div>
+      </Container>
+    )
   }
 
   return (
@@ -127,15 +138,13 @@ export default function ApiKeysPage() {
             className="mb-4 p-3 rounded-lg flex items-center gap-2"
             style={{ background: 'rgba(246, 70, 93, 0.1)', border: '1px solid rgba(246, 70, 93, 0.3)', color: '#F6465D' }}
           >
-            <AlertTriangle className="w-4 h-4" />
-            {error}
-            <button onClick={() => setError('')} className="ml-auto">
-              <X className="w-4 h-4" />
-            </button>
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <span className="flex-1 text-sm">{error}</span>
+            <button onClick={() => setError('')} className="flex-shrink-0"><X className="w-4 h-4" /></button>
           </div>
         )}
 
-        {/* New Key Plaintext Display (one-time) */}
+        {/* New Key Display (one-time) */}
         {newKeyPlaintext && (
           <div
             className="mb-6 p-4 rounded-lg"
@@ -145,65 +154,38 @@ export default function ApiKeysPage() {
               <Check className="w-5 h-5" style={{ color: '#0ECB81' }} />
               <span className="font-bold" style={{ color: '#0ECB81' }}>API Key 创建成功！</span>
             </div>
-            <p className="text-sm mb-3" style={{ color: '#848E9C' }}>
-              这是唯一一次展示完整 Key 的机会，请立即复制保存。
-            </p>
+            <p className="text-sm mb-3" style={{ color: '#848E9C' }}>这是唯一一次展示完整 Key 的机会，请立即复制保存。</p>
             <div className="flex items-center gap-2">
-              <code
-                className="flex-1 p-2 rounded font-mono text-sm break-all"
-                style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }}
-              >
+              <code className="flex-1 p-2 rounded font-mono text-sm break-all" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }}>
                 {newKeyPlaintext}
               </code>
-              <button
-                onClick={() => handleCopy(newKeyPlaintext!)}
-                className="px-3 py-2 rounded-lg font-bold text-sm transition-all hover:opacity-80 flex items-center gap-1"
-                style={{ background: '#0ECB81', color: '#0B0E11' }}
-              >
+              <button onClick={() => handleCopy(newKeyPlaintext)} className="px-3 py-2 rounded-lg font-bold text-sm flex items-center gap-1" style={{ background: '#0ECB81', color: '#0B0E11' }}>
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 {copied ? '已复制' : '复制'}
               </button>
             </div>
-            <button
-              onClick={() => setNewKeyPlaintext(null)}
-              className="mt-3 text-sm underline"
-              style={{ color: '#848E9C' }}
-            >
+            <button onClick={() => setNewKeyPlaintext(null)} className="mt-3 text-sm underline" style={{ color: '#848E9C' }}>
               我已保存，关闭提示
             </button>
           </div>
         )}
 
-        {/* Create New Key */}
-        <div
-          className="mb-6 p-4 rounded-lg"
-          style={{ background: '#181A20', border: '1px solid #2B3139' }}
-        >
+        {/* Create */}
+        <div className="mb-6 p-4 rounded-lg" style={{ background: '#181A20', border: '1px solid #2B3139' }}>
           <div className="flex items-end gap-3">
             <div className="flex-1">
-              <label className="block text-sm font-bold mb-1" style={{ color: '#EAECEF' }}>
-                名称（可选）
-              </label>
+              <label className="block text-sm font-bold mb-1" style={{ color: '#EAECEF' }}>名称（可选）</label>
               <input
-                type="text"
-                value={newKeyName}
-                onChange={(e) => setNewKeyName(e.target.value)}
+                type="text" value={newKeyName} onChange={e => setNewKeyName(e.target.value)}
                 placeholder="如：我的实盘、MCP Server"
                 className="w-full px-3 py-2 rounded text-sm"
-                style={{
-                  background: '#0B0E11',
-                  border: '1px solid #2B3139',
-                  color: '#EAECEF',
-                }}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+                style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }}
+                onKeyDown={e => e.key === 'Enter' && handleCreate()}
               />
             </div>
-            <button
-              onClick={handleCreate}
-              disabled={creating}
-              className="px-4 py-2 rounded-lg font-bold text-sm transition-all hover:opacity-80 disabled:opacity-50 flex items-center gap-1"
-              style={{ background: 'var(--brand-yellow)', color: '#0B0E11' }}
-            >
+            <button onClick={handleCreate} disabled={creating}
+              className="px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-1 disabled:opacity-50"
+              style={{ background: 'var(--brand-yellow)', color: '#0B0E11' }}>
               <Plus className="w-4 h-4" />
               {creating ? '生成中...' : '生成 Key'}
             </button>
@@ -214,51 +196,26 @@ export default function ApiKeysPage() {
         {loading ? (
           <div className="text-center py-8" style={{ color: '#848E9C' }}>加载中...</div>
         ) : keys.length === 0 ? (
-          <div
-            className="text-center py-12 rounded-lg"
-            style={{ background: '#181A20', border: '1px solid #2B3139' }}
-          >
+          <div className="text-center py-12 rounded-lg" style={{ background: '#181A20', border: '1px solid #2B3139' }}>
             <Key className="w-12 h-12 mx-auto mb-3" style={{ color: '#2B3139' }} />
             <p style={{ color: '#848E9C' }}>暂无 API Key，点击上方按钮创建</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {keys.map((key) => (
-              <div
-                key={key.id}
-                className="p-4 rounded-lg flex items-center justify-between"
-                style={{ background: '#181A20', border: '1px solid #2B3139' }}
-              >
+            {keys.map(key => (
+              <div key={key.id} className="p-4 rounded-lg flex items-center justify-between" style={{ background: '#181A20', border: '1px solid #2B3139' }}>
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-mono text-sm" style={{ color: '#EAECEF' }}>
-                      {key.key_prefix}
-                    </span>
-                    {key.name && (
-                      <span
-                        className="text-xs px-2 py-0.5 rounded"
-                        style={{ background: '#2B3139', color: '#848E9C' }}
-                      >
-                        {key.name}
-                      </span>
-                    )}
+                    <span className="font-mono text-sm" style={{ color: '#EAECEF' }}>{key.key_prefix}</span>
+                    {key.name && <span className="text-xs px-2 py-0.5 rounded" style={{ background: '#2B3139', color: '#848E9C' }}>{key.name}</span>}
                   </div>
                   <div className="text-xs" style={{ color: '#5E6673' }}>
                     创建于 {new Date(key.created_at).toLocaleDateString()}
-                    {key.last_used && (
-                      <span className="ml-3">
-                        最后使用: {new Date(key.last_used).toLocaleDateString()}
-                      </span>
-                    )}
+                    {key.last_used && <span className="ml-3">最后使用: {new Date(key.last_used).toLocaleDateString()}</span>}
                   </div>
                 </div>
-                <button
-                  onClick={() => handleDelete(key.id)}
-                  disabled={deleting === key.id}
-                  className="p-2 rounded-lg transition-all hover:opacity-80 disabled:opacity-50"
-                  style={{ color: '#F6465D' }}
-                  title="撤销"
-                >
+                <button onClick={() => handleDelete(key.id)} disabled={deleting === key.id}
+                  className="p-2 rounded-lg disabled:opacity-50" style={{ color: '#F6465D' }} title="撤销">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -266,28 +223,20 @@ export default function ApiKeysPage() {
           </div>
         )}
 
-        {/* Usage Instructions */}
-        <div
-          className="mt-8 p-4 rounded-lg"
-          style={{ background: '#181A20', border: '1px solid #2B3139' }}
-        >
+        {/* Usage */}
+        <div className="mt-8 p-4 rounded-lg" style={{ background: '#181A20', border: '1px solid #2B3139' }}>
           <h3 className="font-bold mb-2" style={{ color: '#EAECEF' }}>如何使用</h3>
           <div className="space-y-2 text-sm" style={{ color: '#848E9C' }}>
             <p>1. 点击上方按钮生成一个新的 API Key</p>
             <p>2. 复制 Key（仅展示一次）</p>
-            <p>3. 在 Hermes Web UI 的 MCP Manager 中添加 NOFX Server，设置环境变量：</p>
-            <code
-              className="block mt-2 p-3 rounded font-mono text-xs"
-              style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }}
-            >
-              {`NOFX_API_KEY: "nfx_sk_your_key_here"\nNOFX_API_URL: "http://localhost:8080"`}
+            <p>3. 在 Hermes Web UI 的 MCP Manager 中设置环境变量：</p>
+            <code className="block mt-2 p-3 rounded font-mono text-xs" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }}>
+              NOFX_API_KEY: "nfx_sk_your_key_here"<br />
+              NOFX_API_URL: "http://localhost:8080"
             </code>
-            <p className="mt-2">4. 或启动 MCP Server 时通过命令行注入：</p>
-            <code
-              className="block mt-2 p-3 rounded font-mono text-xs"
-              style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }}
-            >
-              {`NOFX_API_KEY="nfx_sk_xxx" node hermes/mcp-server/dist/index.js`}
+            <p className="mt-2">4. 或命令行启动：</p>
+            <code className="block mt-2 p-3 rounded font-mono text-xs" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }}>
+              NOFX_API_KEY="nfx_sk_xxx" node hermes/mcp-server/dist/index.js
             </code>
           </div>
         </div>

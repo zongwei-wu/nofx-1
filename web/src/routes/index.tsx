@@ -13,6 +13,7 @@ import { CopyTradingPage } from '../pages/CopyTradingPage'
 import { CopyTradeDashboard } from '../pages/CopyTradeDashboard'
 import { SymbolManagementPage } from '../pages/SymbolManagementPage'
 import { ApiKeysPage } from '../pages/ApiKeysPage'
+import { TestPage } from '../pages/TestPage'
 import { FeatureRoute } from '../components/FeatureRoute'
 import { FEATURES } from '../config/features'
 
@@ -94,6 +95,10 @@ export const router = createBrowserRouter([
       {
         path: '/access-keys',
         element: <ApiKeysPage />,
+      },
+      {
+        path: '/test-page',
+        element: <TestPage />,
       },
     ],
   },
