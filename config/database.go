@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"nofx/auth"
 	"nofx/crypto"
 	"nofx/market"
 	"os"
@@ -447,6 +448,20 @@ func (d *Database) createTables() error {
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 	)`)
+
+	d.db.Exec(`CREATE TABLE IF NOT EXISTS api_keys (
+		id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL,
+		key_hash TEXT NOT NULL UNIQUE,
+		key_prefix TEXT NOT NULL DEFAULT '',
+		name TEXT NOT NULL DEFAULT '',
+		last_used DATETIME,
+		expires_at DATETIME,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+	)`)
+	d.db.Exec(`CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id)`)
+	d.db.Exec(`CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(key_hash)`)
 
 	return nil
 }
@@ -1828,4 +1843,99 @@ func (d *Database) decryptSensitiveData(encrypted string) string {
 	}
 
 	return decrypted
+}
+
+// APIKeyRecord 数据库中的 API Key 记录
+type APIKeyRecord struct {
+	ID        string  `json:"id"`
+	UserID    string  `json:"user_id"`
+	KeyHash   string  `json:"-"`
+	KeyPrefix string  `json:"key_prefix"`
+	Name      string  `json:"name"`
+	LastUsed  *string `json:"last_used"`
+	ExpiresAt *string `json:"expires_at"`
+	CreatedAt string  `json:"created_at"`
+}
+
+// CreateAPIKey inserts a new API key record.
+func (d *Database) CreateAPIKey(id, userID, keyHash, keyPrefix, name string) error {
+	_, err := d.db.Exec(
+		`INSERT INTO api_keys (id, user_id, key_hash, key_prefix, name) VALUES (?, ?, ?, ?, ?)`,
+		id, userID, keyHash, keyPrefix, name,
+	)
+	return err
+}
+
+// GetAPIKeysByUser returns all API keys for a user (hash masked, plaintext never returned).
+func (d *Database) GetAPIKeysByUser(userID string) ([]*APIKeyRecord, error) {
+	rows, err := d.db.Query(
+		`SELECT id, user_id, key_hash, key_prefix, name, last_used, expires_at, created_at FROM api_keys WHERE user_id = ? ORDER BY created_at DESC`,
+		userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var keys []*APIKeyRecord
+	for rows.Next() {
+		k := &APIKeyRecord{}
+		if err := rows.Scan(&k.ID, &k.UserID, &k.KeyHash, &k.KeyPrefix, &k.Name, &k.LastUsed, &k.ExpiresAt, &k.CreatedAt); err != nil {
+			return nil, err
+		}
+		// Never expose the hash
+		k.KeyHash = ""
+		keys = append(keys, k)
+	}
+	return keys, nil
+}
+
+// FindUserByAPIKey looks up a user by plaintext API key.
+// Returns the user ID if found and valid. If expires_at is in the past, returns an error.
+// Also updates last_used timestamp.
+func (d *Database) FindUserByAPIKey(plaintext string) (string, error) {
+	var keyHash, userID string
+	var expiresAt *string
+	var keyID string
+
+	// Brute-force approach: iterate all keys and compare hash.
+	// For production with many keys, add a key_prefix index to narrow the scan.
+	rows, err := d.db.Query(`SELECT id, user_id, key_hash, expires_at FROM api_keys`)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		if err := rows.Scan(&keyID, &userID, &keyHash, &expiresAt); err != nil {
+			continue
+		}
+		// Hash comparison
+		if auth.ValidateAPIKey(keyHash, plaintext) {
+			// Check expiry
+			if expiresAt != nil && *expiresAt != "" {
+				expiry, parseErr := time.Parse("2006-01-02T15:04:05Z", *expiresAt)
+				if parseErr == nil && time.Now().After(expiry) {
+					return "", fmt.Errorf("api key expired")
+				}
+			}
+			// Update last_used
+			d.db.Exec(`UPDATE api_keys SET last_used = ? WHERE id = ?`, time.Now().UTC().Format("2006-01-02T15:04:05Z"), keyID)
+			return userID, nil
+		}
+	}
+	return "", fmt.Errorf("invalid api key")
+}
+
+// DeleteAPIKey removes an API key. Only the owning user can delete it.
+func (d *Database) DeleteAPIKey(userID, keyID string) error {
+	result, err := d.db.Exec(`DELETE FROM api_keys WHERE id = ? AND user_id = ?`, keyID, userID)
+	if err != nil {
+		return err
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("api key not found or not owned by user")
+	}
+	return nil
 }

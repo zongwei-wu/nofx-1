@@ -133,6 +133,11 @@ func (s *Server) setupRoutes() {
 			protected.POST("/logout", s.handleLogout)
 			protected.GET("/server-ip", s.handleGetServerIP)
 
+			// API Key 管理（任何已认证用户均可管理自己的 key）
+			protected.POST("/api-keys", s.handleCreateAPIKey)
+			protected.GET("/api-keys", s.handleListAPIKeys)
+			protected.DELETE("/api-keys/:id", s.handleRevokeAPIKey)
+
 			// 排行榜（需 leaderboard 权限）
 			leaderboard := protected.Group("/", s.requireFeature(config.FeatureLeaderboard))
 			{
@@ -245,6 +250,30 @@ func (s *Server) setupRoutes() {
 				admin.PUT("/prompt-templates/:name", s.handleAdminUpdatePromptTemplate)
 				admin.DELETE("/prompt-templates/:name", s.handleAdminDeletePromptTemplate)
 			}
+		}
+
+		// MCP Server 专用路由：通过 API Key 认证，无需 JWT
+		// 这些路由与 hermes 组路由功能相同，但使用 apiKeyAuthMiddleware
+		mcpAPI := api.Group("/", s.apiKeyAuthMiddleware())
+		{
+			mcpAPI.GET("/mcp/hermes/klines", s.handleHermesKlines)
+			mcpAPI.GET("/mcp/hermes/balance", s.handleHermesBalance)
+			mcpAPI.GET("/mcp/hermes/positions", s.handleHermesPositions)
+			mcpAPI.GET("/mcp/hermes/market-price", s.handleHermesMarketPrice)
+			mcpAPI.POST("/mcp/hermes/trade", s.handleHermesTrade)
+			mcpAPI.POST("/mcp/hermes/leverage", s.handleHermesLeverage)
+			mcpAPI.POST("/mcp/hermes/stop-loss", s.handleHermesStopLoss)
+			mcpAPI.POST("/mcp/hermes/take-profit", s.handleHermesTakeProfit)
+			mcpAPI.GET("/mcp/hermes/settings", s.handleGetHermesSettings)
+			mcpAPI.PUT("/mcp/hermes/settings", s.handlePutHermesSettings)
+			mcpAPI.POST("/mcp/hermes/start", s.handleHermesStart)
+			mcpAPI.POST("/mcp/hermes/stop", s.handleHermesStop)
+			mcpAPI.GET("/mcp/hermes/status", s.handleHermesStatus)
+			mcpAPI.GET("/mcp/hermes/decisions", s.handleHermesDecisions)
+			mcpAPI.GET("/mcp/hermes/require-setup", s.handleHermesRequireSetup)
+			mcpAPI.GET("/mcp/exchanges", s.handleGetExchangeConfigs)
+			mcpAPI.POST("/mcp/exchanges/test", s.handleTestExchangeConnection)
+			mcpAPI.GET("/mcp/models", s.handleGetModelConfigs)
 		}
 	}
 }
@@ -1687,6 +1716,41 @@ func (s *Server) authMiddleware() gin.HandlerFunc {
 			plan = config.PlanStandard
 		}
 		c.Set("plan", plan)
+		c.Next()
+	}
+}
+
+// apiKeyAuthMiddleware API Key 认证中间件
+// 验证 Authorization: ApiKey xxx 头，提取 user_id 注入 context。
+// 与 authMiddleware 使用同样的 context key，后续 handler 无需改动。
+func (s *Server) apiKeyAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" || !strings.HasPrefix(authHeader, "ApiKey ") {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "需要 ApiKey 认证，格式: ApiKey nfx_sk_..."})
+			c.Abort()
+			return
+		}
+
+		apiKey := strings.TrimSpace(authHeader[7:])
+		if apiKey == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "API Key 不能为空"})
+			c.Abort()
+			return
+		}
+
+		userID, err := s.database.FindUserByAPIKey(apiKey)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的 API Key: " + err.Error()})
+			c.Abort()
+			return
+		}
+
+		// 注入与 authMiddleware 完全相同的 context key
+		c.Set("user_id", userID)
+		c.Set("auth_method", "apikey")
+
+		log.Printf("🔑 [API Key] 用户 %s 通过 API Key 认证", userID)
 		c.Next()
 	}
 }
