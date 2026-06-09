@@ -168,12 +168,9 @@ func (s *Server) setupRoutes() {
 			}
 
 			// Hermes 自主交易（需 hermes 权限，与 AI 交易员独立）
+			// 注意：/exchanges、/models 等路由已在 aiTrader 组中注册，此处不重复注册
 			hermesGroup := protected.Group("/", s.requireFeature(config.FeatureHermes))
 			{
-				hermesGroup.GET("/exchanges", s.handleGetExchangeConfigs)
-				hermesGroup.PUT("/exchanges", s.handleUpdateExchangeConfigs)
-				hermesGroup.POST("/exchanges/test", s.handleTestExchangeConnection)
-				hermesGroup.GET("/models", s.handleGetModelConfigs)
 				hermesGroup.GET("/hermes/settings", s.handleGetHermesSettings)
 				hermesGroup.PUT("/hermes/settings", s.handlePutHermesSettings)
 				hermesGroup.POST("/hermes/start", s.handleHermesStart)
