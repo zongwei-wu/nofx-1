@@ -338,6 +338,43 @@ export default function HeaderBar({
                 </button>
                 )}
 
+                {showNav('api-keys') && (
+                <button
+                  onClick={() => navigate('/api-keys')}
+                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
+                  style={{
+                    color:
+                      currentPage === 'api-keys'
+                        ? 'var(--brand-yellow)'
+                        : 'var(--brand-light-gray)',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    position: 'relative',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (currentPage !== 'api-keys') {
+                      e.currentTarget.style.color = 'var(--brand-yellow)'
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (currentPage !== 'api-keys') {
+                      e.currentTarget.style.color = 'var(--brand-light-gray)'
+                    }
+                  }}
+                >
+                  {currentPage === 'api-keys' && (
+                    <span
+                      className="absolute inset-0 rounded-lg"
+                      style={{
+                        background: 'rgba(240, 185, 11, 0.15)',
+                        zIndex: -1,
+                      }}
+                    />
+                  )}
+                  API Keys
+                </button>
+                )}
+
                 <button
                   onClick={() => navigate('/faq')}
                   className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
@@ -930,6 +967,31 @@ export default function HeaderBar({
                   />
                 )}
                 币种管理
+              </button>
+              )}
+              {showNav('api-keys') && (
+              <button
+                onClick={() => {
+                  navigate('/api-keys')
+                  setMobileMenuOpen(false)
+                }}
+                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
+                style={{
+                  color:
+                    currentPage === 'api-keys'
+                      ? 'var(--brand-yellow)'
+                      : 'var(--brand-light-gray)',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                  position: 'relative',
+                  width: '100%',
+                  textAlign: 'left',
+                }}
+              >
+                {currentPage === 'api-keys' && (
+                  <span className="absolute inset-0 rounded-lg" style={{ background: 'rgba(240, 185, 11, 0.15)', zIndex: -1 }} />
+                )}
+                API Keys
               </button>
               )}
               <button

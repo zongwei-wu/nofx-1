@@ -47,4 +47,10 @@ export const LOGGED_IN_NAV_ITEMS: NavItem[] = [
     label: '币种管理',
   },
   { key: 'faq', path: '/faq', feature: null, labelKey: 'faqNav' },
+  {
+    key: 'api-keys',
+    path: '/api-keys',
+    feature: null,
+    label: 'API Keys',
+  },
 ]
