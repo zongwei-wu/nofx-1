@@ -1,6 +1,8 @@
 # Hermes MCP Server
 
-NOFX Hermes 交易 MCP Server，供 Cursor Agent 通过标准 MCP 协议调用交易与交易所配置接口。
+NOFX Hermes 交易 MCP Server，供 AI Agent 通过标准 MCP 协议调用交易与交易所配置接口。
+
+支持两种认证方式：**API Key**（推荐，多用户场景）和 **JWT Token**（开发/调试）。
 
 ## 环境要求
 
@@ -15,9 +17,48 @@ npm install
 npm run build
 ```
 
+## 认证方式
+
+### 方式 1：API Key（推荐，多用户安全隔离）
+
+1. 登录 NOFX Web UI
+2. 进入 API Key 管理页面，点击「生成 API Key」
+3. 复制 API Key（仅显示一次，格式 `nfx_sk_...`）
+
+在 Hermes Web UI 的 MCP Manager 中添加 NOFX Server：
+
+```yaml
+nofx-hermes:
+  command: node
+  args:
+    - /path/to/nofx-1/hermes/mcp-server/dist/index.js
+  env:
+    NOFX_API_KEY: "nfx_sk_your_key_here"
+    NOFX_API_URL: "http://localhost:8080"
+```
+
+或通过命令行直接启动：
+
+```bash
+NOFX_API_KEY="nfx_sk_xxx" NOFX_API_URL="http://localhost:8080" node hermes/mcp-server/dist/index.js
+```
+
+**安全保证**：
+- API Key 以 SHA-256 哈希存储，数据库泄露不可逆
+- 每个 API Key 绑定唯一用户，自动隔离交易所/持仓
+- 可随时在 NOFX Web UI 撤销
+
+### 方式 2：JWT Token（开发/调试）
+
+```bash
+NOFX_JWT="<jwt_token>" NOFX_USER_ID="<user_id>" node hermes/mcp-server/dist/index.js
+```
+
+或通过 `hermes_login` + `hermes_verify_otp` 工具交互式登录。
+
 ## Cursor 配置
 
-项目根目录 [`.cursor/mcp.json`](../../.cursor/mcp.json) 已预置：
+### API Key 方式
 
 ```json
 {
@@ -26,27 +67,52 @@ npm run build
       "command": "node",
       "args": ["hermes/mcp-server/dist/index.js"],
       "env": {
-        "NOFX_API_URL": "http://localhost:8080"
+        "NOFX_API_URL": "http://localhost:8080",
+        "NOFX_API_KEY": "nfx_sk_your_key_here"
       }
     }
   }
 }
 ```
 
-修改 `NOFX_API_URL` 指向你的 NOFX 实例。
+### JWT 方式（兼容旧版）
+
+```json
+{
+  "mcpServers": {
+    "hermes": {
+      "command": "node",
+      "args": ["hermes/mcp-server/dist/index.js"],
+      "env": {
+        "NOFX_API_URL": "http://localhost:8080",
+        "NOFX_JWT": "<jwt_token>",
+        "NOFX_USER_ID": "<user_id>"
+      }
+    }
+  }
+}
+```
 
 ## 环境变量
 
 | 变量 | 说明 |
 |------|------|
+| `NOFX_API_KEY` | **推荐**。API Key，从 NOFX Web UI 生成 |
 | `NOFX_API_URL` | NOFX 后端地址，默认 `http://localhost:8080` |
 | `NOFX_JWT` | 可选，预置 JWT（跳过 hermes_login） |
 | `NOFX_USER_ID` | 配合 `NOFX_JWT` 使用 |
 | `NOFX_EMAIL` | 可选，显示用 |
 | `NOFX_PROJECT_ROOT` | 可选，项目根路径（读取 exchange-cards.md） |
 
-## 认证
+## 认证流程
 
+### API Key 流程
+1. 在 NOFX Web UI → 设置 → API Keys → 生成
+2. 复制 Key 到 MCP Server 环境变量 `NOFX_API_KEY`
+3. 所有请求自动带 `Authorization: ApiKey xxx`
+4. 后端验证 → 注入 `user_id` → 隔离生效
+
+### JWT 流程
 1. `hermes_login`：邮箱 + 密码
 2. 若返回 `requires_otp`：调用 `hermes_verify_otp` 输入 Google Authenticator 验证码
 3. `hermes_auth_status`：检查登录状态
@@ -94,12 +160,35 @@ Hermes 与 Web「AI 交易员」**完全独立**：
 
 ## 安全说明
 
-- 敏感凭证经 RSA-OAEP + AES-GCM 加密后传输，与 Web 端 [`web/src/lib/crypto.ts`](../../web/src/lib/crypto.ts) 一致
+- API Key 以 SHA-256 哈希存储，数据库泄露不可逆
+- 敏感凭证经 RSA-OAEP + AES-GCM 加密后传输，与 Web 端一致
 - MCP Server 不在日志中输出完整密钥
 - 手动 `hermes_trade` 需 `confirmed: true`，且 Agent 应向用户二次确认
+- API Key 可随时在 NOFX Web UI 撤销，即时生效
+
+## 多用户隔离
+
+```
+用户 A (API Key: nfx_sk_a1b2...)  →  只能看到/操作 用户 A 的交易所和持仓
+用户 B (API Key: nfx_sk_c3d4...)  →  只能看到/操作 用户 B 的交易所和持仓
+```
+
+隔离由后端 `apiKeyAuthMiddleware` 强制执行，MCP Server 端无需额外配置。
 
 ## 测试
 
 ```bash
 npm test
+
+# 端到端 API Key 测试
+bash ../../scripts/test-apikey.sh <email> <password>
 ```
+
+## 路由机制
+
+MCP Server 根据认证方式自动选择后端路由：
+
+| 认证方式 | 路由前缀 | 中间件 |
+|---------|---------|--------|
+| API Key | `/api/mcp/*` | `apiKeyAuthMiddleware` |
+| JWT | `/api/*` | `authMiddleware` + `requireFeature` |
