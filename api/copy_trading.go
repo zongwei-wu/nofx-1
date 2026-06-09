@@ -15,7 +15,7 @@ import (
 const copyTradeTimerIntervalSec = 300
 
 // copyTradeAutoFollowMaxOrderAge 自动监控跟单：带单操作超过此时长则跳过
-const copyTradeAutoFollowMaxOrderAge = 30 * time.Minute
+const copyTradeAutoFollowMaxOrderAge = 5 * time.Minute
 
 // LeadOrder 币安跟单带单员成交记录
 type LeadOrder struct {
