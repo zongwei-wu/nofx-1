@@ -229,12 +229,10 @@ export default function ApiKeysPage() {
           <div className="space-y-2 text-sm" style={{ color: '#848E9C' }}>
             <p>1. 点击上方按钮生成一个新的 API Key</p>
             <p>2. 复制 Key（仅展示一次）</p>
-            <p>3. 在自建 Hermes 服务中配置环境变量：</p>
+            <p>3. 在 Hermes 服务中配置 API Key：</p>
             <code className="block mt-2 p-3 rounded font-mono text-xs" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }}>
-              {`NOFX_GATEWAY_URL=https://your-nofx-host\nNOFX_API_KEY=nfx_sk_your_key_here`}
+              NOFX_API_KEY=nfx_sk_your_key_here
             </code>
-            <p className="mt-2">使用 Go SDK：<code className="font-mono">gateway/client.New(url, apiKey)</code></p>
-            <p className="mt-2">详见 <code className="font-mono">docs/gateway-api.md</code></p>
           </div>
         </div>
       </div>
