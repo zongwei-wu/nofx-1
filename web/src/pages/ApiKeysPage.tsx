@@ -229,14 +229,14 @@ export default function ApiKeysPage() {
           <div className="space-y-2 text-sm" style={{ color: '#848E9C' }}>
             <p>1. 点击上方按钮生成一个新的 API Key</p>
             <p>2. 复制 Key（仅展示一次）</p>
-            <p>3. 在 Hermes Web UI 的 MCP Manager 中设置环境变量：</p>
+            <p>3. 在 Hermes 对话中直接使用工具设置：</p>
             <code className="block mt-2 p-3 rounded font-mono text-xs" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }}>
-              NOFX_API_KEY: "nfx_sk_your_key_here"<br />
-              NOFX_API_URL: "http://localhost:8080"
+              hermes_use_api_key nfx_sk_your_key_here
             </code>
-            <p className="mt-2">4. 或命令行启动：</p>
-            <code className="block mt-2 p-3 rounded font-mono text-xs" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }}>
-              NOFX_API_KEY="nfx_sk_xxx" node hermes/mcp-server/dist/index.js
+            <p className="mt-2">设置后所有交易/行情请求自动使用该 Key，无需每次登录。</p>
+            <p className="mt-2">查看当前 Key：</p>
+            <code className="block mt-2 p-3 rounded font-mono text-xs" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#848E9C' }}>
+              hermes_get_api_key
             </code>
           </div>
         </div>
