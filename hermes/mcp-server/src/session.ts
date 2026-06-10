@@ -8,10 +8,39 @@ export interface AuthSession {
 let session: AuthSession | null = null
 let pendingOtp: { userId: string; email: string } | null = null
 
+// ★ 动态 API Key：会话级别，通过 hermes_use_api_key 设置，优先于环境变量
+let dynamicApiKey: string | null = null
+
+export function setApiKey(key: string): void {
+  dynamicApiKey = key
+  // 同步更新 session，让后续请求自动带上
+  session = {
+    token: key,
+    userId: '',
+    email: '',
+    authMethod: 'apikey',
+  }
+}
+
+export function getApiKey(): string | null {
+  if (dynamicApiKey) return dynamicApiKey
+  return process.env.NOFX_API_KEY?.trim() || null
+}
+
 export function getSession(): AuthSession | null {
   if (session) return session
 
-  // ★ 方式 1: API Key 认证（推荐）
+  // ★ 动态 API Key 优先
+  if (dynamicApiKey) {
+    return {
+      token: dynamicApiKey,
+      userId: '',
+      email: '',
+      authMethod: 'apikey',
+    }
+  }
+
+  // ★ 方式 1: API Key 认证（环境变量）
   const apiKey = process.env.NOFX_API_KEY?.trim()
   if (apiKey) {
     return {

@@ -11,6 +11,8 @@ import { getExchangeCardSection } from './exchange-cards.js'
 import {
   getPendingOtp,
   getSession,
+  setApiKey,
+  getApiKey,
   setPendingOtp,
   setSession,
 } from './session.js'
@@ -79,6 +81,23 @@ const tools = [
   {
     name: 'hermes_auth_status',
     description: '检查当前 Hermes 登录状态',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'hermes_use_api_key',
+    description:
+      '设置当前会话使用的 NOFX API Key（从 Web UI 获取：https://www.ttai.me/access-keys）。设置后所有交易/行情请求自动使用该 Key，无需每次登录。多个 Agent 共享同一个 MCP Server 时，每个 Agent 应设置自己的 Key。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        api_key: { type: 'string', description: 'NOFX API Key，格式 nfx_sk_xxx' },
+      },
+      required: ['api_key'],
+    },
+  },
+  {
+    name: 'hermes_get_api_key',
+    description: '查看当前会话使用的 API Key 前缀（仅显示前8位，不暴露完整 Key）',
     inputSchema: { type: 'object', properties: {} },
   },
   {
@@ -388,6 +407,32 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           logged_in: true,
           user_id: s.userId,
           email: s.email,
+          auth_method: s.authMethod,
+        })
+      }
+
+      case 'hermes_use_api_key': {
+        const key = String(a.api_key).trim()
+        if (!key) {
+          return textResult('请提供 NOFX API Key（在 https://www.ttai.me/access-keys 获取）')
+        }
+        setApiKey(key)
+        const preview = key.length > 8 ? key.substring(0, 8) + '...' : key + '...'
+        return jsonResult({
+          status: 'ok',
+          message: `API Key 已设置 (${preview})，后续所有请求将使用此 Key`,
+        })
+      }
+
+      case 'hermes_get_api_key': {
+        const key = getApiKey()
+        if (!key) {
+          return jsonResult({ api_key_set: false, message: '未设置 API Key' })
+        }
+        const preview = key.length > 8 ? key.substring(0, 8) + '...' : key + '...'
+        return jsonResult({
+          api_key_set: true,
+          preview,
         })
       }
 
