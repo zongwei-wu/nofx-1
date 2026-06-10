@@ -1,4 +1,4 @@
-package hermes
+package gateway
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"nofx/trader"
 )
 
-// TradeRequest Hermes 交易请求
+// TradeRequest 网关交易请求
 type TradeRequest struct {
 	Action   string
 	Symbol   string
@@ -51,7 +51,7 @@ func formatTradeQuantity(t trader.Trader, symbol string, quantity float64) (floa
 	return parsed, nil
 }
 
-// ExecuteTrade 执行 Hermes 交易（独立于 AI 交易员路径）
+// ExecuteTrade 执行网关交易（独立于 AI 交易员路径）
 func ExecuteTrade(t trader.Trader, req TradeRequest) (map[string]interface{}, error) {
 	symbol := NormalizeSymbol(req.Symbol)
 	action := strings.ToLower(strings.TrimSpace(req.Action))

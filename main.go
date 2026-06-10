@@ -8,7 +8,6 @@ import (
 	"nofx/auth"
 	"nofx/config"
 	"nofx/crypto"
-	"nofx/hermes"
 	"nofx/logger"
 	"nofx/manager"
 	"nofx/market"
@@ -299,12 +298,6 @@ func main() {
 		log.Fatalf("❌ 加载交易员失败: %v", err)
 	}
 
-	// Hermes 自主交易管理器（独立于 AI 交易员）
-	hermesManager := hermes.NewManager(hermes.RunnerDeps{})
-	if err := hermesManager.LoadFromDatabase(database); err != nil {
-		log.Printf("⚠️  恢复 Hermes Runner 失败: %v", err)
-	}
-
 	// 获取数据库中的所有交易员配置（用于显示，使用default用户）
 	traders, err := database.GetTraders("default")
 	if err != nil {
@@ -372,7 +365,7 @@ func main() {
 	}
 
 	// 创建并启动API服务器
-	apiServer := api.NewServer(traderManager, hermesManager, database, cryptoService, apiPort)
+	apiServer := api.NewServer(traderManager, database, cryptoService, apiPort)
 	go func() {
 		if err := apiServer.Start(); err != nil {
 			log.Printf("❌ API服务器错误: %v", err)

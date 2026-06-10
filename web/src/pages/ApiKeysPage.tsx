@@ -128,7 +128,7 @@ export default function ApiKeysPage() {
             API Keys
           </h1>
           <p style={{ color: '#848E9C' }}>
-            生成 API Key 用于 MCP Server 或 Hermes 连接。Key 仅在创建时展示一次，请立即复制保存。
+            生成 API Key 供外部 Hermes 服务调用交易所网关（/api/gateway/*）。Key 仅在创建时展示一次，请立即复制保存。
           </p>
         </div>
 
@@ -229,15 +229,12 @@ export default function ApiKeysPage() {
           <div className="space-y-2 text-sm" style={{ color: '#848E9C' }}>
             <p>1. 点击上方按钮生成一个新的 API Key</p>
             <p>2. 复制 Key（仅展示一次）</p>
-            <p>3. 在 Hermes 对话中直接使用工具设置：</p>
+            <p>3. 在自建 Hermes 服务中配置环境变量：</p>
             <code className="block mt-2 p-3 rounded font-mono text-xs" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#EAECEF' }}>
-              hermes_use_api_key nfx_sk_your_key_here
+              {`NOFX_GATEWAY_URL=https://your-nofx-host\nNOFX_API_KEY=nfx_sk_your_key_here`}
             </code>
-            <p className="mt-2">设置后所有交易/行情请求自动使用该 Key，无需每次登录。</p>
-            <p className="mt-2">查看当前 Key：</p>
-            <code className="block mt-2 p-3 rounded font-mono text-xs" style={{ background: '#0B0E11', border: '1px solid #2B3139', color: '#848E9C' }}>
-              hermes_get_api_key
-            </code>
+            <p className="mt-2">使用 Go SDK：<code className="font-mono">gateway/client.New(url, apiKey)</code></p>
+            <p className="mt-2">详见 <code className="font-mono">docs/gateway-api.md</code></p>
           </div>
         </div>
       </div>

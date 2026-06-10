@@ -12,7 +12,6 @@ import (
 	"nofx/config"
 	"nofx/crypto"
 	"nofx/decision"
-	"nofx/hermes"
 	"nofx/hook"
 	"nofx/logger"
 	"nofx/manager"
@@ -31,14 +30,13 @@ type Server struct {
 	router        *gin.Engine
 	httpServer    *http.Server
 	traderManager *manager.TraderManager
-	hermesManager *hermes.Manager
 	database      *config.Database
 	cryptoHandler *CryptoHandler
 	port          int
 }
 
 // NewServer 创建API服务器
-func NewServer(traderManager *manager.TraderManager, hermesManager *hermes.Manager, database *config.Database, cryptoService *crypto.CryptoService, port int) *Server {
+func NewServer(traderManager *manager.TraderManager, database *config.Database, cryptoService *crypto.CryptoService, port int) *Server {
 	// 设置为Release模式（减少日志输出）
 	gin.SetMode(gin.ReleaseMode)
 
@@ -53,7 +51,6 @@ func NewServer(traderManager *manager.TraderManager, hermesManager *hermes.Manag
 	s := &Server{
 		router:        router,
 		traderManager: traderManager,
-		hermesManager: hermesManager,
 		database:      database,
 		cryptoHandler: cryptoHandler,
 		port:          port,
@@ -172,27 +169,6 @@ func (s *Server) setupRoutes() {
 				aiTrader.GET("/performance", s.handlePerformance)
 			}
 
-			// Hermes 自主交易（需 hermes 权限，与 AI 交易员独立）
-			// 注意：/exchanges、/models 等路由已在 aiTrader 组中注册，此处不重复注册
-			hermesGroup := protected.Group("/", s.requireFeature(config.FeatureHermes))
-			{
-				hermesGroup.GET("/hermes/settings", s.handleGetHermesSettings)
-				hermesGroup.PUT("/hermes/settings", s.handlePutHermesSettings)
-				hermesGroup.POST("/hermes/start", s.handleHermesStart)
-				hermesGroup.POST("/hermes/stop", s.handleHermesStop)
-				hermesGroup.GET("/hermes/status", s.handleHermesStatus)
-				hermesGroup.GET("/hermes/decisions", s.handleHermesDecisions)
-				hermesGroup.GET("/hermes/require-setup", s.handleHermesRequireSetup)
-				hermesGroup.GET("/hermes/klines", s.handleHermesKlines)
-				hermesGroup.GET("/hermes/balance", s.handleHermesBalance)
-				hermesGroup.GET("/hermes/positions", s.handleHermesPositions)
-				hermesGroup.GET("/hermes/market-price", s.handleHermesMarketPrice)
-				hermesGroup.POST("/hermes/trade", s.handleHermesTrade)
-				hermesGroup.POST("/hermes/leverage", s.handleHermesLeverage)
-				hermesGroup.POST("/hermes/stop-loss", s.handleHermesStopLoss)
-				hermesGroup.POST("/hermes/take-profit", s.handleHermesTakeProfit)
-			}
-
 			// 跟单管理（需 copy_trade 权限）
 			copyTrade := protected.Group("/", s.requireFeature(config.FeatureCopyTrade))
 			{
@@ -252,28 +228,21 @@ func (s *Server) setupRoutes() {
 			}
 		}
 
-		// MCP Server 专用路由：通过 API Key 认证，无需 JWT
-		// 这些路由与 hermes 组路由功能相同，但使用 apiKeyAuthMiddleware
-		mcpAPI := api.Group("/", s.apiKeyAuthMiddleware())
+		// 交易所网关 API：供外部 Hermes 等服务通过 API Key 调用
+		gatewayAPI := api.Group("/", s.apiKeyAuthMiddleware())
 		{
-			mcpAPI.GET("/mcp/hermes/klines", s.handleHermesKlines)
-			mcpAPI.GET("/mcp/hermes/balance", s.handleHermesBalance)
-			mcpAPI.GET("/mcp/hermes/positions", s.handleHermesPositions)
-			mcpAPI.GET("/mcp/hermes/market-price", s.handleHermesMarketPrice)
-			mcpAPI.POST("/mcp/hermes/trade", s.handleHermesTrade)
-			mcpAPI.POST("/mcp/hermes/leverage", s.handleHermesLeverage)
-			mcpAPI.POST("/mcp/hermes/stop-loss", s.handleHermesStopLoss)
-			mcpAPI.POST("/mcp/hermes/take-profit", s.handleHermesTakeProfit)
-			mcpAPI.GET("/mcp/hermes/settings", s.handleGetHermesSettings)
-			mcpAPI.PUT("/mcp/hermes/settings", s.handlePutHermesSettings)
-			mcpAPI.POST("/mcp/hermes/start", s.handleHermesStart)
-			mcpAPI.POST("/mcp/hermes/stop", s.handleHermesStop)
-			mcpAPI.GET("/mcp/hermes/status", s.handleHermesStatus)
-			mcpAPI.GET("/mcp/hermes/decisions", s.handleHermesDecisions)
-			mcpAPI.GET("/mcp/hermes/require-setup", s.handleHermesRequireSetup)
-			mcpAPI.GET("/mcp/exchanges", s.handleGetExchangeConfigs)
-			mcpAPI.POST("/mcp/exchanges/test", s.handleTestExchangeConnection)
-			mcpAPI.GET("/mcp/models", s.handleGetModelConfigs)
+			gatewayAPI.GET("/gateway/capabilities", s.handleGatewayCapabilities)
+			gatewayAPI.GET("/gateway/exchanges", s.handleGetExchangeConfigs)
+			gatewayAPI.PUT("/gateway/exchanges", s.handleUpdateExchangeConfigs)
+			gatewayAPI.POST("/gateway/exchanges/test", s.handleTestExchangeConnection)
+			gatewayAPI.GET("/gateway/klines", s.handleGatewayKlines)
+			gatewayAPI.GET("/gateway/balance", s.handleGatewayBalance)
+			gatewayAPI.GET("/gateway/positions", s.handleGatewayPositions)
+			gatewayAPI.GET("/gateway/market-price", s.handleGatewayMarketPrice)
+			gatewayAPI.POST("/gateway/trade", s.handleGatewayTrade)
+			gatewayAPI.POST("/gateway/leverage", s.handleGatewayLeverage)
+			gatewayAPI.POST("/gateway/stop-loss", s.handleGatewayStopLoss)
+			gatewayAPI.POST("/gateway/take-profit", s.handleGatewayTakeProfit)
 		}
 	}
 }

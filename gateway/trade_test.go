@@ -1,4 +1,4 @@
-package hermes
+package gateway
 
 import (
 	"testing"

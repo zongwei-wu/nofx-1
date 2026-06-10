@@ -23,11 +23,11 @@ func TestCreateTraderFromExchangeConfig_BinanceMissingCreds(t *testing.T) {
 	}
 }
 
-func TestNormalizeHermesSymbol(t *testing.T) {
-	if got := normalizeHermesSymbol("btc"); got != "BTCUSDT" {
+func TestNormalizeGatewaySymbol(t *testing.T) {
+	if got := normalizeGatewaySymbol("btc"); got != "BTCUSDT" {
 		t.Fatalf("got %s", got)
 	}
-	if got := normalizeHermesSymbol("ETHUSDT"); got != "ETHUSDT" {
+	if got := normalizeGatewaySymbol("ETHUSDT"); got != "ETHUSDT" {
 		t.Fatalf("got %s", got)
 	}
 }

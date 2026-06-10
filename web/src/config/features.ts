@@ -1,7 +1,8 @@
 export const FEATURES = {
   competition: 'competition',
   ai_trader: 'ai_trader',
-  hermes: 'hermes',
+  gateway: 'gateway',
+  hermes: 'gateway', // 兼容旧 key
   leaderboard: 'leaderboard',
   copy_trade: 'copy_trade',
   symbols: 'symbols',

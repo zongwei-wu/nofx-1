@@ -13,6 +13,12 @@
       "name": "Authorization",
       "in": "header",
       "description": "Bearer token, e.g. Bearer {token}"
+    },
+    "ApiKeyAuth": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "API Key, e.g. ApiKey nfx_sk_..."
     }
   },
   "paths": {
@@ -706,12 +712,73 @@
         }
       }
     },
-    "/hermes/klines": {
+    "/gateway/capabilities": {
       "get": {
-        "tags": ["Hermes"],
-        "summary": "Hermes K 线查询",
-        "description": "按交易所获取 K 线（binance/okx）。需 hermes 权限。",
-        "security": [{ "BearerAuth": [] }],
+        "tags": ["Gateway"],
+        "summary": "Gateway 能力清单",
+        "description": "供外部 Hermes 服务发现支持的交易所与功能",
+        "security": [{ "ApiKeyAuth": [] }],
+        "responses": {
+          "200": { "description": "成功" },
+          "401": { "description": "无效 API Key" }
+        }
+      }
+    },
+    "/gateway/exchanges": {
+      "get": {
+        "tags": ["Gateway"],
+        "summary": "交易所配置列表（脱敏）",
+        "security": [{ "ApiKeyAuth": [] }],
+        "responses": {
+          "200": { "description": "成功" },
+          "401": { "description": "无效 API Key" }
+        }
+      },
+      "put": {
+        "tags": ["Gateway"],
+        "summary": "更新交易所配置（RSA 加密）",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/EncryptedPayload" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "参数错误" },
+          "401": { "description": "无效 API Key" }
+        }
+      }
+    },
+    "/gateway/exchanges/test": {
+      "post": {
+        "tags": ["Gateway"],
+        "summary": "测试交易所连接",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": { "$ref": "#/definitions/EncryptedPayload" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "成功" },
+          "400": { "description": "连接失败" },
+          "401": { "description": "无效 API Key" }
+        }
+      }
+    },
+    "/gateway/klines": {
+      "get": {
+        "tags": ["Gateway"],
+        "summary": "K 线查询",
+        "description": "按交易所获取 K 线（binance/okx）",
+        "security": [{ "ApiKeyAuth": [] }],
         "parameters": [
           { "name": "exchange_id", "in": "query", "type": "string", "default": "binance" },
           { "name": "symbol", "in": "query", "required": true, "type": "string" },
@@ -722,15 +789,15 @@
           "200": { "description": "成功" },
           "400": { "description": "参数错误" },
           "401": { "description": "未登录" },
-          "403": { "description": "无 hermes 权限" }
+          "401": { "description": "无效 API Key" }
         }
       }
     },
-    "/hermes/balance": {
+    "/gateway/balance": {
       "get": {
-        "tags": ["Hermes"],
-        "summary": "Hermes 账户余额",
-        "security": [{ "BearerAuth": [] }],
+        "tags": ["Gateway"],
+        "summary": "账户余额",
+        "security": [{ "ApiKeyAuth": [] }],
         "parameters": [
           { "name": "exchange_id", "in": "query", "required": true, "type": "string" }
         ],
@@ -738,15 +805,15 @@
           "200": { "description": "成功" },
           "400": { "description": "参数错误" },
           "401": { "description": "未登录" },
-          "403": { "description": "无 hermes 权限" }
+          "401": { "description": "无效 API Key" }
         }
       }
     },
-    "/hermes/positions": {
+    "/gateway/positions": {
       "get": {
-        "tags": ["Hermes"],
-        "summary": "Hermes 持仓列表",
-        "security": [{ "BearerAuth": [] }],
+        "tags": ["Gateway"],
+        "summary": "持仓列表",
+        "security": [{ "ApiKeyAuth": [] }],
         "parameters": [
           { "name": "exchange_id", "in": "query", "required": true, "type": "string" }
         ],
@@ -754,15 +821,15 @@
           "200": { "description": "成功" },
           "400": { "description": "参数错误" },
           "401": { "description": "未登录" },
-          "403": { "description": "无 hermes 权限" }
+          "401": { "description": "无效 API Key" }
         }
       }
     },
-    "/hermes/market-price": {
+    "/gateway/market-price": {
       "get": {
-        "tags": ["Hermes"],
-        "summary": "Hermes 市价",
-        "security": [{ "BearerAuth": [] }],
+        "tags": ["Gateway"],
+        "summary": "市价",
+        "security": [{ "ApiKeyAuth": [] }],
         "parameters": [
           { "name": "exchange_id", "in": "query", "required": true, "type": "string" },
           { "name": "symbol", "in": "query", "required": true, "type": "string" }
@@ -771,186 +838,88 @@
           "200": { "description": "成功" },
           "400": { "description": "参数错误" },
           "401": { "description": "未登录" },
-          "403": { "description": "无 hermes 权限" }
+          "401": { "description": "无效 API Key" }
         }
       }
     },
-    "/hermes/trade": {
+    "/gateway/trade": {
       "post": {
-        "tags": ["Hermes"],
-        "summary": "Hermes 交易执行",
-        "description": "开/平/加/减仓。action: open_long|open_short|close_long|close_short|add_long|add_short|reduce_long|reduce_short。confirmed 必须为 true。",
-        "security": [{ "BearerAuth": [] }],
+        "tags": ["Gateway"],
+        "summary": "交易执行",
+        "description": "开/平/加/减仓。API Key 路径无需 confirmed。",
+        "security": [{ "ApiKeyAuth": [] }],
         "parameters": [
           {
             "in": "body",
             "name": "body",
             "required": true,
-            "schema": { "$ref": "#/definitions/HermesTradeRequest" }
+            "schema": { "$ref": "#/definitions/GatewayTradeRequest" }
           }
         ],
         "responses": {
           "200": { "description": "成功" },
           "400": { "description": "参数错误或交易失败" },
-          "401": { "description": "未登录" },
-          "403": { "description": "无 hermes 权限" }
+          "401": { "description": "无效 API Key" }
         }
       }
     },
-    "/hermes/leverage": {
+    "/gateway/leverage": {
       "post": {
-        "tags": ["Hermes"],
-        "summary": "Hermes 设置杠杆",
-        "security": [{ "BearerAuth": [] }],
+        "tags": ["Gateway"],
+        "summary": "设置杠杆",
+        "security": [{ "ApiKeyAuth": [] }],
         "parameters": [
           {
             "in": "body",
             "name": "body",
             "required": true,
-            "schema": { "$ref": "#/definitions/HermesLeverageRequest" }
+            "schema": { "$ref": "#/definitions/GatewayLeverageRequest" }
           }
         ],
         "responses": {
           "200": { "description": "成功" },
           "400": { "description": "参数错误" },
-          "401": { "description": "未登录" },
-          "403": { "description": "无 hermes 权限" }
+          "401": { "description": "无效 API Key" }
         }
       }
     },
-    "/hermes/stop-loss": {
+    "/gateway/stop-loss": {
       "post": {
-        "tags": ["Hermes"],
-        "summary": "Hermes 设置止损",
-        "security": [{ "BearerAuth": [] }],
+        "tags": ["Gateway"],
+        "summary": "设置止损",
+        "security": [{ "ApiKeyAuth": [] }],
         "parameters": [
           {
             "in": "body",
             "name": "body",
             "required": true,
-            "schema": { "$ref": "#/definitions/HermesStopOrderRequest" }
+            "schema": { "$ref": "#/definitions/GatewayStopOrderRequest" }
           }
         ],
         "responses": {
           "200": { "description": "成功" },
           "400": { "description": "参数错误" },
-          "401": { "description": "未登录" },
-          "403": { "description": "无 hermes 权限" }
+          "401": { "description": "无效 API Key" }
         }
       }
     },
-    "/hermes/take-profit": {
+    "/gateway/take-profit": {
       "post": {
-        "tags": ["Hermes"],
-        "summary": "Hermes 设置止盈",
-        "security": [{ "BearerAuth": [] }],
+        "tags": ["Gateway"],
+        "summary": "设置止盈",
+        "security": [{ "ApiKeyAuth": [] }],
         "parameters": [
           {
             "in": "body",
             "name": "body",
             "required": true,
-            "schema": { "$ref": "#/definitions/HermesStopOrderRequest" }
+            "schema": { "$ref": "#/definitions/GatewayStopOrderRequest" }
           }
         ],
         "responses": {
           "200": { "description": "成功" },
           "400": { "description": "参数错误" },
-          "401": { "description": "未登录" },
-          "403": { "description": "无 hermes 权限" }
-        }
-      }
-    },
-    "/hermes/settings": {
-      "get": {
-        "tags": ["Hermes"],
-        "summary": "获取 Hermes 设置与 Runner 状态",
-        "security": [{ "BearerAuth": [] }],
-        "responses": {
-          "200": { "description": "成功" },
-          "401": { "description": "未登录" },
-          "403": { "description": "无 hermes 权限" }
-        }
-      },
-      "put": {
-        "tags": ["Hermes"],
-        "summary": "更新 Hermes 设置",
-        "security": [{ "BearerAuth": [] }],
-        "parameters": [
-          {
-            "in": "body",
-            "name": "body",
-            "required": true,
-            "schema": { "$ref": "#/definitions/HermesSettingsUpdateRequest" }
-          }
-        ],
-        "responses": {
-          "200": { "description": "成功" },
-          "400": { "description": "参数错误" },
-          "401": { "description": "未登录" },
-          "403": { "description": "无 hermes 权限" }
-        }
-      }
-    },
-    "/hermes/start": {
-      "post": {
-        "tags": ["Hermes"],
-        "summary": "启动 Hermes Runner",
-        "description": "需 exchange_id、ai_model_id 已配置且 autonomous_enabled=true",
-        "security": [{ "BearerAuth": [] }],
-        "responses": {
-          "200": { "description": "成功" },
-          "400": { "description": "前置条件不满足" },
-          "401": { "description": "未登录" },
-          "403": { "description": "无 hermes 权限" }
-        }
-      }
-    },
-    "/hermes/stop": {
-      "post": {
-        "tags": ["Hermes"],
-        "summary": "停止 Hermes Runner",
-        "security": [{ "BearerAuth": [] }],
-        "responses": {
-          "200": { "description": "成功" },
-          "400": { "description": "Runner 未运行" },
-          "401": { "description": "未登录" },
-          "403": { "description": "无 hermes 权限" }
-        }
-      }
-    },
-    "/hermes/status": {
-      "get": {
-        "tags": ["Hermes"],
-        "summary": "Hermes Runner 运行状态",
-        "security": [{ "BearerAuth": [] }],
-        "responses": {
-          "200": { "description": "成功" },
-          "401": { "description": "未登录" },
-          "403": { "description": "无 hermes 权限" }
-        }
-      }
-    },
-    "/hermes/decisions": {
-      "get": {
-        "tags": ["Hermes"],
-        "summary": "Hermes 决策日志",
-        "security": [{ "BearerAuth": [] }],
-        "responses": {
-          "200": { "description": "成功" },
-          "401": { "description": "未登录" },
-          "403": { "description": "无 hermes 权限" }
-        }
-      }
-    },
-    "/hermes/require-setup": {
-      "get": {
-        "tags": ["Hermes"],
-        "summary": "Hermes 配置门禁检查",
-        "security": [{ "BearerAuth": [] }],
-        "responses": {
-          "200": { "description": "成功" },
-          "401": { "description": "未登录" },
-          "403": { "description": "无 hermes 权限" }
+          "401": { "description": "无效 API Key" }
         }
       }
     }
@@ -1345,9 +1314,9 @@
         "description": { "type": "string" }
       }
     },
-    "HermesTradeRequest": {
+    "GatewayTradeRequest": {
       "type": "object",
-      "required": ["exchange_id", "action", "symbol", "confirmed"],
+      "required": ["exchange_id", "action", "symbol"],
       "properties": {
         "exchange_id": { "type": "string" },
         "action": {
@@ -1356,25 +1325,10 @@
         },
         "symbol": { "type": "string" },
         "quantity": { "type": "number" },
-        "leverage": { "type": "integer" },
-        "confirmed": { "type": "boolean" }
+        "leverage": { "type": "integer" }
       }
     },
-    "HermesSettingsUpdateRequest": {
-      "type": "object",
-      "properties": {
-        "autonomous_enabled": { "type": "boolean", "description": "半自动授权，Runner 内部下单免 confirmed" },
-        "exchange_id": { "type": "string" },
-        "ai_model_id": { "type": "string" },
-        "scan_interval_minutes": { "type": "integer" },
-        "system_prompt_template": { "type": "string", "default": "hermes" },
-        "btc_eth_leverage": { "type": "integer" },
-        "altcoin_leverage": { "type": "integer" },
-        "trading_coins": { "type": "array", "items": { "type": "string" } },
-        "initial_balance": { "type": "number" }
-      }
-    },
-    "HermesLeverageRequest": {
+    "GatewayLeverageRequest": {
       "type": "object",
       "required": ["exchange_id", "symbol", "leverage"],
       "properties": {
@@ -1383,7 +1337,7 @@
         "leverage": { "type": "integer" }
       }
     },
-    "HermesStopOrderRequest": {
+    "GatewayStopOrderRequest": {
       "type": "object",
       "required": ["exchange_id", "symbol", "position_side", "quantity", "stop_price"],
       "properties": {

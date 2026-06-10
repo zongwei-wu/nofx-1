@@ -9,7 +9,8 @@ const (
 	FeatureLeaderboard = "leaderboard"
 	FeatureCopyTrade   = "copy_trade"
 	FeatureSymbols     = "symbols"
-	FeatureHermes      = "hermes"
+	FeatureGateway     = "gateway"
+	FeatureHermes      = "gateway" // 兼容旧 key
 )
 
 // 用户套餐
@@ -27,7 +28,7 @@ var AllFeatures = []string{
 	FeatureLeaderboard,
 	FeatureCopyTrade,
 	FeatureSymbols,
-	FeatureHermes,
+	FeatureGateway,
 }
 
 // PlanInfo 套餐信息
@@ -60,9 +61,9 @@ func (d *Database) initPlanData() error {
 
 	planFeatures := map[string][]string{
 		PlanBasic:    {FeatureCompetition},
-		PlanStandard: {FeatureCompetition, FeatureAITrader, FeatureSymbols, FeatureHermes},
-		PlanPro:      {FeatureCompetition, FeatureAITrader, FeatureSymbols, FeatureLeaderboard, FeatureCopyTrade, FeatureHermes},
-		PlanVIP:      {FeatureCompetition, FeatureAITrader, FeatureSymbols, FeatureLeaderboard, FeatureCopyTrade, FeatureHermes},
+		PlanStandard: {FeatureCompetition, FeatureAITrader, FeatureSymbols, FeatureGateway},
+		PlanPro:      {FeatureCompetition, FeatureAITrader, FeatureSymbols, FeatureLeaderboard, FeatureCopyTrade, FeatureGateway},
+		PlanVIP:      {FeatureCompetition, FeatureAITrader, FeatureSymbols, FeatureLeaderboard, FeatureCopyTrade, FeatureGateway},
 	}
 	for planID, features := range planFeatures {
 		for _, f := range features {
@@ -180,6 +181,21 @@ func (d *Database) ListPlans() ([]PlanInfo, error) {
 		plans = append(plans, p)
 	}
 	return plans, nil
+}
+
+// EnsureGatewayPlanFeature 为已有库补充 gateway 功能绑定（兼容旧 hermes key）
+func (d *Database) EnsureGatewayPlanFeature() error {
+	for _, planID := range []string{PlanStandard, PlanPro, PlanVIP} {
+		for _, feature := range []string{FeatureGateway, "hermes"} {
+			_, err := d.db.Exec(`
+				INSERT OR IGNORE INTO plan_features (plan_id, feature_key) VALUES (?, ?)
+			`, planID, feature)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // UpdateUserPlan 更新用户套餐

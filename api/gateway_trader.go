@@ -22,7 +22,6 @@ func exchangeConfigToCreds(ex *config.ExchangeConfig) resolvedExchangeCredential
 	}
 }
 
-// createTraderFromExchangeConfig 根据用户交易所配置创建 Trader（支持 4 家）
 func createTraderFromExchangeConfig(userID string, ex *config.ExchangeConfig) (trader.Trader, error) {
 	if ex == nil {
 		return nil, fmt.Errorf("交易所配置为空")
@@ -53,7 +52,7 @@ func createTempTraderForTest(userID string, creds resolvedExchangeCredentials) (
 	return createTraderFromCredentials(userID, creds)
 }
 
-func (s *Server) getHermesExchangeConfig(userID, exchangeID string) (*config.ExchangeConfig, error) {
+func (s *Server) getGatewayExchangeConfig(userID, exchangeID string) (*config.ExchangeConfig, error) {
 	exchangeID = strings.TrimSpace(exchangeID)
 	if exchangeID == "" {
 		return nil, fmt.Errorf("exchange_id 不能为空")
@@ -79,8 +78,8 @@ func (s *Server) getHermesExchangeConfig(userID, exchangeID string) (*config.Exc
 	return nil, fmt.Errorf("未找到交易所配置: %s", exchangeID)
 }
 
-func (s *Server) getHermesTrader(userID, exchangeID string) (trader.Trader, *config.ExchangeConfig, error) {
-	ex, err := s.getHermesExchangeConfig(userID, exchangeID)
+func (s *Server) getGatewayTrader(userID, exchangeID string) (trader.Trader, *config.ExchangeConfig, error) {
+	ex, err := s.getGatewayExchangeConfig(userID, exchangeID)
 	if err != nil {
 		return nil, nil, err
 	}

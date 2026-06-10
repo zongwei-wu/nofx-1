@@ -40,7 +40,7 @@ export function ExchangeOnboardingGate() {
   const needsTradingSetup =
     hasFeature(FEATURES.ai_trader) ||
     hasFeature(FEATURES.copy_trade) ||
-    hasFeature(FEATURES.hermes)
+    hasFeature(FEATURES.gateway)
 
   useEffect(() => {
     if (!user?.id || !token || !needsTradingSetup) {

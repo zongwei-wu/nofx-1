@@ -51,9 +51,6 @@ type DatabaseInterface interface {
 	UpsertUserSymbolPreferences(userID string, symbols []string, useCustomOrder bool, starredSymbols []string) error
 	GetCopyTradeSettings(userID string) (*CopyTradeSettings, error)
 	UpsertCopyTradeSettings(userID, aiTraderID, executionExchangeID string) error
-	GetHermesSettings(userID string) (*HermesSettings, error)
-	UpsertHermesSettings(s *HermesSettings) error
-	ListHermesRunnerEnabledUserIDs() ([]string, error)
 	LoadBetaCodesFromFile(filePath string) error
 	ValidateBetaCode(code string) (bool, error)
 	UseBetaCode(code, userEmail string) error
@@ -118,8 +115,8 @@ func NewDatabase(dbPath string) (*Database, error) {
 		return nil, fmt.Errorf("校验套餐功能绑定失败: %w", err)
 	}
 
-	if err := database.EnsureHermesPlanFeature(); err != nil {
-		return nil, fmt.Errorf("补充 hermes 功能绑定失败: %w", err)
+	if err := database.EnsureGatewayPlanFeature(); err != nil {
+		return nil, fmt.Errorf("补充 gateway 功能绑定失败: %w", err)
 	}
 
 	if err := database.EnsureAdminUser(); err != nil {
@@ -431,22 +428,6 @@ func (d *Database) createTables() error {
 		ai_trader_id TEXT NOT NULL DEFAULT '',
 		execution_exchange_id TEXT NOT NULL DEFAULT '',
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	)`)
-
-	d.db.Exec(`CREATE TABLE IF NOT EXISTS hermes_settings (
-		user_id TEXT PRIMARY KEY,
-		runner_enabled INTEGER NOT NULL DEFAULT 0,
-		autonomous_enabled INTEGER NOT NULL DEFAULT 0,
-		exchange_id TEXT NOT NULL DEFAULT '',
-		ai_model_id TEXT NOT NULL DEFAULT '',
-		scan_interval_minutes INTEGER NOT NULL DEFAULT 5,
-		system_prompt_template TEXT NOT NULL DEFAULT 'hermes',
-		btc_eth_leverage INTEGER NOT NULL DEFAULT 5,
-		altcoin_leverage INTEGER NOT NULL DEFAULT 3,
-		trading_coins TEXT NOT NULL DEFAULT '[]',
-		initial_balance REAL NOT NULL DEFAULT 0,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 	)`)
 
 	d.db.Exec(`CREATE TABLE IF NOT EXISTS api_keys (
