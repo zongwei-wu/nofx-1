@@ -12,7 +12,7 @@ import TraderDashboard from '../pages/TraderDashboard'
 import { CopyTradingPage } from '../pages/CopyTradingPage'
 import { CopyTradeDashboard } from '../pages/CopyTradeDashboard'
 import { SymbolManagementPage } from '../pages/SymbolManagementPage'
-import { ApiKeysPage } from '../pages/ApiKeysPage'
+import ApiKeysPage from '../pages/ApiKeysPage'
 import { FeatureRoute } from '../components/FeatureRoute'
 import { FEATURES } from '../config/features'
 

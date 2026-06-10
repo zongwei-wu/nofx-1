@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 3000,
-    allowedHosts: ['ttai.me', 'localhost', '127.0.0.1'],
+    allowedHosts: ['ttai.me', 'www.ttai.me', 'localhost', '127.0.0.1'],
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
