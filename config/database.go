@@ -103,6 +103,11 @@ func NewDatabase(dbPath string) (*Database, error) {
 		return nil, fmt.Errorf("初始化默认数据失败: %w", err)
 	}
 
+	// 确保默认交易所完整（已存在数据库的增量迁移）
+	if err := database.ensureDefaultExchanges(); err != nil {
+		return nil, fmt.Errorf("补全默认交易所失败: %w", err)
+	}
+
 	if err := database.initPlanTables(); err != nil {
 		return nil, fmt.Errorf("初始化套餐表失败: %w", err)
 	}
@@ -513,6 +518,30 @@ func (d *Database) initDefaultData() error {
 		}
 	}
 
+	return nil
+}
+
+// ensureDefaultExchanges 确保默认交易所完整（增量迁移，已存在DB不会丢失数据）
+func (d *Database) ensureDefaultExchanges() error {
+	exchanges := []struct {
+		id, name, typ string
+	}{
+		{"binance", "Binance Futures", "binance"},
+		{"hyperliquid", "Hyperliquid", "hyperliquid"},
+		{"aster", "Aster DEX", "aster"},
+		{"okx", "OKX Futures", "cex"},
+		{"gate", "Gate Futures", "cex"},
+	}
+
+	for _, exchange := range exchanges {
+		_, err := d.db.Exec(`
+			INSERT OR IGNORE INTO exchanges (id, user_id, name, type, enabled) 
+			VALUES (?, 'default', ?, ?, 0)
+		`, exchange.id, exchange.name, exchange.typ)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
