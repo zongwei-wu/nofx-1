@@ -273,6 +273,28 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		traderConfig.DeepSeekKey = aiModelCfg.APIKey
 	}
 
+	// 如果初始金额为0，尝试从交易所自动获取
+	if traderConfig.InitialBalance <= 0 {
+		var tempTrader trader.Trader
+		var createErr error
+		switch exchangeCfg.ID {
+		case "binance":
+			tempTrader = trader.NewFuturesTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, userID, exchangeCfg.Testnet)
+		case "gate":
+			tempTrader, createErr = trader.NewGateTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, exchangeCfg.Testnet)
+		case "okx":
+			tempTrader, createErr = trader.NewOKXTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, exchangeCfg.Passphrase, exchangeCfg.Testnet)
+		}
+		if createErr == nil && tempTrader != nil {
+			if balanceInfo, balanceErr := tempTrader.GetBalance(); balanceErr == nil {
+				if wb, ok := balanceInfo["totalWalletBalance"].(float64); ok {
+					traderConfig.InitialBalance = wb
+					log.Printf("✅ 自动获取 %s 余额作为初始资金: %.2f USDT", exchangeCfg.ID, wb)
+				}
+			}
+		}
+	}
+
 	// 创建trader实例
 	at, err := trader.NewAutoTrader(traderConfig, database, userID)
 	if err != nil {
@@ -389,6 +411,28 @@ func (tm *TraderManager) AddTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		traderConfig.QwenKey = aiModelCfg.APIKey
 	} else if aiModelCfg.Provider == "deepseek" {
 		traderConfig.DeepSeekKey = aiModelCfg.APIKey
+	}
+
+	// 如果初始金额为0，尝试从交易所自动获取
+	if traderConfig.InitialBalance <= 0 {
+		var tempTrader trader.Trader
+		var createErr error
+		switch exchangeCfg.ID {
+		case "binance":
+			tempTrader = trader.NewFuturesTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, userID, exchangeCfg.Testnet)
+		case "gate":
+			tempTrader, createErr = trader.NewGateTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, exchangeCfg.Testnet)
+		case "okx":
+			tempTrader, createErr = trader.NewOKXTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, exchangeCfg.Passphrase, exchangeCfg.Testnet)
+		}
+		if createErr == nil && tempTrader != nil {
+			if balanceInfo, balanceErr := tempTrader.GetBalance(); balanceErr == nil {
+				if wb, ok := balanceInfo["totalWalletBalance"].(float64); ok {
+					traderConfig.InitialBalance = wb
+					log.Printf("✅ 自动获取 %s 余额作为初始资金: %.2f USDT", exchangeCfg.ID, wb)
+				}
+			}
+		}
 	}
 
 	// 创建trader实例
@@ -1118,6 +1162,28 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 		traderConfig.QwenKey = aiModelCfg.APIKey
 	} else if aiModelCfg.Provider == "deepseek" {
 		traderConfig.DeepSeekKey = aiModelCfg.APIKey
+	}
+
+	// 如果初始金额为0，尝试从交易所自动获取
+	if traderConfig.InitialBalance <= 0 {
+		var tempTrader trader.Trader
+		var createErr error
+		switch exchangeCfg.ID {
+		case "binance":
+			tempTrader = trader.NewFuturesTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, userID, exchangeCfg.Testnet)
+		case "gate":
+			tempTrader, createErr = trader.NewGateTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, exchangeCfg.Testnet)
+		case "okx":
+			tempTrader, createErr = trader.NewOKXTrader(exchangeCfg.APIKey, exchangeCfg.SecretKey, exchangeCfg.Passphrase, exchangeCfg.Testnet)
+		}
+		if createErr == nil && tempTrader != nil {
+			if balanceInfo, balanceErr := tempTrader.GetBalance(); balanceErr == nil {
+				if wb, ok := balanceInfo["totalWalletBalance"].(float64); ok {
+					traderConfig.InitialBalance = wb
+					log.Printf("✅ 自动获取 %s 余额作为初始资金: %.2f USDT", exchangeCfg.ID, wb)
+				}
+			}
+		}
 	}
 
 	// 创建trader实例
