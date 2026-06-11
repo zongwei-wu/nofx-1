@@ -186,7 +186,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           action: a.action,
           symbol: a.symbol,
           quantity: a.quantity,
-          leverage: a.leverage || 10,
+          leverage: a.leverage || 0,
           confirmed: true,
         }))
       }

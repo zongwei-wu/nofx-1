@@ -52,11 +52,7 @@ func ExecuteTrade(t trader.Trader, req TradeRequest) (map[string]interface{}, er
 		if action == "add_long" {
 			return t.OpenLong(symbol, req.Quantity, 0)
 		}
-		leverage := req.Leverage
-		if leverage <= 0 {
-			leverage = 5
-		}
-		return t.OpenLong(symbol, req.Quantity, leverage)
+		return t.OpenLong(symbol, req.Quantity, req.Leverage)
 
 	case "open_short", "add_short":
 		if action == "open_short" {
@@ -68,11 +64,7 @@ func ExecuteTrade(t trader.Trader, req TradeRequest) (map[string]interface{}, er
 		if action == "add_short" {
 			return t.OpenShort(symbol, req.Quantity, 0)
 		}
-		leverage := req.Leverage
-		if leverage <= 0 {
-			leverage = 5
-		}
-		return t.OpenShort(symbol, req.Quantity, leverage)
+		return t.OpenShort(symbol, req.Quantity, req.Leverage)
 
 	case "close_long", "reduce_long":
 		qty := req.Quantity
