@@ -96,7 +96,7 @@ const tools = [
       type: 'object',
       properties: {
         exchange_id: { type: 'string', description: '交易所ID' },
-        action: { type: 'string', enum: ['open_long', 'open_short', 'close_long', 'close_short'], description: '交易动作' },
+        action: { type: 'string', enum: ['open_long', 'open_short', 'add_long', 'add_short', 'close_long', 'close_short', 'reduce_long', 'reduce_short'], description: '交易动作' },
         symbol: { type: 'string', description: '交易对，如 ETHUSDT' },
         quantity: { type: 'number', description: '数量（合约张数）' },
         leverage: { type: 'integer', description: '杠杆倍数' },

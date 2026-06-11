@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"nofx/trader"
@@ -36,73 +35,49 @@ func hasPositionSide(positions []map[string]interface{}, symbol, side string) bo
 	return false
 }
 
-func formatTradeQuantity(t trader.Trader, symbol string, quantity float64) (float64, error) {
-	if quantity <= 0 {
-		return 0, fmt.Errorf("quantity 必须大于 0")
-	}
-	formatted, err := t.FormatQuantity(symbol, quantity)
-	if err != nil {
-		return quantity, nil
-	}
-	parsed, err := strconv.ParseFloat(formatted, 64)
-	if err != nil {
-		return quantity, nil
-	}
-	return parsed, nil
-}
-
 // ExecuteTrade 执行网关交易（独立于 AI 交易员路径）
+// 数量由各 trader 方法内部的 baseToSize/FormatQuantity 自行处理，不在此处转换
 func ExecuteTrade(t trader.Trader, req TradeRequest) (map[string]interface{}, error) {
 	symbol := NormalizeSymbol(req.Symbol)
 	action := strings.ToLower(strings.TrimSpace(req.Action))
 
 	switch action {
 	case "open_long", "add_long":
-		qty, err := formatTradeQuantity(t, symbol, req.Quantity)
-		if err != nil {
-			return nil, err
-		}
 		if action == "open_long" {
 			positions, _ := t.GetPositions()
 			if hasPositionSide(positions, symbol, "long") {
 				return nil, fmt.Errorf("%s 已有多仓，请使用 add_long", symbol)
 			}
 		}
+		if action == "add_long" {
+			return t.OpenLong(symbol, req.Quantity, 0)
+		}
 		leverage := req.Leverage
 		if leverage <= 0 {
 			leverage = 5
 		}
-		return t.OpenLong(symbol, qty, leverage)
+		return t.OpenLong(symbol, req.Quantity, leverage)
 
 	case "open_short", "add_short":
-		qty, err := formatTradeQuantity(t, symbol, req.Quantity)
-		if err != nil {
-			return nil, err
-		}
 		if action == "open_short" {
 			positions, _ := t.GetPositions()
 			if hasPositionSide(positions, symbol, "short") {
 				return nil, fmt.Errorf("%s 已有空仓，请使用 add_short", symbol)
 			}
 		}
+		if action == "add_short" {
+			return t.OpenShort(symbol, req.Quantity, 0)
+		}
 		leverage := req.Leverage
 		if leverage <= 0 {
 			leverage = 5
 		}
-		return t.OpenShort(symbol, qty, leverage)
+		return t.OpenShort(symbol, req.Quantity, leverage)
 
 	case "close_long", "reduce_long":
 		qty := req.Quantity
 		if action == "close_long" {
 			qty = 0
-		} else if qty <= 0 {
-			return nil, fmt.Errorf("reduce_long 需要 quantity > 0")
-		} else {
-			var err error
-			qty, err = formatTradeQuantity(t, symbol, qty)
-			if err != nil {
-				return nil, err
-			}
 		}
 		return t.CloseLong(symbol, qty)
 
@@ -110,14 +85,6 @@ func ExecuteTrade(t trader.Trader, req TradeRequest) (map[string]interface{}, er
 		qty := req.Quantity
 		if action == "close_short" {
 			qty = 0
-		} else if qty <= 0 {
-			return nil, fmt.Errorf("reduce_short 需要 quantity > 0")
-		} else {
-			var err error
-			qty, err = formatTradeQuantity(t, symbol, qty)
-			if err != nil {
-				return nil, err
-			}
 		}
 		return t.CloseShort(symbol, qty)
 

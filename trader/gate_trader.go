@@ -24,17 +24,38 @@ const (
 	gateCacheDuration   = 15 * time.Second
 )
 
+// flexFloat64 handles both string and number JSON values for float64 fields.
+type flexFloat64 float64
+
+func (f *flexFloat64) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		v, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return err
+		}
+		*f = flexFloat64(v)
+		return nil
+	}
+	var n float64
+	if err := json.Unmarshal(data, &n); err != nil {
+		return err
+	}
+	*f = flexFloat64(n)
+	return nil
+}
+
 // GateContract Gate USDT 永续合约规格
 type GateContract struct {
-	Name             string  `json:"name"`
-	QuantoMultiplier float64 `json:"quanto_multiplier,string"`
-	OrderSizeMin     float64 `json:"order_size_min,string"`
-	OrderSizeMax     float64 `json:"order_size_max,string"`
-	MarkPrice        float64 `json:"mark_price,string"`
-	LastPrice        float64 `json:"last_price,string"`
-	LeverageMin      float64 `json:"leverage_min,string"`
-	LeverageMax      float64 `json:"leverage_max,string"`
-	OrderPriceRound  int     `json:"order_price_round,string"`
+	Name             string      `json:"name"`
+	QuantoMultiplier flexFloat64 `json:"quanto_multiplier"`
+	OrderSizeMin     flexFloat64 `json:"order_size_min"`
+	OrderSizeMax     flexFloat64 `json:"order_size_max"`
+	MarkPrice        flexFloat64 `json:"mark_price"`
+	LastPrice        flexFloat64 `json:"last_price"`
+	LeverageMin      flexFloat64 `json:"leverage_min"`
+	LeverageMax      flexFloat64 `json:"leverage_max"`
+	OrderPriceRound  flexFloat64 `json:"order_price_round"`
 }
 
 // GateTrader Gate USDT 永续交易器
@@ -113,6 +134,7 @@ func convertGateToSymbol(name string) string {
 
 func (t *GateTrader) sign(method, path, query, body, timestamp string) string {
 	payload := strings.Join([]string{method, path, query, body, timestamp}, "\n")
+	log.Printf("  🔐 Gate sign payload:\n%s", payload)
 	mac := hmac.New(sha512.New, []byte(t.secretKey))
 	mac.Write([]byte(payload))
 	return hex.EncodeToString(mac.Sum(nil))
@@ -134,6 +156,8 @@ func (t *GateTrader) request(method, path string, body interface{}) (json.RawMes
 	h := sha512.New()
 	h.Write([]byte(bodyStr))
 	bodyHash := hex.EncodeToString(h.Sum(nil))
+
+	log.Printf("  🔧 Gate request: %s %s body=%s bodyHash=%s", method, t.baseURL+path, bodyStr, bodyHash)
 
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	queryStr := "" // no query params in signed requests here; set if needed
@@ -168,8 +192,10 @@ func (t *GateTrader) request(method, path string, body interface{}) (json.RawMes
 			Message string `json:"message"`
 		}
 		if json.Unmarshal(respBody, &errResp) == nil && errResp.Message != "" {
+			log.Printf("  🔧 Gate error response: label=%s message=%s raw=%s", errResp.Label, errResp.Message, string(respBody))
 			return nil, fmt.Errorf("Gate API 错误 [%s]: %s", errResp.Label, errResp.Message)
 		}
+		log.Printf("  🔧 Gate HTTP %d raw body: %s", resp.StatusCode, string(respBody))
 		return nil, fmt.Errorf("Gate API HTTP %d: %s", resp.StatusCode, string(respBody))
 	}
 
@@ -235,13 +261,13 @@ func (t *GateTrader) baseToSize(symbol string, baseQty float64) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	if c.QuantoMultiplier <= 0 {
+	if float64(c.QuantoMultiplier) <= 0 {
 		return 0, fmt.Errorf("%s quanto_multiplier 无效", c.Name)
 	}
 	// quanto_multiplier is USD value per contract
 	// baseQty = number of contracts * quanto_multiplier / price
 	// We approximate: contracts = baseQty / quanto_multiplier
-	contracts := baseQty / c.QuantoMultiplier
+	contracts := baseQty / float64(c.QuantoMultiplier)
 	size := int64(contracts)
 	if size <= 0 {
 		size = 1 // minimum 1 contract
@@ -352,7 +378,7 @@ func (t *GateTrader) GetPositions() ([]map[string]interface{}, error) {
 			"side":              side,
 			"positionAmt":       baseAmt,
 			"entryPrice":        item.EntryPrice,
-			"markPrice":         item.MarkPrice,
+			"markPrice":         float64(item.MarkPrice),
 			"unRealizedProfit":  item.UnrealisedPnl,
 			"leverage":          item.Leverage,
 			"liquidationPrice":  item.LiquidationPrice,
@@ -382,8 +408,9 @@ func (t *GateTrader) SetMarginMode(symbol string, isCrossMargin bool) error {
 func (t *GateTrader) SetLeverage(symbol string, leverage int) error {
 	name := convertSymbolToGate(symbol)
 	settle := "usdt"
-	_, err := t.request(http.MethodPost, "/futures/"+settle+"/positions/"+name+"/leverage",
-		map[string]int{"leverage": leverage})
+	body := map[string]interface{}{"leverage": leverage}
+	log.Printf("  🔧 Gate SetLeverage: POST /futures/%s/positions/%s/leverage leverage=%d", settle, name, leverage)
+	_, err := t.request(http.MethodPost, "/futures/"+settle+"/positions/"+name+"/leverage", body)
 	if err != nil {
 		if strings.Contains(err.Error(), "1034") {
 			// leverage not changeable when position exists (expected)
@@ -401,8 +428,10 @@ func (t *GateTrader) OpenLong(symbol string, quantity float64, leverage int) (ma
 	if err := t.CancelAllOrders(symbol); err != nil {
 		log.Printf("  ⚠ 取消旧委托单失败: %v", err)
 	}
-	if err := t.SetLeverage(symbol, leverage); err != nil {
-		return nil, err
+	if leverage > 0 {
+		if err := t.SetLeverage(symbol, leverage); err != nil {
+			return nil, err
+		}
 	}
 	return t.placeMarketOrder(symbol, quantity, "long")
 }
@@ -412,8 +441,10 @@ func (t *GateTrader) OpenShort(symbol string, quantity float64, leverage int) (m
 	if err := t.CancelAllOrders(symbol); err != nil {
 		log.Printf("  ⚠ 取消旧委托单失败: %v", err)
 	}
-	if err := t.SetLeverage(symbol, leverage); err != nil {
-		return nil, err
+	if leverage > 0 {
+		if err := t.SetLeverage(symbol, leverage); err != nil {
+			return nil, err
+		}
 	}
 	return t.placeMarketOrder(symbol, quantity, "short")
 }
@@ -714,7 +745,7 @@ func (t *GateTrader) FormatQuantity(symbol string, quantity float64) (string, er
 	if err != nil {
 		return "", err
 	}
-	size := quantity / c.QuantoMultiplier
+	size := quantity / float64(c.QuantoMultiplier)
 	return fmt.Sprintf("%d", int64(size)), nil
 }
 
@@ -724,8 +755,8 @@ func (t *GateTrader) GetLotStepSize(symbol string) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	if c.QuantoMultiplier <= 0 {
+	if float64(c.QuantoMultiplier) <= 0 {
 		return 0, fmt.Errorf("%s quanto_multiplier 无效", symbol)
 	}
-	return c.QuantoMultiplier, nil
+	return float64(c.QuantoMultiplier), nil
 }
