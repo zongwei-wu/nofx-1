@@ -112,7 +112,7 @@ func convertGateToSymbol(name string) string {
 }
 
 func (t *GateTrader) sign(method, path, query, body, timestamp string) string {
-	payload := strings.Join([]string{method, path + query, body, timestamp}, "\n")
+	payload := strings.Join([]string{method, path, query, body, timestamp}, "\n")
 	mac := hmac.New(sha512.New, []byte(t.secretKey))
 	mac.Write([]byte(payload))
 	return hex.EncodeToString(mac.Sum(nil))
@@ -137,7 +137,8 @@ func (t *GateTrader) request(method, path string, body interface{}) (json.RawMes
 
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	queryStr := "" // no query params in signed requests here; set if needed
-	sign := t.sign(method, path, queryStr, bodyHash, timestamp)
+	fullPath := "/api/v4" + path
+	sign := t.sign(method, fullPath, queryStr, bodyHash, timestamp)
 
 	req, err := http.NewRequest(method, t.baseURL+path, bodyReader)
 	if err != nil {
