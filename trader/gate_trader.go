@@ -544,6 +544,8 @@ func (t *GateTrader) CloseShort(symbol string, quantity float64) (map[string]int
 		if quantity == 0 {
 			return nil, fmt.Errorf("没有找到 %s 的空仓", symbol)
 		}
+		// positionAmt is already in contracts, use directly
+		return t.placeCloseOrderDirect(symbol, int64(quantity), "short")
 	}
 	result, err := t.placeCloseOrder(symbol, quantity, "short")
 	if err != nil {
@@ -566,6 +568,50 @@ func (t *GateTrader) placeCloseOrder(symbol string, baseQty float64, positionSid
 	// Close long: sell (negative size), Close short: buy (positive size)
 	if positionSide == "long" {
 		size = -size // sell to close long
+	}
+
+	body := map[string]interface{}{
+		"contract":    name,
+		"size":        size,
+		"price":       "0",
+		"tif":         "ioc",
+		"reduce_only": true,
+		"text":        "t-hermes",
+	}
+
+	settle := "usdt"
+	data, err := t.request(http.MethodPost, "/futures/"+settle+"/orders", body)
+	if err != nil {
+		return nil, fmt.Errorf("Gate 平仓失败: %w", err)
+	}
+
+	var order struct {
+		ID     int64  `json:"id"`
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal(data, &order); err != nil {
+		return nil, err
+	}
+
+	log.Printf("✓ Gate 平仓成功: %s %s %d 张", name, positionSide, size)
+	t.InvalidateAccountCache()
+	return map[string]interface{}{
+		"orderId": fmt.Sprintf("%d", order.ID),
+		"symbol":  symbol,
+		"status":  order.Status,
+	}, nil
+}
+
+// placeCloseOrderDirect 平仓（quantity 已是合约张数，不转换）
+func (t *GateTrader) placeCloseOrderDirect(symbol string, contracts int64, positionSide string) (map[string]interface{}, error) {
+	size := contracts
+	if size <= 0 {
+		size = 1
+	}
+
+	name := convertSymbolToGate(symbol)
+	if positionSide == "long" {
+		size = -size
 	}
 
 	body := map[string]interface{}{
