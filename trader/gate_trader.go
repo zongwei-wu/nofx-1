@@ -157,7 +157,6 @@ func (t *GateTrader) request(method, path string, body interface{}) (json.RawMes
 	h.Write([]byte(bodyStr))
 	bodyHash := hex.EncodeToString(h.Sum(nil))
 
-	log.Printf("  🔧 Gate request: %s %s body=%s bodyHash=%s", method, t.baseURL+path, bodyStr, bodyHash)
 
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	queryStr := "" // no query params in signed requests here; set if needed
@@ -192,7 +191,6 @@ func (t *GateTrader) request(method, path string, body interface{}) (json.RawMes
 			Message string `json:"message"`
 		}
 		if json.Unmarshal(respBody, &errResp) == nil && errResp.Message != "" {
-			log.Printf("  🔧 Gate error response: label=%s message=%s raw=%s", errResp.Label, errResp.Message, string(respBody))
 			return nil, fmt.Errorf("Gate API 错误 [%s]: %s", errResp.Label, errResp.Message)
 		}
 		log.Printf("  🔧 Gate HTTP %d raw body: %s", resp.StatusCode, string(respBody))
@@ -409,7 +407,6 @@ func (t *GateTrader) SetLeverage(symbol string, leverage int) error {
 	name := convertSymbolToGate(symbol)
 	settle := "usdt"
 	body := map[string]interface{}{"leverage": leverage}
-	log.Printf("  🔧 Gate SetLeverage: POST /futures/%s/positions/%s/leverage leverage=%d", settle, name, leverage)
 	_, err := t.request(http.MethodPost, "/futures/"+settle+"/positions/"+name+"/leverage", body)
 	if err != nil {
 		if strings.Contains(err.Error(), "1034") {
