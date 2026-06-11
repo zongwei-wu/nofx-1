@@ -62,7 +62,7 @@ func klinesToResponse(symbol, interval, dataSource string, klines []market.Kline
 func (s *Server) handleGatewayCapabilities(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"version":   "1",
-		"exchanges": []string{"binance", "okx", "hyperliquid", "aster"},
+		"exchanges": []string{"binance", "okx", "hyperliquid", "aster", "gate"},
 		"features": []string{
 			"exchanges", "klines", "balance", "positions", "market-price",
 			"trade", "leverage", "stop-loss", "take-profit",
