@@ -20,7 +20,7 @@ import (
 
 const (
 	gateMainnetBaseURL  = "https://api.gateio.ws/api/v4"
-	gateTestnetBaseURL  = "https://fx-api-testnet.gateio.ws/api/v4"
+	gateTestnetBaseURL  = "https://api-testnet.gateapi.io/api/v4"
 	gateCacheDuration   = 15 * time.Second
 )
 
@@ -130,13 +130,10 @@ func (t *GateTrader) request(method, path string, body interface{}) (json.RawMes
 		bodyReader = bytes.NewReader(b)
 	}
 
-	// Hash body for signature
-	bodyHash := ""
-	if bodyStr != "" {
-		h := sha512.New()
-		h.Write([]byte(bodyStr))
-		bodyHash = hex.EncodeToString(h.Sum(nil))
-	}
+	// Hash body for signature (Gate requires SHA512 hash even for empty body)
+	h := sha512.New()
+	h.Write([]byte(bodyStr))
+	bodyHash := hex.EncodeToString(h.Sum(nil))
 
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	queryStr := "" // no query params in signed requests here; set if needed
