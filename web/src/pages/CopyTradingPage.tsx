@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
-import { httpClient } from '../lib/httpClient'
+import { copyTradeApi, type CopyOrderPayload } from '../lib/api/copyTrade'
 import { LeadRecentReturnsLineChart } from '../components/copy-trade/LeadRecentReturnsLineChart'
 
 type CopyResultModalState = {
@@ -103,11 +103,7 @@ export function CopyTradingPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem('auth_token')
-        const response = await httpClient.get('/api/copy-trading/leaderboard', {
-          Authorization: token ? `Bearer ${token}` : '',
-        })
-        const result = await response.json()
+        const result = await copyTradeApi.getLeaderboardRaw()
         if (result.code === '000000' && result.data) {
           setPnlTraders(result.data.highestPnlLeads || [])
           setRoiTraders(result.data.highestRoiLeads || [])
@@ -169,12 +165,10 @@ export function CopyTradingPage() {
     setRoiTraders(prev => markOrdersLoading(prev, trader.leadPortfolioId, true))
 
     try {
-      const token = localStorage.getItem('auth_token')
-      const response = await httpClient.get(
-        `/api/copy-trading/orders?portfolio_id=${trader.leadPortfolioId}&page_size=10`,
-        { Authorization: token ? `Bearer ${token}` : '' }
+      const result = await copyTradeApi.getLeaderboardOrders(
+        trader.leadPortfolioId,
+        10
       )
-      const result = await response.json()
       if (result.code === '000000' && result.data) {
         const orders = result.data.list || []
         const addOrders = (list: TraderData[]) =>
@@ -474,9 +468,7 @@ export function CopyTradingPage() {
                                   <button
                                     onClick={async (e) => {
                                       e.stopPropagation()
-                                      const token = localStorage.getItem('auth_token')
-                                      const headers = { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' }
-                                      const payload = {
+                                      const payload: CopyOrderPayload = {
                                         portfolio_id: trader.leadPortfolioId,
                                         nickname: trader.nickname,
                                         symbol: order.symbol,
@@ -489,7 +481,7 @@ export function CopyTradingPage() {
                                       }
                                       setOrderModal(prev => ({ ...prev, visible: true, loading: true, payload }))
                                       try {
-                                        const res = await fetch('/api/copy-trade/copy-order', { method: 'POST', headers, body: JSON.stringify(payload) })
+                                        const res = await copyTradeApi.copyOrder(payload)
                                         const data = await res.json()
                                         if (!res.ok) {
                                           setOrderModal(prev => ({ ...prev, loading: false, visible: false }))
@@ -686,14 +678,13 @@ export function CopyTradingPage() {
                   <button
                     onClick={async () => {
                       setOrderModal(prev => ({ ...prev, loading: true }))
-                      const token = localStorage.getItem('auth_token')
                       try {
-                        const p = { ...orderModal.payload, skip_ai: true, executed_qty: orderModal.recommendedQty }
-                        const res = await fetch('/api/copy-trade/copy-order', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
-                          body: JSON.stringify(p),
-                        })
+                        const p: CopyOrderPayload = {
+                          ...orderModal.payload,
+                          skip_ai: true,
+                          executed_qty: orderModal.recommendedQty,
+                        }
+                        const res = await copyTradeApi.copyOrder(p)
                         const data = await res.json()
                         const snapshot = { ...orderModal }
                         setOrderModal(prev => ({ ...prev, visible: false, loading: false }))

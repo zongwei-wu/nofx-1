@@ -5,6 +5,7 @@ import React, {
   useState,
   useEffect,
 } from 'react'
+import { authApi, type AuthSessionPayload } from '../lib/api/auth'
 import { getSystemConfig } from '../lib/config'
 import { EXCHANGE_ONBOARDING_PROMPT_KEY } from '../lib/exchangeOnboarding'
 import { reset401Flag } from '../lib/httpClient'
@@ -70,14 +71,6 @@ function clearStoredAuth() {
   localStorage.removeItem('auth_features')
 }
 
-type AuthSessionPayload = {
-  token: string
-  user_id: string
-  email: string
-  plan?: string
-  features?: string[]
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
@@ -111,7 +104,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('auth_user', JSON.stringify(userInfo))
     localStorage.setItem('auth_features', JSON.stringify(featureList))
     sessionStorage.setItem(EXCHANGE_ONBOARDING_PROMPT_KEY, '1')
-    // 登录后从 /api/me 拉取最新 plan/features（管理员改套餐后立即生效）
     await fetchMe(data.token)
   }
 
@@ -160,15 +152,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchMe = useCallback(
     async (authToken: string): Promise<boolean> => {
-      const response = await fetch('/api/me', {
-        headers: { Authorization: `Bearer ${authToken}` },
-      })
-      if (response.status === 401) {
-        return false
-      }
-      if (!response.ok) return true
-      const data = await response.json()
-      applyMePayload(data)
+      const result = await authApi.fetchMe(authToken)
+      if (result.status === 401) return false
+      if (result.data) applyMePayload(result.data)
       return true
     },
     [applyMePayload]
@@ -179,10 +165,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const savedUser = localStorage.getItem('auth_user')
     if (!savedToken || !savedUser) return
 
-    const response = await fetch('/api/me', {
-      headers: { Authorization: `Bearer ${savedToken}` },
-    })
-    if (response.status === 401) {
+    const result = await authApi.fetchMe(savedToken)
+    if (result.status === 401) {
       clearStoredAuth()
       return
     }
@@ -195,9 +179,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (savedFeatures) {
         setFeatures(JSON.parse(savedFeatures) as string[])
       }
-      if (response.ok) {
-        const data = await response.json()
-        applyMePayload(data)
+      if (result.data) {
+        applyMePayload(result.data)
       }
     } catch {
       clearStoredAuth()
@@ -230,37 +213,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
   }, [])
 
-  // Listen for unauthorized events from httpClient (401 responses)
   useEffect(() => {
     const handleUnauthorized = () => {
-      console.log('Unauthorized event received - clearing auth state')
-      // Clear auth state when 401 is detected
       setUser(null)
       setToken(null)
       setFeatures([])
     }
 
     window.addEventListener('unauthorized', handleUnauthorized)
-
-    return () => {
-      window.removeEventListener('unauthorized', handleUnauthorized)
-    }
+    return () => window.removeEventListener('unauthorized', handleUnauthorized)
   }, [])
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        if (data.requires_otp) {
+      const { ok, data } = await authApi.login(email, password)
+      if (ok) {
+        if ((data as { requires_otp?: boolean }).requires_otp) {
           return {
             success: true,
             userID: data.user_id,
@@ -268,27 +236,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             message: data.message,
           }
         }
-        await applyAuthSession(data)
+        await applyAuthSession(data as AuthSessionPayload)
         sessionStorage.removeItem('from401')
         reset401Flag()
         return { success: true, message: data.message }
-      } else {
-        return { success: false, message: data.error }
       }
-    } catch (error) {
+      return { success: false, message: data.error }
+    } catch {
       return { success: false, message: '登录失败，请重试' }
     }
   }
 
   const loginAdmin = async (password: string) => {
     try {
-      const response = await fetch('/api/admin-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
-      })
-      const data = await response.json()
-      if (response.ok) {
+      const { ok, data } = await authApi.loginAdmin(password)
+      if (ok) {
         await applyAuthSession({
           token: data.token,
           user_id: data.user_id || 'admin',
@@ -298,10 +260,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         })
         navigateAfterLogin('/dashboard')
         return { success: true }
-      } else {
-        return { success: false, message: data.error || '登录失败' }
       }
-    } catch (e) {
+      return { success: false, message: data.error || '登录失败' }
+    } catch {
       return { success: false, message: '登录失败，请重试' }
     }
   }
@@ -312,26 +273,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     betaCode?: string
   ) => {
     try {
-      const requestBody: {
-        email: string
-        password: string
-        beta_code?: string
-      } = { email, password }
-      if (betaCode) {
-        requestBody.beta_code = betaCode
-      }
-
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
+      const { ok, data } = await authApi.register(email, password, betaCode)
+      if (ok) {
         return {
           success: true,
           userID: data.user_id,
@@ -339,58 +282,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           qrCodeURL: data.qr_code_url,
           message: data.message,
         }
-      } else {
-        return { success: false, message: data.error }
       }
-    } catch (error) {
+      return { success: false, message: data.error }
+    } catch {
       return { success: false, message: '注册失败，请重试' }
     }
   }
 
   const verifyOTP = async (userID: string, otpCode: string) => {
     try {
-      const response = await fetch('/api/verify-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ user_id: userID, otp_code: otpCode }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
+      const { ok, data } = await authApi.verifyOTP(userID, otpCode)
+      if (ok) {
         await applyAuthSession(data as AuthSessionPayload)
         navigateAfterLogin('/competition')
         return { success: true, message: data.message }
-      } else {
-        return { success: false, message: data.error }
       }
-    } catch (error) {
+      return { success: false, message: data.error }
+    } catch {
       return { success: false, message: 'OTP验证失败，请重试' }
     }
   }
 
   const completeRegistration = async (userID: string, otpCode: string) => {
     try {
-      const response = await fetch('/api/complete-registration', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ user_id: userID, otp_code: otpCode }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
+      const { ok, data } = await authApi.completeRegistration(userID, otpCode)
+      if (ok) {
         await applyAuthSession(data as AuthSessionPayload)
         navigateAfterLogin('/competition')
         return { success: true, message: data.message }
-      } else {
-        return { success: false, message: data.error }
       }
-    } catch (error) {
+      return { success: false, message: data.error }
+    } catch {
       return { success: false, message: '注册完成失败，请重试' }
     }
   }
@@ -401,26 +323,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     otpCode: string
   ) => {
     try {
-      const response = await fetch('/api/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          new_password: newPassword,
-          otp_code: otpCode,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
+      const { ok, data } = await authApi.resetPassword(
+        email,
+        newPassword,
+        otpCode
+      )
+      if (ok) {
         return { success: true, message: data.message }
-      } else {
-        return { success: false, message: data.error }
       }
-    } catch (error) {
+      return { success: false, message: data.error }
+    } catch {
       return { success: false, message: '密码重置失败，请重试' }
     }
   }
@@ -428,12 +340,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     const savedToken = localStorage.getItem('auth_token')
     if (savedToken) {
-      fetch('/api/logout', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${savedToken}` },
-      }).catch(() => {
-        /* ignore network errors on logout */
-      })
+      authApi.logout(savedToken)
     }
     setUser(null)
     setToken(null)

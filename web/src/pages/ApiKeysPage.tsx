@@ -2,15 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { Container } from '../components/Container'
 import { Key, Copy, Trash2, Plus, AlertTriangle, Check, X } from 'lucide-react'
-
-interface ApiKeyRecord {
-  id: string
-  key_prefix: string
-  name: string
-  last_used: string | null
-  expires_at: string | null
-  created_at: string
-}
+import { apiKeysApi, type ApiKeyRecord } from '../lib/api/apiKeys'
 
 export default function ApiKeysPage() {
   const { token } = useAuth()
@@ -28,14 +20,9 @@ export default function ApiKeysPage() {
     try {
       setLoading(true)
       setError('')
-      const res = await fetch('/api/api-keys', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) throw new Error('获取失败')
-      const data = await res.json()
-      setKeys(Array.isArray(data) ? data : [])
-    } catch (e: any) {
-      setError(e.message)
+      setKeys(await apiKeysApi.list())
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : '获取失败')
     } finally {
       setLoading(false)
     }
@@ -48,24 +35,12 @@ export default function ApiKeysPage() {
     try {
       setCreating(true)
       setError('')
-      const res = await fetch('/api/api-keys', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name: newKeyName || '' }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error || '创建失败')
-      }
-      const data = await res.json()
+      const data = await apiKeysApi.create(newKeyName)
       setNewKeyPlaintext(data.api_key)
       setNewKeyName('')
       await loadKeys()
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : '创建失败')
     } finally {
       setCreating(false)
     }
@@ -91,17 +66,10 @@ export default function ApiKeysPage() {
     if (!confirm('确定要撤销这个 API Key 吗？撤销后立即失效。')) return
     try {
       setDeleting(id)
-      const res = await fetch(`/api/api-keys/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error || '删除失败')
-      }
+      await apiKeysApi.revoke(id)
       await loadKeys()
-    } catch (e: any) {
-      setError(e.message)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : '删除失败')
     } finally {
       setDeleting(null)
     }

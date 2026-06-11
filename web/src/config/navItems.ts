@@ -8,6 +8,8 @@ export type NavItem = {
   label?: string
 }
 
+export type AppPageKey = NavItem['key']
+
 /** 已登录用户主导航（faq 无 feature 限制） */
 export const LOGGED_IN_NAV_ITEMS: NavItem[] = [
   {
@@ -53,4 +55,19 @@ export const LOGGED_IN_NAV_ITEMS: NavItem[] = [
     feature: null,
     label: 'API Keys',
   },
+]
+
+const PATH_TO_PAGE: Record<string, AppPageKey> = Object.fromEntries(
+  LOGGED_IN_NAV_ITEMS.map((item) => [item.path, item.key])
+)
+
+/** 根据当前路径解析导航高亮 key */
+export function getCurrentPageFromPath(pathname: string): AppPageKey {
+  return PATH_TO_PAGE[pathname] ?? 'competition'
+}
+
+/** 落地页锚点导航 */
+export const HOME_NAV_ITEMS = [
+  { key: 'features', hash: '#features', labelKey: 'features' as const },
+  { key: 'how-it-works', hash: '#how-it-works', labelKey: 'howItWorks' as const },
 ]

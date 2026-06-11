@@ -11,15 +11,19 @@ import {
   WebCryptoEnvironmentCheck,
   type WebCryptoCheckStatus,
 } from '../WebCryptoEnvironmentCheck'
-import { BookOpen, Trash2, HelpCircle, PlugZap } from 'lucide-react'
+import { BookOpen, Trash2, PlugZap } from 'lucide-react'
 import { toast } from 'sonner'
-import { Tooltip } from './Tooltip'
 import { getShortName } from './utils'
+import {
+  buildTestPayload,
+  canTestConnection,
+  type ExchangeFormValues,
+} from './exchange-config/exchangeConfigUtils'
+import { ExchangeCredentialFields } from './exchange-config/ExchangeCredentialFields'
+import { BinanceSetupGuideModal } from './exchange-config/BinanceSetupGuideModal'
 
 interface ExchangeConfigModalProps {
-  /** 系统支持的全部交易所（用于新建时选择） */
   allExchanges: Exchange[]
-  /** 用户已保存的交易所配置（编辑时读取 testnet 等字段） */
   configuredExchanges?: Exchange[]
   editingExchangeId: string | null
   onSave: (
@@ -68,19 +72,11 @@ export function ExchangeConfigModal({
     ok: boolean
     message: string
   } | null>(null)
-
-  // 币安配置指南展开状态
   const [showBinanceGuide, setShowBinanceGuide] = useState(false)
-
-  // Aster 特定字段
   const [asterUser, setAsterUser] = useState('')
   const [asterSigner, setAsterSigner] = useState('')
   const [asterPrivateKey, setAsterPrivateKey] = useState('')
-
-  // Hyperliquid 特定字段
   const [hyperliquidWalletAddr, setHyperliquidWalletAddr] = useState('')
-
-  // 安全输入状态
   const [secureInputTarget, setSecureInputTarget] = useState<
     null | 'hyperliquid' | 'aster'
   >(null)
@@ -89,24 +85,34 @@ export function ExchangeConfigModal({
     (e) => e.id === selectedExchangeId
   )
 
-  // 编辑时优先用已保存配置，新建时用支持列表中的元数据
   const selectedExchange = editingExchangeId
-    ? configuredExchange ??
-      allExchanges?.find((e) => e.id === selectedExchangeId)
+    ? (configuredExchange ??
+      allExchanges?.find((e) => e.id === selectedExchangeId))
     : allExchanges?.find((e) => e.id === selectedExchangeId)
 
-  // 如果是编辑现有交易所，从用户已保存配置初始化表单
+  const formValues: ExchangeFormValues = {
+    apiKey,
+    secretKey,
+    passphrase,
+    testnet,
+    hyperliquidWalletAddr,
+    asterUser,
+    asterSigner,
+    asterPrivateKey,
+  }
+
+  const hasSavedCredentials =
+    Boolean(editingExchangeId) && Boolean(configuredExchange)
+
   useEffect(() => {
     if (editingExchangeId && configuredExchange) {
       setApiKey(configuredExchange.apiKey || '')
       setSecretKey(configuredExchange.secretKey || '')
-      setPassphrase('') // Don't load existing passphrase for security
+      setPassphrase('')
       setTestnet(Boolean(configuredExchange.testnet))
-
       setAsterUser(configuredExchange.asterUser || '')
       setAsterSigner(configuredExchange.asterSigner || '')
       setAsterPrivateKey('')
-
       setHyperliquidWalletAddr(configuredExchange.hyperliquidWalletAddr || '')
     } else if (!editingExchangeId) {
       setTestnet(false)
@@ -126,66 +132,44 @@ export function ExchangeConfigModal({
     asterPrivateKey,
   ])
 
-  // 加载服务器IP（当选择binance时）
   useEffect(() => {
     if (selectedExchangeId === 'binance' && !serverIP) {
       setLoadingIP(true)
       api
         .getServerIP()
-        .then((data) => {
-          setServerIP(data)
-        })
-        .catch((err) => {
-          console.error('Failed to load server IP:', err)
-        })
-        .finally(() => {
-          setLoadingIP(false)
-        })
+        .then((data) => setServerIP(data))
+        .catch((err) => console.error('Failed to load server IP:', err))
+        .finally(() => setLoadingIP(false))
     }
-  }, [selectedExchangeId])
+  }, [selectedExchangeId, serverIP])
 
   const handleCopyIP = async (ip: string) => {
     try {
-      // 优先使用现代 Clipboard API
-      if (navigator.clipboard && navigator.clipboard.writeText) {
+      if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(ip)
-        setCopiedIP(true)
-        setTimeout(() => setCopiedIP(false), 2000)
-        toast.success(t('ipCopied', language))
       } else {
-        // 降级方案: 使用传统的 execCommand 方法
         const textArea = document.createElement('textarea')
         textArea.value = ip
         textArea.style.position = 'fixed'
         textArea.style.left = '-999999px'
-        textArea.style.top = '-999999px'
         document.body.appendChild(textArea)
         textArea.focus()
         textArea.select()
-
-        try {
-          const successful = document.execCommand('copy')
-          if (successful) {
-            setCopiedIP(true)
-            setTimeout(() => setCopiedIP(false), 2000)
-            toast.success(t('ipCopied', language))
-          } else {
-            throw new Error('复制命令执行失败')
-          }
-        } finally {
-          document.body.removeChild(textArea)
-        }
+        const successful = document.execCommand('copy')
+        document.body.removeChild(textArea)
+        if (!successful) throw new Error('复制命令执行失败')
       }
+      setCopiedIP(true)
+      setTimeout(() => setCopiedIP(false), 2000)
+      toast.success(t('ipCopied', language))
     } catch (err) {
       console.error('复制失败:', err)
-      // 显示错误提示
       toast.error(
         t('copyIPFailed', language) || `复制失败: ${ip}\n请手动复制此IP地址`
       )
     }
   }
 
-  // 安全输入处理函数
   const secureInputContextLabel =
     secureInputTarget === 'aster'
       ? t('asterExchangeName', language)
@@ -193,90 +177,21 @@ export function ExchangeConfigModal({
         ? t('hyperliquidExchangeName', language)
         : undefined
 
-  const handleSecureInputCancel = () => {
-    setSecureInputTarget(null)
-  }
-
   const handleSecureInputComplete = ({
     value,
     obfuscationLog,
   }: TwoStageKeyModalResult) => {
     const trimmed = value.trim()
-    if (secureInputTarget === 'hyperliquid') {
-      setApiKey(trimmed)
-    }
-    if (secureInputTarget === 'aster') {
-      setAsterPrivateKey(trimmed)
-    }
+    if (secureInputTarget === 'hyperliquid') setApiKey(trimmed)
+    if (secureInputTarget === 'aster') setAsterPrivateKey(trimmed)
     console.log('Secure input obfuscation log:', obfuscationLog)
     setSecureInputTarget(null)
-  }
-
-  // 掩盖敏感数据显示
-  const maskSecret = (secret: string) => {
-    if (!secret || secret.length === 0) return ''
-    if (secret.length <= 8) return '*'.repeat(secret.length)
-    return (
-      secret.slice(0, 4) +
-      '*'.repeat(Math.max(secret.length - 8, 4)) +
-      secret.slice(-4)
-    )
-  }
-
-  const hasSavedCredentials =
-    Boolean(editingExchangeId) && Boolean(configuredExchange)
-
-  const canTestConnection = (): boolean => {
-    if (!selectedExchange) return false
-
-    if (selectedExchange.id === 'binance') {
-      // API Key 与 Secret 必须成对使用，避免新 Key 搭配旧 Secret 导致 -1022
-      return Boolean(apiKey.trim()) && Boolean(secretKey.trim())
-    }
-    if (selectedExchange.id === 'hyperliquid') {
-      return Boolean(apiKey.trim()) && Boolean(hyperliquidWalletAddr.trim())
-    }
-    if (selectedExchange.id === 'aster') {
-      const hasPrivateKey =
-        Boolean(asterPrivateKey.trim()) || hasSavedCredentials
-      return (
-        Boolean(asterUser.trim()) &&
-        Boolean(asterSigner.trim()) &&
-        hasPrivateKey
-      )
-    }
-    if (selectedExchange.id === 'okx') {
-      const hasPassphrase =
-        Boolean(passphrase.trim()) || hasSavedCredentials
-      return (
-        Boolean(apiKey.trim()) &&
-        Boolean(secretKey.trim()) &&
-        hasPassphrase
-      )
-    }
-    return Boolean(apiKey.trim()) && Boolean(secretKey.trim())
-  }
-
-  const buildTestPayload = () => {
-    if (!selectedExchange) return null
-
-    return {
-      exchange_id: selectedExchange.id,
-      api_key: apiKey.trim(),
-      secret_key: secretKey.trim(),
-      testnet,
-      hyperliquid_wallet_addr: hyperliquidWalletAddr.trim(),
-      aster_user: asterUser.trim(),
-      aster_signer: asterSigner.trim(),
-      aster_private_key: asterPrivateKey.trim(),
-      passphrase: passphrase.trim(),
-    }
   }
 
   const handleTestConnection = async () => {
     if (!selectedExchange) return
 
-    if (!canTestConnection()) {
+    if (!canTestConnection(selectedExchange, formValues, hasSavedCredentials)) {
       const msg =
         selectedExchange.id === 'binance'
           ? t('testConnectionKeyPairRequired', language)
@@ -286,9 +201,7 @@ export function ExchangeConfigModal({
       return
     }
 
-    const payload = buildTestPayload()
-    if (!payload) return
-
+    const payload = buildTestPayload(selectedExchange, formValues)
     setTestingConnection(true)
     setTestResult(null)
 
@@ -323,14 +236,13 @@ export function ExchangeConfigModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedExchangeId) return
+    if (!selectedExchangeId || !selectedExchange) return
 
-    // 根据交易所类型验证不同字段
-    if (selectedExchange?.id === 'binance') {
+    if (selectedExchange.id === 'binance') {
       if (!apiKey.trim() || !secretKey.trim()) return
       await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet)
-    } else if (selectedExchange?.id === 'hyperliquid') {
-      if (!apiKey.trim() || !hyperliquidWalletAddr.trim()) return // 验证私钥和钱包地址
+    } else if (selectedExchange.id === 'hyperliquid') {
+      if (!apiKey.trim() || !hyperliquidWalletAddr.trim()) return
       await onSave(
         selectedExchangeId,
         apiKey.trim(),
@@ -338,7 +250,7 @@ export function ExchangeConfigModal({
         testnet,
         hyperliquidWalletAddr.trim()
       )
-    } else if (selectedExchange?.id === 'aster') {
+    } else if (selectedExchange.id === 'aster') {
       if (!asterUser.trim() || !asterSigner.trim() || !asterPrivateKey.trim())
         return
       await onSave(
@@ -351,7 +263,7 @@ export function ExchangeConfigModal({
         asterSigner.trim(),
         asterPrivateKey.trim()
       )
-    } else if (selectedExchange?.id === 'okx') {
+    } else if (selectedExchange.id === 'okx') {
       const hasPassphrase =
         Boolean(passphrase.trim()) || hasSavedCredentials
       if (!apiKey.trim() || !secretKey.trim() || !hasPassphrase) {
@@ -370,14 +282,14 @@ export function ExchangeConfigModal({
         passphrase.trim()
       )
     } else {
-      // 默认情况（其他CEX交易所）
       if (!apiKey.trim() || !secretKey.trim()) return
       await onSave(selectedExchangeId, apiKey.trim(), secretKey.trim(), testnet)
     }
   }
 
-  // 可选择的交易所列表（所有支持的交易所）
-  const availableExchanges = allExchanges || []
+  const canTest = selectedExchange
+    ? canTestConnection(selectedExchange, formValues, hasSavedCredentials)
+    : false
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -472,7 +384,7 @@ export function ExchangeConfigModal({
                     <option value="">
                       {t('pleaseSelectExchange', language)}
                     </option>
-                    {availableExchanges.map((exchange) => (
+                    {(allExchanges || []).map((exchange) => (
                       <option key={exchange.id} value={exchange.id}>
                         {getShortName(exchange.name)} (
                         {exchange.type.toUpperCase()})
@@ -515,7 +427,10 @@ export function ExchangeConfigModal({
               >
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-sm font-semibold" style={{ color: '#EAECEF' }}>
+                    <div
+                      className="text-sm font-semibold"
+                      style={{ color: '#EAECEF' }}
+                    >
                       {t('useTestnet', language)}
                     </div>
                     <div className="text-xs mt-1" style={{ color: '#848E9C' }}>
@@ -547,466 +462,36 @@ export function ExchangeConfigModal({
             )}
 
             {selectedExchange && (
-              <>
-                {/* Binance 和其他 CEX 交易所的字段 */}
-                {(selectedExchange.id === 'binance' ||
-                  selectedExchange.id === 'okx' ||
-                  selectedExchange.type === 'cex') &&
-                  selectedExchange.id !== 'hyperliquid' &&
-                  selectedExchange.id !== 'aster' && (
-                    <>
-                      {/* 币安用户配置提示 (D1 方案) */}
-                      {selectedExchange.id === 'binance' && (
-                        <div
-                          className="mb-4 p-3 rounded cursor-pointer transition-colors"
-                          style={{
-                            background: '#1a3a52',
-                            border: '1px solid #2b5278',
-                          }}
-                          onClick={() => setShowBinanceGuide(!showBinanceGuide)}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span style={{ color: '#58a6ff' }}>ℹ️</span>
-                              <span
-                                className="text-sm font-medium"
-                                style={{ color: '#EAECEF' }}
-                              >
-                                <strong>币安用户必读：</strong>
-                                使用「现货与合约交易」API，不要用「统一账户
-                                API」
-                              </span>
-                            </div>
-                            <span style={{ color: '#8b949e' }}>
-                              {showBinanceGuide ? '▲' : '▼'}
-                            </span>
-                          </div>
-
-                          {/* 展开的详细说明 */}
-                          {showBinanceGuide && (
-                            <div
-                              className="mt-3 pt-3"
-                              style={{
-                                borderTop: '1px solid #2b5278',
-                                fontSize: '0.875rem',
-                                color: '#c9d1d9',
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <p className="mb-2" style={{ color: '#8b949e' }}>
-                                <strong>原因：</strong>统一账户 API
-                                权限结构不同，会导致订单提交失败
-                              </p>
-
-                              <p
-                                className="font-semibold mb-1"
-                                style={{ color: '#EAECEF' }}
-                              >
-                                正确配置步骤：
-                              </p>
-                              <ol
-                                className="list-decimal list-inside space-y-1 mb-3"
-                                style={{ paddingLeft: '0.5rem' }}
-                              >
-                                <li>
-                                  登录币安 → 个人中心 →{' '}
-                                  <strong>API 管理</strong>
-                                </li>
-                                <li>
-                                  创建 API → 选择「
-                                  <strong>系统生成的 API 密钥</strong>」
-                                </li>
-                                <li>
-                                  勾选「<strong>现货与合约交易</strong>」（
-                                  <span style={{ color: '#f85149' }}>
-                                    不选统一账户
-                                  </span>
-                                  ）
-                                </li>
-                                <li>
-                                  IP 限制选「<strong>无限制</strong>
-                                  」或添加服务器 IP
-                                </li>
-                              </ol>
-
-                              <p
-                                className="mb-2 p-2 rounded"
-                                style={{
-                                  background: '#3d2a00',
-                                  border: '1px solid #9e6a03',
-                                }}
-                              >
-                                💡 <strong>多资产模式用户注意：</strong>
-                                如果您开启了多资产模式，将强制使用全仓模式。建议关闭多资产模式以支持逐仓交易。
-                              </p>
-
-                              <a
-                                href="https://www.binance.com/zh-CN/support/faq/how-to-create-api-keys-on-binance-360002502072"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-block text-sm hover:underline"
-                                style={{ color: '#58a6ff' }}
-                              >
-                                📖 查看币安官方教程 ↗
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <div>
-                        <label
-                          className="block text-sm font-semibold mb-2"
-                          style={{ color: '#EAECEF' }}
-                        >
-                          {t('apiKey', language)}
-                        </label>
-                        <input
-                          type="password"
-                          value={apiKey}
-                          onChange={(e) => setApiKey(e.target.value)}
-                          placeholder={t('enterAPIKey', language)}
-                          className="w-full px-3 py-2 rounded"
-                          style={{
-                            background: '#0B0E11',
-                            border: '1px solid #2B3139',
-                            color: '#EAECEF',
-                          }}
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label
-                          className="block text-sm font-semibold mb-2"
-                          style={{ color: '#EAECEF' }}
-                        >
-                          {t('secretKey', language)}
-                        </label>
-                        <input
-                          type="password"
-                          value={secretKey}
-                          onChange={(e) => setSecretKey(e.target.value)}
-                          placeholder={t('enterSecretKey', language)}
-                          className="w-full px-3 py-2 rounded"
-                          style={{
-                            background: '#0B0E11',
-                            border: '1px solid #2B3139',
-                            color: '#EAECEF',
-                          }}
-                          required
-                        />
-                      </div>
-
-                      {selectedExchange.id === 'okx' && (
-                        <div>
-                          <label
-                            className="block text-sm font-semibold mb-2"
-                            style={{ color: '#EAECEF' }}
-                          >
-                            {t('passphrase', language)}
-                          </label>
-                          <input
-                            type="password"
-                            value={passphrase}
-                            onChange={(e) => setPassphrase(e.target.value)}
-                            placeholder={t('enterPassphrase', language)}
-                            className="w-full px-3 py-2 rounded"
-                            style={{
-                              background: '#0B0E11',
-                              border: '1px solid #2B3139',
-                              color: '#EAECEF',
-                            }}
-                            required
-                          />
-                        </div>
-                      )}
-
-                      {/* Binance 白名单IP提示 */}
-                      {selectedExchange.id === 'binance' && (
-                        <div
-                          className="p-4 rounded"
-                          style={{
-                            background: 'rgba(240, 185, 11, 0.1)',
-                            border: '1px solid rgba(240, 185, 11, 0.2)',
-                          }}
-                        >
-                          <div
-                            className="text-sm font-semibold mb-2"
-                            style={{ color: '#F0B90B' }}
-                          >
-                            {t('whitelistIP', language)}
-                          </div>
-                          <div
-                            className="text-xs mb-3"
-                            style={{ color: '#848E9C' }}
-                          >
-                            {t('whitelistIPDesc', language)}
-                          </div>
-
-                          {loadingIP ? (
-                            <div
-                              className="text-xs"
-                              style={{ color: '#848E9C' }}
-                            >
-                              {t('loadingServerIP', language)}
-                            </div>
-                          ) : serverIP && serverIP.public_ip ? (
-                            <div
-                              className="flex items-center gap-2 p-2 rounded"
-                              style={{ background: '#0B0E11' }}
-                            >
-                              <code
-                                className="flex-1 text-sm font-mono"
-                                style={{ color: '#F0B90B' }}
-                              >
-                                {serverIP.public_ip}
-                              </code>
-                              <button
-                                type="button"
-                                onClick={() => handleCopyIP(serverIP.public_ip)}
-                                className="px-3 py-1 rounded text-xs font-semibold transition-all hover:scale-105"
-                                style={{
-                                  background: 'rgba(240, 185, 11, 0.2)',
-                                  color: '#F0B90B',
-                                }}
-                              >
-                                {copiedIP
-                                  ? t('ipCopied', language)
-                                  : t('copyIP', language)}
-                              </button>
-                            </div>
-                          ) : null}
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                {/* Aster 交易所的字段 */}
-                {selectedExchange.id === 'aster' && (
-                  <>
-                    <div>
-                      <label
-                        className="block text-sm font-semibold mb-2 flex items-center gap-2"
-                        style={{ color: '#EAECEF' }}
-                      >
-                        {t('user', language)}
-                        <Tooltip content={t('asterUserDesc', language)}>
-                          <HelpCircle
-                            className="w-4 h-4 cursor-help"
-                            style={{ color: '#F0B90B' }}
-                          />
-                        </Tooltip>
-                      </label>
-                      <input
-                        type="text"
-                        value={asterUser}
-                        onChange={(e) => setAsterUser(e.target.value)}
-                        placeholder={t('enterUser', language)}
-                        className="w-full px-3 py-2 rounded"
-                        style={{
-                          background: '#0B0E11',
-                          border: '1px solid #2B3139',
-                          color: '#EAECEF',
-                        }}
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        className="block text-sm font-semibold mb-2 flex items-center gap-2"
-                        style={{ color: '#EAECEF' }}
-                      >
-                        {t('signer', language)}
-                        <Tooltip content={t('asterSignerDesc', language)}>
-                          <HelpCircle
-                            className="w-4 h-4 cursor-help"
-                            style={{ color: '#F0B90B' }}
-                          />
-                        </Tooltip>
-                      </label>
-                      <input
-                        type="text"
-                        value={asterSigner}
-                        onChange={(e) => setAsterSigner(e.target.value)}
-                        placeholder={t('enterSigner', language)}
-                        className="w-full px-3 py-2 rounded"
-                        style={{
-                          background: '#0B0E11',
-                          border: '1px solid #2B3139',
-                          color: '#EAECEF',
-                        }}
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        className="block text-sm font-semibold mb-2 flex items-center gap-2"
-                        style={{ color: '#EAECEF' }}
-                      >
-                        {t('privateKey', language)}
-                        <Tooltip content={t('asterPrivateKeyDesc', language)}>
-                          <HelpCircle
-                            className="w-4 h-4 cursor-help"
-                            style={{ color: '#F0B90B' }}
-                          />
-                        </Tooltip>
-                      </label>
-                      <input
-                        type="password"
-                        value={asterPrivateKey}
-                        onChange={(e) => setAsterPrivateKey(e.target.value)}
-                        placeholder={t('enterPrivateKey', language)}
-                        className="w-full px-3 py-2 rounded"
-                        style={{
-                          background: '#0B0E11',
-                          border: '1px solid #2B3139',
-                          color: '#EAECEF',
-                        }}
-                        required
-                      />
-                    </div>
-                  </>
-                )}
-
-                {/* Hyperliquid 交易所的字段 */}
-                {selectedExchange.id === 'hyperliquid' && (
-                  <>
-                    {/* 安全提示 banner */}
-                    <div
-                      className="p-3 rounded mb-4"
-                      style={{
-                        background: 'rgba(240, 185, 11, 0.1)',
-                        border: '1px solid rgba(240, 185, 11, 0.3)',
-                      }}
-                    >
-                      <div className="flex items-start gap-2">
-                        <span style={{ color: '#F0B90B', fontSize: '16px' }}>
-                          🔐
-                        </span>
-                        <div className="flex-1">
-                          <div
-                            className="text-sm font-semibold mb-1"
-                            style={{ color: '#F0B90B' }}
-                          >
-                            {t('hyperliquidAgentWalletTitle', language)}
-                          </div>
-                          <div
-                            className="text-xs"
-                            style={{ color: '#848E9C', lineHeight: '1.5' }}
-                          >
-                            {t('hyperliquidAgentWalletDesc', language)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Agent Private Key 字段 */}
-                    <div>
-                      <label
-                        className="block text-sm font-semibold mb-2"
-                        style={{ color: '#EAECEF' }}
-                      >
-                        {t('hyperliquidAgentPrivateKey', language)}
-                      </label>
-                      <div className="flex flex-col gap-2">
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={maskSecret(apiKey)}
-                            readOnly
-                            placeholder={t(
-                              'enterHyperliquidAgentPrivateKey',
-                              language
-                            )}
-                            className="w-full px-3 py-2 rounded"
-                            style={{
-                              background: '#0B0E11',
-                              border: '1px solid #2B3139',
-                              color: '#EAECEF',
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setSecureInputTarget('hyperliquid')}
-                            className="px-3 py-2 rounded text-xs font-semibold transition-all hover:scale-105"
-                            style={{
-                              background: '#F0B90B',
-                              color: '#000',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {apiKey
-                              ? t('secureInputReenter', language)
-                              : t('secureInputButton', language)}
-                          </button>
-                          {apiKey && (
-                            <button
-                              type="button"
-                              onClick={() => setApiKey('')}
-                              className="px-3 py-2 rounded text-xs font-semibold transition-all hover:scale-105"
-                              style={{
-                                background: '#1B1F2B',
-                                color: '#848E9C',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {t('secureInputClear', language)}
-                            </button>
-                          )}
-                        </div>
-                        {apiKey && (
-                          <div className="text-xs" style={{ color: '#848E9C' }}>
-                            {t('secureInputHint', language)}
-                          </div>
-                        )}
-                      </div>
-                      <div
-                        className="text-xs mt-1"
-                        style={{ color: '#848E9C' }}
-                      >
-                        {t('hyperliquidAgentPrivateKeyDesc', language)}
-                      </div>
-                    </div>
-
-                    {/* Main Wallet Address 字段 */}
-                    <div>
-                      <label
-                        className="block text-sm font-semibold mb-2"
-                        style={{ color: '#EAECEF' }}
-                      >
-                        {t('hyperliquidMainWalletAddress', language)}
-                      </label>
-                      <input
-                        type="text"
-                        value={hyperliquidWalletAddr}
-                        onChange={(e) =>
-                          setHyperliquidWalletAddr(e.target.value)
-                        }
-                        placeholder={t(
-                          'enterHyperliquidMainWalletAddress',
-                          language
-                        )}
-                        className="w-full px-3 py-2 rounded"
-                        style={{
-                          background: '#0B0E11',
-                          border: '1px solid #2B3139',
-                          color: '#EAECEF',
-                        }}
-                        required
-                      />
-                      <div
-                        className="text-xs mt-1"
-                        style={{ color: '#848E9C' }}
-                      >
-                        {t('hyperliquidMainWalletAddressDesc', language)}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </>
+              <ExchangeCredentialFields
+                selectedExchange={selectedExchange}
+                language={language}
+                apiKey={apiKey}
+                secretKey={secretKey}
+                passphrase={passphrase}
+                asterUser={asterUser}
+                asterSigner={asterSigner}
+                asterPrivateKey={asterPrivateKey}
+                hyperliquidWalletAddr={hyperliquidWalletAddr}
+                showBinanceGuide={showBinanceGuide}
+                serverIP={serverIP}
+                loadingIP={loadingIP}
+                copiedIP={copiedIP}
+                onApiKeyChange={setApiKey}
+                onSecretKeyChange={setSecretKey}
+                onPassphraseChange={setPassphrase}
+                onAsterUserChange={setAsterUser}
+                onAsterSignerChange={setAsterSigner}
+                onAsterPrivateKeyChange={setAsterPrivateKey}
+                onHyperliquidWalletAddrChange={setHyperliquidWalletAddr}
+                onToggleBinanceGuide={() =>
+                  setShowBinanceGuide(!showBinanceGuide)
+                }
+                onCopyIP={handleCopyIP}
+                onSecureInputHyperliquid={() =>
+                  setSecureInputTarget('hyperliquid')
+                }
+                onClearApiKey={() => setApiKey('')}
+              />
             )}
           </div>
 
@@ -1032,11 +517,7 @@ export function ExchangeConfigModal({
             <button
               type="button"
               onClick={handleTestConnection}
-              disabled={
-                testingConnection ||
-                !selectedExchange ||
-                !canTestConnection()
-              }
+              disabled={testingConnection || !selectedExchange || !canTest}
               className="w-full px-4 py-2 rounded text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
               style={{ background: '#2B3139', color: '#EAECEF' }}
             >
@@ -1087,51 +568,18 @@ export function ExchangeConfigModal({
         </form>
       </div>
 
-      {/* Binance Setup Guide Modal */}
-      {showGuide && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowGuide(false)}
-        >
-          <div
-            className="bg-gray-800 rounded-lg p-6 w-full max-w-4xl relative"
-            style={{ background: '#1E2329' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3
-                className="text-xl font-bold flex items-center gap-2"
-                style={{ color: '#EAECEF' }}
-              >
-                <BookOpen className="w-6 h-6" style={{ color: '#F0B90B' }} />
-                {t('binanceSetupGuide', language)}
-              </h3>
-              <button
-                onClick={() => setShowGuide(false)}
-                className="px-4 py-2 rounded text-sm font-semibold transition-all hover:scale-105"
-                style={{ background: '#2B3139', color: '#848E9C' }}
-              >
-                {t('closeGuide', language)}
-              </button>
-            </div>
-            <div className="overflow-y-auto max-h-[80vh]">
-              <img
-                src="/images/guide.png"
-                alt={t('binanceSetupGuide', language)}
-                className="w-full h-auto rounded"
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <BinanceSetupGuideModal
+        open={showGuide}
+        language={language}
+        onClose={() => setShowGuide(false)}
+      />
 
-      {/* Two Stage Key Modal */}
       <TwoStageKeyModal
         isOpen={secureInputTarget !== null}
         language={language}
         contextLabel={secureInputContextLabel}
         expectedLength={64}
-        onCancel={handleSecureInputCancel}
+        onCancel={() => setSecureInputTarget(null)}
         onComplete={handleSecureInputComplete}
       />
     </div>

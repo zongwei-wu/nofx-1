@@ -5,7 +5,6 @@ import {
   Wrench,
   Bot,
   Database,
-  GitBranch,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -55,23 +54,6 @@ export const faqCategories: FAQCategory[] = [
         id: 'multiple-traders',
         questionKey: 'faqMultipleTraders',
         answerKey: 'faqMultipleTradersAnswer',
-      },
-    ],
-  },
-  {
-    id: 'contributing',
-    titleKey: 'faqCategoryContributing',
-    icon: GitBranch,
-    items: [
-      {
-        id: 'github-projects-tasks',
-        questionKey: 'faqGithubProjectsTasks',
-        answerKey: 'faqGithubProjectsTasksAnswer',
-      },
-      {
-        id: 'contribute-pr-guidelines',
-        questionKey: 'faqContributePR',
-        answerKey: 'faqContributePRAnswer',
       },
     ],
   },
