@@ -43,6 +43,8 @@ func createTraderFromCredentials(userID string, creds resolvedExchangeCredential
 		return trader.NewAsterTrader(creds.AsterUser, creds.AsterSigner, creds.AsterPrivateKey)
 	case "okx":
 		return trader.NewOKXTrader(creds.APIKey, creds.SecretKey, creds.Passphrase, creds.Testnet)
+	case "gate":
+		return trader.NewGateTrader(creds.APIKey, creds.SecretKey, creds.Testnet)
 	default:
 		return nil, fmt.Errorf("不支持的交易所: %s", creds.ExchangeID)
 	}

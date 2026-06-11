@@ -224,6 +224,7 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		BinanceTestnet:        exchangeCfg.ID == "binance" && exchangeCfg.Testnet,
 		OKXTestnet:            exchangeCfg.ID == "okx" && exchangeCfg.Testnet,
 		HyperliquidTestnet:    exchangeCfg.ID == "hyperliquid" && exchangeCfg.Testnet,
+		GateTestnet:           exchangeCfg.ID == "gate" && exchangeCfg.Testnet,
 		CoinPoolAPIURL:        effectiveCoinPoolURL,
 		UseQwen:               aiModelCfg.Provider == "qwen",
 		DeepSeekKey:           "",
@@ -259,6 +260,10 @@ func (tm *TraderManager) addTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		traderConfig.OKXSecretKey = exchangeCfg.SecretKey
 		traderConfig.OKXPassphrase = exchangeCfg.Passphrase
 		traderConfig.OKXTestnet = exchangeCfg.Testnet
+	} else if exchangeCfg.ID == "gate" {
+		traderConfig.GateAPIKey = exchangeCfg.APIKey
+		traderConfig.GateSecretKey = exchangeCfg.SecretKey
+		traderConfig.GateTestnet = exchangeCfg.Testnet
 	}
 
 	// 根据AI模型设置API密钥
@@ -338,6 +343,7 @@ func (tm *TraderManager) AddTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		BinanceTestnet:        exchangeCfg.ID == "binance" && exchangeCfg.Testnet,
 		OKXTestnet:            exchangeCfg.ID == "okx" && exchangeCfg.Testnet,
 		HyperliquidTestnet:    exchangeCfg.ID == "hyperliquid" && exchangeCfg.Testnet,
+		GateTestnet:           exchangeCfg.ID == "gate" && exchangeCfg.Testnet,
 		CoinPoolAPIURL:        effectiveCoinPoolURL,
 		UseQwen:               aiModelCfg.Provider == "qwen",
 		DeepSeekKey:           "",
@@ -372,6 +378,10 @@ func (tm *TraderManager) AddTraderFromDB(traderCfg *config.TraderRecord, aiModel
 		traderConfig.OKXSecretKey = exchangeCfg.SecretKey
 		traderConfig.OKXPassphrase = exchangeCfg.Passphrase
 		traderConfig.OKXTestnet = exchangeCfg.Testnet
+	} else if exchangeCfg.ID == "gate" {
+		traderConfig.GateAPIKey = exchangeCfg.APIKey
+		traderConfig.GateSecretKey = exchangeCfg.SecretKey
+		traderConfig.GateTestnet = exchangeCfg.Testnet
 	}
 
 	// 根据AI模型设置API密钥
@@ -1097,6 +1107,10 @@ func (tm *TraderManager) loadSingleTrader(traderCfg *config.TraderRecord, aiMode
 		traderConfig.OKXSecretKey = exchangeCfg.SecretKey
 		traderConfig.OKXPassphrase = exchangeCfg.Passphrase
 		traderConfig.OKXTestnet = exchangeCfg.Testnet
+	} else if exchangeCfg.ID == "gate" {
+		traderConfig.GateAPIKey = exchangeCfg.APIKey
+		traderConfig.GateSecretKey = exchangeCfg.SecretKey
+		traderConfig.GateTestnet = exchangeCfg.Testnet
 	}
 
 	// 根据AI模型设置API密钥

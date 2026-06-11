@@ -113,6 +113,10 @@ func validateExchangeCredentials(creds resolvedExchangeCredentials) error {
 		if creds.APIKey == "" || creds.SecretKey == "" || creds.Passphrase == "" {
 			return fmt.Errorf("OKX API Key、Secret Key 和 Passphrase 不能为空")
 		}
+	case "gate":
+		if creds.APIKey == "" || creds.SecretKey == "" {
+			return fmt.Errorf("Gate API Key 和 Secret Key 不能为空")
+		}
 	default:
 		return fmt.Errorf("暂不支持该交易所连接测试")
 	}

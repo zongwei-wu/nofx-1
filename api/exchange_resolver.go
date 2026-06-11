@@ -74,6 +74,8 @@ func createTraderForExchange(userID string, ex *config.ExchangeConfig) (trader.T
 		return trader.NewFuturesTrader(ex.APIKey, ex.SecretKey, userID, ex.Testnet), nil
 	case "okx":
 		return trader.NewOKXTrader(ex.APIKey, ex.SecretKey, ex.Passphrase, ex.Testnet)
+	case "gate":
+		return trader.NewGateTrader(ex.APIKey, ex.SecretKey, ex.Testnet)
 	default:
 		return nil, fmt.Errorf("不支持的交易所: %s", ex.ID)
 	}
@@ -101,6 +103,8 @@ func invalidateTraderAccountCache(t trader.Trader) {
 		v.InvalidateAccountCache()
 	case *trader.OKXTrader:
 		v.InvalidateAccountCache()
+	case *trader.GateTrader:
+		v.InvalidateAccountCache()
 	}
 }
 
@@ -109,6 +113,8 @@ func asContractQtyConverter(t trader.Trader) contractQtyConverter {
 	case *trader.FuturesTrader:
 		return v
 	case *trader.OKXTrader:
+		return v
+	case *trader.GateTrader:
 		return v
 	default:
 		return nil
@@ -121,6 +127,8 @@ func exchangeOrderQtyLabel(exchangeID string) string {
 		return "OKX 合约"
 	case "binance":
 		return "币安合约"
+	case "gate":
+		return "Gate 合约"
 	default:
 		return "合约"
 	}

@@ -46,6 +46,11 @@ type AutoTraderConfig struct {
 	AsterSigner     string // Aster API钱包地址
 	AsterPrivateKey string // Aster API钱包私钥
 
+	// Gate配置
+	GateAPIKey    string
+	GateSecretKey string
+	GateTestnet   bool
+
 	CoinPoolAPIURL string
 
 	// AI配置
@@ -208,6 +213,15 @@ func NewAutoTrader(config AutoTraderConfig, database interface{}, userID string)
 		trader, err = NewOKXTrader(config.OKXAPIKey, config.OKXSecretKey, config.OKXPassphrase, config.OKXTestnet)
 		if err != nil {
 			return nil, fmt.Errorf("初始化OKX交易器失败: %w", err)
+		}
+	case "gate":
+		log.Printf("🏦 [%s] 使用Gate合约交易", config.Name)
+		if config.GateTestnet {
+			log.Printf("  🔬 [%s] 使用 Gate 模拟盘", config.Name)
+		}
+		trader, err = NewGateTrader(config.GateAPIKey, config.GateSecretKey, config.GateTestnet)
+		if err != nil {
+			return nil, fmt.Errorf("初始化Gate交易器失败: %w", err)
 		}
 	default:
 		return nil, fmt.Errorf("不支持的交易平台: %s", config.Exchange)

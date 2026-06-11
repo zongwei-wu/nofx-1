@@ -125,6 +125,33 @@ const AsterIcon: React.FC<IconProps> = ({
   </svg>
 )
 
+// Gate SVG 图标组件
+const GateIcon: React.FC<IconProps> = ({
+  width = 24,
+  height = 24,
+  className,
+}) => (
+  <svg
+    width={width}
+    height={height}
+    viewBox="0 0 64 64"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <circle cx="32" cy="32" r="32" fill="#17E6A1" />
+    <path
+      d="M20 20h6v14c0 5.523 4.477 10 10 10h2v6H36c-8.837 0-16-7.163-16-16V20z"
+      fill="#fff"
+    />
+    <path
+      d="M26 26h6v8c0 3.314 2.686 6 6 6h2v6h-2c-6.627 0-12-5.373-12-12V26z"
+      fill="#fff"
+      opacity=".7"
+    />
+  </svg>
+)
+
 // 获取交易所图标的函数
 export const getExchangeIcon = (
   exchangeType: string,
@@ -137,7 +164,9 @@ export const getExchangeIcon = (
       ? 'hyperliquid'
       : exchangeType.toLowerCase().includes('aster')
         ? 'aster'
-        : exchangeType.toLowerCase()
+        : exchangeType.toLowerCase().includes('gate')
+          ? 'gate'
+          : exchangeType.toLowerCase()
 
   const iconProps = {
     width: props.width || 24,
@@ -154,6 +183,8 @@ export const getExchangeIcon = (
       return <HyperliquidIcon {...iconProps} />
     case 'aster':
       return <AsterIcon {...iconProps} />
+    case 'gate':
+      return <GateIcon {...iconProps} />
     default:
       return (
         <div
