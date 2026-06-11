@@ -114,9 +114,9 @@ export function AITradersPage({ onTraderSelect }: AITradersPageProps) {
   })
 
   // 计算派生状态
-  const enabledModels = allModels?.filter((m) => m.enabled) || []
+  const enabledModels = (Array.isArray(allModels) ? allModels : []).filter((m) => m.enabled)
   const enabledExchanges =
-    allExchanges?.filter((e) => {
+    (Array.isArray(allExchanges) ? allExchanges : []).filter((e) => {
       if (!e.enabled) return false
       if (e.id === 'aster') {
         return e.asterUser?.trim() && e.asterSigner?.trim()

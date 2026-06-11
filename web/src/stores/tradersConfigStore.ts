@@ -56,9 +56,10 @@ export const useTradersConfigStore = create<TradersConfigState>((set, get) => ({
   },
 
   setAllExchanges: (exchanges) => {
-    set({ allExchanges: exchanges })
+    const safeExchanges = Array.isArray(exchanges) ? exchanges : []
+    set({ allExchanges: safeExchanges })
     // 更新 configuredExchanges
-    const configuredExchanges = exchanges.filter((e) => {
+    const configuredExchanges = safeExchanges.filter((e) => {
       if (e.id === 'aster') {
         return e.asterUser && e.asterUser.trim() !== ''
       }
