@@ -678,6 +678,12 @@ func (s *Server) handleCreateTrader(c *gin.Context) {
 				exchangeCfg.Passphrase,
 				exchangeCfg.Testnet,
 			)
+		case "gate":
+			tempTrader, createErr = trader.NewGateTrader(
+				exchangeCfg.APIKey,
+				exchangeCfg.SecretKey,
+				exchangeCfg.Testnet,
+			)
 		default:
 			log.Printf("⚠️ 不支持的交易所类型: %s，使用用户输入的初始资金", req.ExchangeID)
 		}
