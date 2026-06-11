@@ -19,8 +19,9 @@ import (
 )
 
 const (
-	gateMainnetBaseURL = "https://api.gateio.ws/api/v4"
-	gateCacheDuration  = 15 * time.Second
+	gateMainnetBaseURL  = "https://api.gateio.ws/api/v4"
+	gateTestnetBaseURL  = "https://fx-api-testnet.gateio.ws/api/v4"
+	gateCacheDuration   = 15 * time.Second
 )
 
 // GateContract Gate USDT 永续合约规格
@@ -79,6 +80,7 @@ func NewGateTrader(apiKey, secretKey string, testnet bool) (*GateTrader, error) 
 	}
 
 	if testnet {
+		t.baseURL = gateTestnetBaseURL
 		log.Printf("  🔬 使用 Gate 模拟盘 (Testnet)")
 	} else {
 		log.Printf("  🌐 使用 Gate 主网")
