@@ -628,15 +628,28 @@ func (t *GateTrader) GetMarketPrice(symbol string) (float64, error) {
 
 // SetStopLoss 设置止损
 func (t *GateTrader) SetStopLoss(symbol string, positionSide string, quantity, stopPrice float64) error {
-	return t.placePriceTriggerOrder(symbol, positionSide, quantity, stopPrice, 0, "stop_loss")
+	// rule: 1=trigger when price>=, 2=trigger when price<=
+	// Stop loss LONG: sell when price DROPS to stopPrice → rule=2
+	// Stop loss SHORT: buy when price RISES to stopPrice → rule=1
+	rule := 1
+	if positionSide == "LONG" {
+		rule = 2
+	}
+	return t.placePriceTriggerOrder(symbol, positionSide, quantity, stopPrice, rule)
 }
 
 // SetTakeProfit 设置止盈
 func (t *GateTrader) SetTakeProfit(symbol string, positionSide string, quantity, takeProfitPrice float64) error {
-	return t.placePriceTriggerOrder(symbol, positionSide, quantity, takeProfitPrice, 0, "take_profit")
+	// Take profit SHORT: buy when price DROPS to profitPrice → rule=2
+	// Take profit LONG: sell when price RISES to profitPrice → rule=1
+	rule := 2
+	if positionSide == "LONG" {
+		rule = 1
+	}
+	return t.placePriceTriggerOrder(symbol, positionSide, quantity, takeProfitPrice, rule)
 }
 
-func (t *GateTrader) placePriceTriggerOrder(symbol, positionSide string, baseQty, triggerPrice, _ float64, orderType string) error {
+func (t *GateTrader) placePriceTriggerOrder(symbol, positionSide string, baseQty, triggerPrice float64, triggerRule int) error {
 	size, err := t.baseToSize(symbol, baseQty)
 	if err != nil {
 		return err
@@ -656,23 +669,22 @@ func (t *GateTrader) placePriceTriggerOrder(symbol, positionSide string, baseQty
 	body := map[string]interface{}{
 		"initial": map[string]interface{}{
 			"contract": name,
-			"size":     size,
+			"size":     0,
 			"price":    "0",
 			"tif":      "ioc",
-			"reduce_only": true,
+			"close":    true,
 		},
 		"trigger": map[string]interface{}{
-			"strategy_type": 0, // 0 = price trigger
+			"strategy_type": 0,
 			"price":         fmt.Sprintf("%.8f", triggerPrice),
-			"rule":          0,
+			"rule":          triggerRule,
 		},
-		"order_type": orderType,
 	}
 
 	// Use futures price orders endpoint
 	_, err = t.request(http.MethodPost, "/futures/"+settle+"/price_orders", body)
 	if err != nil {
-		return fmt.Errorf("Gate 设置%s失败: %w", orderType, err)
+		return fmt.Errorf("Gate 设置价格触发单失败: %w", err)
 	}
 	return nil
 }
