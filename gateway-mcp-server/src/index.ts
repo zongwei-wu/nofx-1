@@ -5,7 +5,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { gatewayClient } from './client.js'
+import { gatewayClient, setApiKey } from './client.js'
 
 const server = new Server(
   { name: 'gateway', version: '1.0.0' },
@@ -17,6 +17,17 @@ function json(data: unknown) {
 }
 
 const tools = [
+  {
+    name: 'gateway_auth',
+    description: '认证：提供 NOFX API Key 以建立会话。必须先调用此工具才能使用其他交易功能',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        api_key: { type: 'string', description: '从 NOFX Web UI /access-keys 页面生成的 API Key，格式 nfx_sk_...' },
+      },
+      required: ['api_key'],
+    },
+  },
   {
     name: 'gateway_get_balance',
     description: '查询交易所账户余额和净值',
@@ -134,6 +145,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     switch (name) {
+      case 'gateway_auth': {
+        setApiKey(a.api_key)
+        return json({ status: 'authenticated', message: 'API Key 已设置，可以开始交易' })
+      }
+
       case 'gateway_get_balance':
         return json(await gatewayClient.get('/api/gateway/balance', { exchange_id: a.exchange_id }))
 

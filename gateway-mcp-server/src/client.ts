@@ -2,14 +2,19 @@ function apiBase(): string {
   return (process.env.NOFX_API_URL || 'http://localhost:8080').replace(/\/$/, '')
 }
 
-function apiKey(): string {
-  const key = process.env.NOFX_API_KEY?.trim()
-  if (!key) throw new Error('未设置 NOFX_API_KEY 环境变量')
-  return key
+let sessionKey: string | null = null
+
+export function setApiKey(key: string) {
+  sessionKey = key.trim()
+}
+
+export function getApiKey(): string {
+  if (!sessionKey) throw new Error('未认证，请先调用 gateway_auth 提供 API Key')
+  return sessionKey
 }
 
 const authHeaders = () => ({
-  'Authorization': `ApiKey ${apiKey()}`,
+  'Authorization': `ApiKey ${getApiKey()}`,
   'Content-Type': 'application/json',
 })
 
