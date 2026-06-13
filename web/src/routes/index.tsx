@@ -53,6 +53,9 @@ const StrategyDetailPage = lazy(() =>
 const BacktestPage = lazy(() =>
   import('../pages/BacktestPage').then((m) => ({ default: m.BacktestPage }))
 )
+const StrategyEditPage = lazy(() =>
+  import('../pages/StrategyEditPage').then((m) => ({ default: m.StrategyEditPage }))
+)
 
 function RouteFallback() {
   const lang =
@@ -149,6 +152,22 @@ export const router = createBrowserRouter([
         element: withSuspense(
           <FeatureRoute feature={FEATURES.strategy}>
             <BacktestPage />
+          </FeatureRoute>
+        ),
+      },
+      {
+        path: '/strategies/new',
+        element: withSuspense(
+          <FeatureRoute feature={FEATURES.strategy}>
+            <StrategyEditPage />
+          </FeatureRoute>
+        ),
+      },
+      {
+        path: '/strategies/:id/edit',
+        element: withSuspense(
+          <FeatureRoute feature={FEATURES.strategy}>
+            <StrategyEditPage />
           </FeatureRoute>
         ),
       },

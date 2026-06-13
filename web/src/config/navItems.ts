@@ -69,6 +69,7 @@ const PATH_TO_PAGE: Record<string, AppPageKey> = Object.fromEntries(
 
 /** 根据当前路径解析导航高亮 key */
 export function getCurrentPageFromPath(pathname: string): AppPageKey {
+  if (pathname.startsWith('/strategies')) return 'strategies'
   return PATH_TO_PAGE[pathname] ?? 'competition'
 }
 

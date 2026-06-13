@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
 
@@ -7,24 +7,36 @@ export function BacktestPage() {
   const navigate = useNavigate()
   const [result, setResult] = useState<Record<string, unknown> | null>(null)
   const [status, setStatus] = useState('pending')
+  const [error, setError] = useState<string | null>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!backtestId) return
     let cancelled = false
+
     const poll = async () => {
-      const data = await api.getBacktest(backtestId)
-      if (cancelled) return
-      setStatus(data.status)
-      if (data.result) {
-        setResult(data.result as Record<string, unknown>)
-      }
-      if (data.status === 'pending' || data.status === 'running') {
-        setTimeout(poll, 2000)
+      try {
+        const data = await api.getBacktest(backtestId)
+        if (cancelled) return
+        setStatus(data.status)
+        setError(data.error ?? null)
+        if (data.result) {
+          setResult(data.result as Record<string, unknown>)
+        }
+        if (data.status === 'pending' || data.status === 'running') {
+          timerRef.current = setTimeout(poll, 2000)
+        }
+      } catch (err) {
+        if (cancelled) return
+        setError(err instanceof Error ? err.message : '获取回测结果失败')
+        setStatus('failed')
       }
     }
+
     poll()
     return () => {
       cancelled = true
+      if (timerRef.current) clearTimeout(timerRef.current)
     }
   }, [backtestId])
 
@@ -128,8 +140,14 @@ export function BacktestPage() {
         </>
       )}
 
-      {(status === 'pending' || status === 'running') && (
+      {(status === 'pending' || status === 'running') && !error && (
         <p style={{ color: '#F0B90B' }}>回测进行中，请稍候...</p>
+      )}
+
+      {status === 'failed' && (
+        <p style={{ color: '#F6465D' }}>
+          回测失败{error ? `：${error}` : '，请返回重试'}
+        </p>
       )}
     </div>
   )

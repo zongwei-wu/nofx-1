@@ -60,6 +60,17 @@ export const strategiesApi = {
     return data.strategy
   },
 
+  async updateStrategy(id: string, body: Record<string, unknown>): Promise<StrategyRecord> {
+    const res = await fetch(`${API_BASE}/strategies/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(body),
+    })
+    await throwIfNotOk(res, '更新策略失败')
+    const data = await parseJson<{ strategy: StrategyRecord }>(res)
+    return data.strategy
+  },
+
   async deleteStrategy(id: string): Promise<void> {
     const res = await fetch(`${API_BASE}/strategies/${id}`, {
       method: 'DELETE',

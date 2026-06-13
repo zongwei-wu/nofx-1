@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import useSWR from 'swr'
+import { toast } from 'sonner'
 import { api } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -9,8 +10,8 @@ export function StrategyDetailPage() {
   const navigate = useNavigate()
   const { user, token } = useAuth()
   const [validating, setValidating] = useState(false)
+  const [backtesting, setBacktesting] = useState(false)
   const [signal, setSignal] = useState<Record<string, unknown> | null>(null)
-  const [backtestId, setBacktestId] = useState<string | null>(null)
 
   const { data: strategy } = useSWR(
     user && token && id ? `strategy-${id}` : null,
@@ -36,6 +37,9 @@ export function StrategyDetailPage() {
     try {
       const result = await api.validateStrategy(id)
       setSignal(result.signal as Record<string, unknown>)
+      toast.success('信号验证完成')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '验证失败')
     } finally {
       setValidating(false)
     }
@@ -43,12 +47,19 @@ export function StrategyDetailPage() {
 
   const handleBacktest = async () => {
     if (!id) return
-    const result = await api.startBacktest(id, {
-      symbol: cfg.symbol as string,
-      timeframe: cfg.timeframe as string,
-    })
-    setBacktestId(result.backtest_id)
-    navigate(`/strategies/${id}/backtest/${result.backtest_id}`)
+    setBacktesting(true)
+    try {
+      const result = await api.startBacktest(id, {
+        symbol: cfg.symbol as string,
+        timeframe: cfg.timeframe as string,
+      })
+      toast.success('回测已启动')
+      navigate(`/strategies/${id}/backtest/${result.backtest_id}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '启动回测失败')
+    } finally {
+      setBacktesting(false)
+    }
   }
 
   if (!strategy) {
@@ -76,6 +87,13 @@ export function StrategyDetailPage() {
         </div>
         <div className="flex gap-2">
           <button
+            onClick={() => navigate(`/strategies/${id}/edit`)}
+            className="px-3 py-1.5 rounded text-sm"
+            style={{ background: '#2B3139', color: '#EAECEF' }}
+          >
+            编辑
+          </button>
+          <button
             onClick={handleValidate}
             disabled={validating}
             className="px-3 py-1.5 rounded text-sm"
@@ -85,10 +103,11 @@ export function StrategyDetailPage() {
           </button>
           <button
             onClick={handleBacktest}
+            disabled={backtesting}
             className="px-3 py-1.5 rounded text-sm"
-            style={{ background: '#F0B90B', color: '#0B0E11' }}
+            style={{ background: '#F0B90B', color: '#0B0E11', opacity: backtesting ? 0.6 : 1 }}
           >
-            运行回测
+            {backtesting ? '启动中...' : '运行回测'}
           </button>
         </div>
       </div>
@@ -136,12 +155,6 @@ export function StrategyDetailPage() {
           </table>
         )}
       </div>
-
-      {backtestId && (
-        <p className="text-sm mt-4" style={{ color: '#0ECB81' }}>
-          回测已启动: {backtestId}
-        </p>
-      )}
     </div>
   )
 }

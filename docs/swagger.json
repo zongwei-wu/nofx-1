@@ -922,6 +922,282 @@
           "401": { "description": "无效 API Key" }
         }
       }
+    },
+    "/gateway/indicators/list": {
+      "get": {
+        "tags": ["Gateway", "Indicators"],
+        "summary": "列出所有可用技术指标",
+        "security": [{ "ApiKeyAuth": [] }],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/gateway/indicators/compute": {
+      "post": {
+        "tags": ["Gateway", "Indicators"],
+        "summary": "批量计算技术指标",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "in": "body", "name": "body", "required": true, "schema": { "$ref": "#/definitions/ComputeIndicatorsRequest" } }
+        ],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/gateway/indicators/compare": {
+      "post": {
+        "tags": ["Gateway", "Indicators"],
+        "summary": "多币种指标比较",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "in": "body", "name": "body", "required": true, "schema": { "$ref": "#/definitions/CompareIndicatorsRequest" } }
+        ],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/gateway/strategies": {
+      "get": {
+        "tags": ["Gateway", "Strategies"],
+        "summary": "列出我的策略",
+        "security": [{ "ApiKeyAuth": [] }],
+        "responses": { "200": { "description": "成功" } }
+      },
+      "post": {
+        "tags": ["Gateway", "Strategies"],
+        "summary": "创建策略",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "in": "body", "name": "body", "required": true, "schema": { "$ref": "#/definitions/StrategyConfigRequest" } }
+        ],
+        "responses": { "201": { "description": "创建成功" } }
+      }
+    },
+    "/gateway/strategies/{id}": {
+      "get": {
+        "tags": ["Gateway", "Strategies"],
+        "summary": "获取策略详情",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "type": "string" }],
+        "responses": { "200": { "description": "成功" } }
+      },
+      "put": {
+        "tags": ["Gateway", "Strategies"],
+        "summary": "更新策略",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "type": "string" },
+          { "in": "body", "name": "body", "required": true, "schema": { "$ref": "#/definitions/StrategyConfigRequest" } }
+        ],
+        "responses": { "200": { "description": "成功" } }
+      },
+      "delete": {
+        "tags": ["Gateway", "Strategies"],
+        "summary": "删除策略",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "type": "string" }],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/gateway/strategies/{id}/validate": {
+      "post": {
+        "tags": ["Gateway", "Strategies"],
+        "summary": "验证策略当前信号",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "type": "string" }],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/gateway/strategies/{id}/activate": {
+      "post": {
+        "tags": ["Gateway", "Strategies"],
+        "summary": "激活策略",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "type": "string" }],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/gateway/strategies/{id}/pause": {
+      "post": {
+        "tags": ["Gateway", "Strategies"],
+        "summary": "暂停策略",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "type": "string" }],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/gateway/strategies/{id}/signals": {
+      "get": {
+        "tags": ["Gateway", "Strategies"],
+        "summary": "策略信号历史",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "type": "string" }],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/gateway/strategies/{id}/backtest": {
+      "post": {
+        "tags": ["Gateway", "Backtests"],
+        "summary": "启动回测",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "type": "string" },
+          { "in": "body", "name": "body", "schema": { "$ref": "#/definitions/BacktestRequest" } }
+        ],
+        "responses": { "202": { "description": "回测已提交" } }
+      }
+    },
+    "/gateway/backtests": {
+      "get": {
+        "tags": ["Gateway", "Backtests"],
+        "summary": "回测历史列表",
+        "security": [{ "ApiKeyAuth": [] }],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/gateway/backtests/{id}": {
+      "get": {
+        "tags": ["Gateway", "Backtests"],
+        "summary": "回测结果详情",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "type": "string" }],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/strategies": {
+      "get": {
+        "tags": ["Strategies"],
+        "summary": "列出我的策略（JWT）",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "成功" } }
+      },
+      "post": {
+        "tags": ["Strategies"],
+        "summary": "创建策略（JWT）",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "in": "body", "name": "body", "required": true, "schema": { "$ref": "#/definitions/StrategyConfigRequest" } }
+        ],
+        "responses": { "201": { "description": "创建成功" } }
+      }
+    },
+    "/strategies/{id}": {
+      "get": {
+        "tags": ["Strategies"],
+        "summary": "获取策略详情（JWT）",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "type": "string" }],
+        "responses": { "200": { "description": "成功" } }
+      },
+      "put": {
+        "tags": ["Strategies"],
+        "summary": "更新策略（JWT）",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "type": "string" },
+          { "in": "body", "name": "body", "required": true, "schema": { "$ref": "#/definitions/StrategyConfigRequest" } }
+        ],
+        "responses": { "200": { "description": "成功" } }
+      },
+      "delete": {
+        "tags": ["Strategies"],
+        "summary": "删除策略（JWT）",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "type": "string" }],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/strategies/{id}/validate": {
+      "post": {
+        "tags": ["Strategies"],
+        "summary": "验证策略信号（JWT）",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "type": "string" }],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/strategies/{id}/activate": {
+      "post": {
+        "tags": ["Strategies"],
+        "summary": "激活策略（JWT）",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "type": "string" }],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/strategies/{id}/pause": {
+      "post": {
+        "tags": ["Strategies"],
+        "summary": "暂停策略（JWT）",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "type": "string" }],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/strategies/{id}/signals": {
+      "get": {
+        "tags": ["Strategies"],
+        "summary": "策略信号历史（JWT）",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "type": "string" }],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/strategies/{id}/backtest": {
+      "post": {
+        "tags": ["Backtests"],
+        "summary": "启动回测（JWT）",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "type": "string" },
+          { "in": "body", "name": "body", "schema": { "$ref": "#/definitions/BacktestRequest" } }
+        ],
+        "responses": { "202": { "description": "回测已提交" } }
+      }
+    },
+    "/backtests": {
+      "get": {
+        "tags": ["Backtests"],
+        "summary": "回测历史列表（JWT）",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/backtests/{id}": {
+      "get": {
+        "tags": ["Backtests"],
+        "summary": "回测结果详情（JWT）",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "type": "string" }],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/indicators/list": {
+      "get": {
+        "tags": ["Indicators"],
+        "summary": "列出指标（JWT）",
+        "security": [{ "BearerAuth": [] }],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/indicators/compute": {
+      "post": {
+        "tags": ["Indicators"],
+        "summary": "计算指标（JWT）",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "in": "body", "name": "body", "required": true, "schema": { "$ref": "#/definitions/ComputeIndicatorsRequest" } }
+        ],
+        "responses": { "200": { "description": "成功" } }
+      }
+    },
+    "/indicators/compare": {
+      "post": {
+        "tags": ["Indicators"],
+        "summary": "多币种指标比较（JWT）",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "in": "body", "name": "body", "required": true, "schema": { "$ref": "#/definitions/CompareIndicatorsRequest" } }
+        ],
+        "responses": { "200": { "description": "成功" } }
+      }
     }
   },
   "definitions": {
@@ -1346,6 +1622,88 @@
         "position_side": { "type": "string", "enum": ["LONG", "SHORT"] },
         "quantity": { "type": "number" },
         "stop_price": { "type": "number" }
+      }
+    },
+    "StrategyConfigRequest": {
+      "type": "object",
+      "required": ["name", "exchange_id", "symbol", "timeframe", "direction", "entry_conditions", "exit_rules", "risk"],
+      "properties": {
+        "name": { "type": "string" },
+        "exchange_id": { "type": "string" },
+        "symbol": { "type": "string" },
+        "timeframe": { "type": "string", "description": "K 线周期，如 1h、4h" },
+        "direction": { "type": "string", "enum": ["long_only", "short_only", "both"] },
+        "entry_conditions": {
+          "type": "array",
+          "description": "条件组数组，每组内为 AND，组间为 OR",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "indicator": { "type": "string" },
+                "operator": { "type": "string", "enum": [">", "<", ">=", "<=", "==", "cross_above", "cross_below"] },
+                "value": { "type": "number" }
+              }
+            }
+          }
+        },
+        "exit_conditions": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "exit_rules": {
+          "type": "object",
+          "properties": {
+            "take_profit_pct": { "type": "number" },
+            "stop_loss_pct": { "type": "number" }
+          }
+        },
+        "risk": {
+          "type": "object",
+          "properties": {
+            "max_positions": { "type": "integer" },
+            "leverage": { "type": "integer" },
+            "risk_per_trade": { "type": "number" }
+          }
+        }
+      }
+    },
+    "ComputeIndicatorsRequest": {
+      "type": "object",
+      "required": ["symbol", "interval", "indicators"],
+      "properties": {
+        "symbol": { "type": "string" },
+        "interval": { "type": "string" },
+        "limit": { "type": "integer", "default": 100 },
+        "indicators": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "指标名称，如 RSI14、MACD"
+        }
+      }
+    },
+    "CompareIndicatorsRequest": {
+      "type": "object",
+      "required": ["symbols", "interval", "indicators"],
+      "properties": {
+        "symbols": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "interval": { "type": "string" },
+        "indicators": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "BacktestRequest": {
+      "type": "object",
+      "properties": {
+        "symbol": { "type": "string", "description": "可选，默认使用策略配置" },
+        "timeframe": { "type": "string" },
+        "initial_capital": { "type": "number", "default": 10000 }
       }
     }
   }

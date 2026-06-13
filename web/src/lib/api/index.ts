@@ -25,3 +25,4 @@ export const api = {
 
 export { authApi } from './auth'
 export { getAuthHeaders, API_BASE } from './client'
+export type { StrategyRecord, StrategySignal, BacktestRecord } from './strategies'
