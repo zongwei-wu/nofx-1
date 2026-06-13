@@ -10,6 +10,7 @@ const (
 	FeatureCopyTrade   = "copy_trade"
 	FeatureSymbols     = "symbols"
 	FeatureGateway     = "gateway"
+	FeatureStrategy    = "strategy"
 	FeatureHermes      = "gateway" // 兼容旧 key
 )
 
@@ -29,6 +30,7 @@ var AllFeatures = []string{
 	FeatureCopyTrade,
 	FeatureSymbols,
 	FeatureGateway,
+	FeatureStrategy,
 }
 
 // PlanInfo 套餐信息
@@ -62,8 +64,8 @@ func (d *Database) initPlanData() error {
 	planFeatures := map[string][]string{
 		PlanBasic:    {FeatureCompetition},
 		PlanStandard: {FeatureCompetition, FeatureAITrader, FeatureSymbols, FeatureGateway},
-		PlanPro:      {FeatureCompetition, FeatureAITrader, FeatureSymbols, FeatureLeaderboard, FeatureCopyTrade, FeatureGateway},
-		PlanVIP:      {FeatureCompetition, FeatureAITrader, FeatureSymbols, FeatureLeaderboard, FeatureCopyTrade, FeatureGateway},
+		PlanPro:      {FeatureCompetition, FeatureAITrader, FeatureSymbols, FeatureLeaderboard, FeatureCopyTrade, FeatureGateway, FeatureStrategy},
+		PlanVIP:      {FeatureCompetition, FeatureAITrader, FeatureSymbols, FeatureLeaderboard, FeatureCopyTrade, FeatureGateway, FeatureStrategy},
 	}
 	for planID, features := range planFeatures {
 		for _, f := range features {
@@ -193,6 +195,19 @@ func (d *Database) EnsureGatewayPlanFeature() error {
 			if err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+// EnsureStrategyPlanFeature 为已有库补充 strategy 功能绑定
+func (d *Database) EnsureStrategyPlanFeature() error {
+	for _, planID := range []string{PlanPro, PlanVIP} {
+		_, err := d.db.Exec(`
+			INSERT OR IGNORE INTO plan_features (plan_id, feature_key) VALUES (?, ?)
+		`, planID, FeatureStrategy)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

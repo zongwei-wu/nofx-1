@@ -135,6 +135,144 @@ const tools = [
       required: ['exchange_id', 'symbol', 'position_side', 'quantity', 'stop_price'],
     },
   },
+  // 指标类
+  {
+    name: 'gateway_indicators_list',
+    description: '列出所有可用技术指标及参数说明',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'gateway_indicators_compute',
+    description: '对指定交易对计算一组技术指标',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        symbol: { type: 'string', description: '交易对，如 BTCUSDT' },
+        interval: { type: 'string', description: 'K线周期，默认 1h' },
+        limit: { type: 'integer', description: 'K线数量，默认 200' },
+        indicators: { type: 'array', items: { type: 'string' }, description: '指标列表，如 EMA20, RSI14, MACD' },
+      },
+      required: ['symbol'],
+    },
+  },
+  {
+    name: 'gateway_indicators_compare',
+    description: '比较多个交易对的指标值',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        symbols: { type: 'array', items: { type: 'string' }, description: '交易对列表' },
+        interval: { type: 'string', description: 'K线周期' },
+        indicators: { type: 'array', items: { type: 'string' }, description: '指标列表' },
+      },
+      required: ['symbols'],
+    },
+  },
+  // 策略管理类
+  {
+    name: 'gateway_strategy_list',
+    description: '列出我的所有策略',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'gateway_strategy_get',
+    description: '获取策略详情',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string', description: '策略 ID' } },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'gateway_strategy_create',
+    description: '创建新策略',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        exchange_id: { type: 'string' },
+        symbol: { type: 'string' },
+        timeframe: { type: 'string' },
+        direction: { type: 'string', enum: ['long_only', 'short_only', 'both'] },
+        entry_conditions: { type: 'array' },
+        exit_conditions: { type: 'array' },
+        exit_rules: { type: 'object' },
+        risk: { type: 'object' },
+      },
+      required: ['name', 'exchange_id', 'symbol'],
+    },
+  },
+  {
+    name: 'gateway_strategy_update',
+    description: '更新策略配置',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        name: { type: 'string' },
+        exchange_id: { type: 'string' },
+        symbol: { type: 'string' },
+        timeframe: { type: 'string' },
+        direction: { type: 'string' },
+        entry_conditions: { type: 'array' },
+        exit_conditions: { type: 'array' },
+        exit_rules: { type: 'object' },
+        risk: { type: 'object' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'gateway_strategy_delete',
+    description: '删除策略',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string' } },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'gateway_strategy_validate',
+    description: '在当前行情中验证策略信号',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string' } },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'gateway_strategy_activate',
+    description: '激活策略开始自动交易',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string' } },
+      required: ['id'],
+    },
+  },
+  // 回测类
+  {
+    name: 'gateway_backtest_run',
+    description: '对策略启动一次回测',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        strategy_id: { type: 'string' },
+        symbol: { type: 'string' },
+        timeframe: { type: 'string' },
+        initial_capital: { type: 'number' },
+      },
+      required: ['strategy_id'],
+    },
+  },
+  {
+    name: 'gateway_backtest_get',
+    description: '获取回测结果',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string' } },
+      required: ['id'],
+    },
+  },
 ]
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools }))
@@ -208,6 +346,51 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           quantity: a.quantity,
           stop_price: a.stop_price,
         }))
+
+      // 指标
+      case 'gateway_indicators_list':
+        return json(await gatewayClient.get('/api/gateway/indicators/list'))
+      case 'gateway_indicators_compute':
+        return json(await gatewayClient.post('/api/gateway/indicators/compute', {
+          symbol: a.symbol,
+          interval: a.interval || '1h',
+          limit: a.limit || 200,
+          indicators: a.indicators || ['EMA20', 'RSI14', 'MACD'],
+        }))
+      case 'gateway_indicators_compare':
+        return json(await gatewayClient.post('/api/gateway/indicators/compare', {
+          symbols: a.symbols,
+          interval: a.interval || '1h',
+          indicators: a.indicators || ['RSI14'],
+        }))
+
+      // 策略
+      case 'gateway_strategy_list':
+        return json(await gatewayClient.get('/api/gateway/strategies'))
+      case 'gateway_strategy_get':
+        return json(await gatewayClient.get(`/api/gateway/strategies/${a.id}`))
+      case 'gateway_strategy_create':
+        return json(await gatewayClient.post('/api/gateway/strategies', a))
+      case 'gateway_strategy_update': {
+        const { id, ...body } = a
+        return json(await gatewayClient.put(`/api/gateway/strategies/${id}`, body))
+      }
+      case 'gateway_strategy_delete':
+        return json(await gatewayClient.delete(`/api/gateway/strategies/${a.id}`))
+      case 'gateway_strategy_validate':
+        return json(await gatewayClient.post(`/api/gateway/strategies/${a.id}/validate`, {}))
+      case 'gateway_strategy_activate':
+        return json(await gatewayClient.post(`/api/gateway/strategies/${a.id}/activate`, {}))
+
+      // 回测
+      case 'gateway_backtest_run':
+        return json(await gatewayClient.post(`/api/gateway/strategies/${a.strategy_id}/backtest`, {
+          symbol: a.symbol,
+          timeframe: a.timeframe,
+          initial_capital: a.initial_capital,
+        }))
+      case 'gateway_backtest_get':
+        return json(await gatewayClient.get(`/api/gateway/backtests/${a.id}`))
 
       default:
         return json({ error: `未知工具: ${name}` })

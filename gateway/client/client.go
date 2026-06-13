@@ -180,3 +180,107 @@ func (c *Client) SetStopLoss(ctx context.Context, req StopOrderRequest) error {
 func (c *Client) SetTakeProfit(ctx context.Context, req StopOrderRequest) error {
 	return c.do(ctx, http.MethodPost, "/api/gateway/take-profit", req, nil)
 }
+
+// IndicatorsList 列出可用指标
+func (c *Client) IndicatorsList(ctx context.Context) (map[string]interface{}, error) {
+	var resp map[string]interface{}
+	if err := c.get(ctx, "/api/gateway/indicators/list", nil, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// IndicatorsCompute 计算指标
+func (c *Client) IndicatorsCompute(ctx context.Context, req ComputeIndicatorsRequest) (map[string]interface{}, error) {
+	var resp map[string]interface{}
+	if err := c.do(ctx, http.MethodPost, "/api/gateway/indicators/compute", req, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// IndicatorsCompare 多币种指标比较
+func (c *Client) IndicatorsCompare(ctx context.Context, req CompareIndicatorsRequest) (map[string]interface{}, error) {
+	var resp map[string]interface{}
+	if err := c.do(ctx, http.MethodPost, "/api/gateway/indicators/compare", req, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// StrategyList 列出策略
+func (c *Client) StrategyList(ctx context.Context) (map[string]interface{}, error) {
+	var resp map[string]interface{}
+	if err := c.get(ctx, "/api/gateway/strategies", nil, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// StrategyGet 获取策略详情
+func (c *Client) StrategyGet(ctx context.Context, id string) (map[string]interface{}, error) {
+	var resp map[string]interface{}
+	if err := c.get(ctx, "/api/gateway/strategies/"+id, nil, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// StrategyCreate 创建策略
+func (c *Client) StrategyCreate(ctx context.Context, req StrategyConfigRequest) (map[string]interface{}, error) {
+	var resp map[string]interface{}
+	if err := c.do(ctx, http.MethodPost, "/api/gateway/strategies", req, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// StrategyUpdate 更新策略
+func (c *Client) StrategyUpdate(ctx context.Context, id string, req StrategyConfigRequest) (map[string]interface{}, error) {
+	var resp map[string]interface{}
+	if err := c.do(ctx, http.MethodPut, "/api/gateway/strategies/"+id, req, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// StrategyDelete 删除策略
+func (c *Client) StrategyDelete(ctx context.Context, id string) error {
+	return c.do(ctx, http.MethodDelete, "/api/gateway/strategies/"+id, nil, nil)
+}
+
+// StrategyValidate 验证策略信号
+func (c *Client) StrategyValidate(ctx context.Context, id string) (map[string]interface{}, error) {
+	var resp map[string]interface{}
+	if err := c.do(ctx, http.MethodPost, "/api/gateway/strategies/"+id+"/validate", map[string]interface{}{}, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// StrategyActivate 激活策略
+func (c *Client) StrategyActivate(ctx context.Context, id string) (map[string]interface{}, error) {
+	var resp map[string]interface{}
+	if err := c.do(ctx, http.MethodPost, "/api/gateway/strategies/"+id+"/activate", map[string]interface{}{}, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// BacktestRun 启动回测
+func (c *Client) BacktestRun(ctx context.Context, strategyID string, req BacktestRequest) (map[string]interface{}, error) {
+	var resp map[string]interface{}
+	if err := c.do(ctx, http.MethodPost, "/api/gateway/strategies/"+strategyID+"/backtest", req, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// BacktestGet 获取回测结果
+func (c *Client) BacktestGet(ctx context.Context, id string) (map[string]interface{}, error) {
+	var resp map[string]interface{}
+	if err := c.get(ctx, "/api/gateway/backtests/"+id, nil, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}

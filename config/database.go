@@ -124,6 +124,10 @@ func NewDatabase(dbPath string) (*Database, error) {
 		return nil, fmt.Errorf("补充 gateway 功能绑定失败: %w", err)
 	}
 
+	if err := database.EnsureStrategyPlanFeature(); err != nil {
+		return nil, fmt.Errorf("补充 strategy 功能绑定失败: %w", err)
+	}
+
 	if err := database.EnsureAdminUser(); err != nil {
 		return nil, fmt.Errorf("初始化管理员账号失败: %w", err)
 	}
@@ -448,6 +452,8 @@ func (d *Database) createTables() error {
 	)`)
 	d.db.Exec(`CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id)`)
 	d.db.Exec(`CREATE INDEX IF NOT EXISTS idx_api_keys_hash ON api_keys(key_hash)`)
+
+	d.initStrategyTables()
 
 	return nil
 }

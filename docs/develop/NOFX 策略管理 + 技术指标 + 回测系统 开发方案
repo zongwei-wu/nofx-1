@@ -1,0 +1,563 @@
+# NOFX 策略管理 + 技术指标 + 回测系统 开发方案
+
+> 版本: v1.0  
+> 日期: 2026-06-13  
+> 状态: 待实施
+
+---
+
+## 1. 概述
+
+在现有 NOFX AI 交易系统基础上，新增三个核心能力模块：
+
+| 模块 | 目标 | 状态 |
+|---|---|---|
+| **技术指标库** | 独立、可复用、覆盖 12 种主流指标的纯计算库 | 🆕 新建 |
+| **策略引擎** | 规则化策略创建、信号自动生成、**直接下单** | 🆕 新建 |
+| **回测引擎** | 历史数据 + 模拟撮合 + 绩效报告 | 🆕 新建 |
+
+**核心原则**：
+- 策略执行 → **自动直接下单**，无需人工确认
+- 回测精度 → K 线级起步，后续迭代优化
+- 前端 → 实时 K 线图 + 指标叠加可视化
+- 所有功能通过 MCP Server 暴露给 Hermes Agent
+
+---
+
+## 2. 架构设计
+
+### 2.1 新增模块树
+
+```
+nofx-1/
+├── indicator/                    🆕 技术指标库（纯计算，零副作用）
+│   ├── sma.go                    # 简单移动平均
+│   ├── ema.go                    # 指数移动平均
+│   ├── macd.go                   # MACD（含信号线/柱状图/交叉检测）
+│   ├── rsi.go                    # RSI（多周期）
+│   ├── bollinger.go              # 布林带
+│   ├── atr.go                    # ATR
+│   ├── stochastic.go             # 随机指标 KD
+│   ├── obv.go                    # 能量潮
+│   ├── vwap.go                   # 成交量加权均价
+│   ├── adx.go                    # 趋势强度 ADX
+│   ├── ichimoku.go               # 一目均衡
+│   ├── mfi.go                    # 资金流量指标
+│   └── types.go                  # 统一输入输出结构
+│
+├── strategy/                     🆕 策略引擎
+│   ├── engine.go                 # 条件评估 + 信号生成
+│   ├── types.go                  # StrategyConfig / Condition / Signal
+│   ├── executor.go               # 自动下单执行器
+│   └── builtins.go               # 内置策略模板
+│
+├── backtest/                     🆕 回测引擎
+│   ├── engine.go                 # 模拟撮合 + 账户跟踪
+│   ├── metrics.go                # 夏普/最大回撤/胜率/盈亏比
+│   ├── dataloader.go             # 历史K线加载 + SQLite缓存
+│   └── report.go                 # 报告生成
+│
+├── config/database.go            ✏️ 新增 strategies + backtests 表
+├── api/
+│   ├── indicators_handler.go     🆕 指标计算 API
+│   ├── strategy_handler.go       🆕 策略 CRUD API
+│   ├── backtest_handler.go       🆕 回测 API
+│   ├── gateway.go                ✏️ 更新 capabilities
+│   └── server.go                 ✏️ 注册新路由
+│
+├── gateway-mcp-server/src/
+│   └── index.ts                  ✏️ 新增 11 个 MCP 工具
+│
+└── web/src/                      ✏️ 新增前端页面
+    ├── pages/StrategiesPage.tsx
+    ├── pages/StrategyDetailPage.tsx
+    ├── pages/BacktestPage.tsx
+    └── features/strategy/        # 可视化组件
+```
+
+### 2.2 与现有系统的关系
+
+```
+现有:
+ K线数据 → WS/REST → LLM (prompt) → AI决策 → trader.OpenLong → 币安
+
+新增:
+ K线数据 → indicator库 → strategy引擎 → 自动下单 → trader.OpenLong → 币安
+                          ↑
+                          └── 回测引擎可离线验证策略有效性
+
+两条路径并行运行，互不干扰。AI交易和策略交易各自独立。
+```
+
+---
+
+## 3. 数据库 Schema
+
+### 3.1 strategies 表
+
+```sql
+CREATE TABLE strategies (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    config TEXT NOT NULL,              -- JSON: StrategyConfig
+    status TEXT DEFAULT 'draft',       -- draft / active / paused / archived
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+```
+
+### 3.2 backtests 表
+
+```sql
+CREATE TABLE backtests (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    strategy_id TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    timeframe TEXT NOT NULL,
+    start_time TIMESTAMP NOT NULL,
+    end_time TIMESTAMP NOT NULL,
+    initial_capital REAL DEFAULT 1000,
+    result TEXT,                       -- JSON: 完整回测结果
+    status TEXT DEFAULT 'pending',     -- pending / running / done / failed
+    error TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (strategy_id) REFERENCES strategies(id)
+);
+```
+
+### 3.3 strategy_signals 表（信号日志）
+
+```sql
+CREATE TABLE strategy_signals (
+    id TEXT PRIMARY KEY,
+    strategy_id TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    signal TEXT NOT NULL,              -- BUY / SELL / HOLD
+    price REAL,
+    indicators TEXT,                   -- JSON: 触发时的指标快照
+    order_result TEXT,                 -- JSON: 下单结果（自动下单后填充）
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (strategy_id) REFERENCES strategies(id)
+);
+```
+
+---
+
+## 4. 技术指标库设计
+
+### 4.1 统一类型
+
+```go
+// indicator/types.go
+
+type Kline struct {
+    OpenTime int64
+    Open     float64
+    High     float64
+    Low      float64
+    Close    float64
+    Volume   float64
+}
+
+type IndicatorResult struct {
+    Current float64     `json:"current"`
+    Series  []float64   `json:"series,omitempty"`
+}
+
+type MACDResult struct {
+    MACD      float64 `json:"macd"`
+    Signal    float64 `json:"signal"`
+    Histogram float64 `json:"histogram"`
+    Cross     string  `json:"cross,omitempty"` // "up"/"down"/"none"
+    Series    []struct {
+        MACD   float64 `json:"macd"`
+        Signal float64 `json:"signal"`
+        Hist   float64 `json:"histogram"`
+    } `json:"series,omitempty"`
+}
+```
+
+### 4.2 指标清单（12个）
+
+| 指标 | 函数签名 | 参数 |
+|---|---|---|
+| SMA | `SMA(klines, period)` → `IndicatorResult` | period |
+| EMA | `EMA(klines, period)` → `IndicatorResult` | period |
+| MACD | `MACD(klines, fast, slow, signal)` → `MACDResult` | 12/26/9 |
+| RSI | `RSI(klines, period)` → `IndicatorResult` | 7/14 |
+| Bollinger | `Bollinger(klines, period, mult)` → `{Upper,Middle,Lower}` | 20/2.0 |
+| ATR | `ATR(klines, period)` → `IndicatorResult` | 14 |
+| Stochastic | `Stochastic(klines, k, d)` → `{K, D}` | 14/3 |
+| OBV | `OBV(klines)` → `[]float64` | - |
+| VWAP | `VWAP(klines)` → `[]float64` | - |
+| ADX | `ADX(klines, period)` → `{ADX, PlusDI, MinusDI}` | 14 |
+| Ichimoku | `Ichimoku(klines)` → `{Tenkan, Kijun, SenkouA, SenkouB, Chikou}` | - |
+| MFI | `MFI(klines, period)` → `IndicatorResult` | 14 |
+
+---
+
+## 5. 策略引擎设计
+
+### 5.1 策略配置模型
+
+```go
+type StrategyConfig struct {
+    ID          string            `json:"id"`
+    UserID      string            `json:"user_id"`
+    Name        string            `json:"name"`
+    Symbol      string            `json:"symbol"`       // "ETHUSDT" 或 "*" 全币种
+    Timeframe   string            `json:"timeframe"`    // "1m"/"5m"/"15m"/"1h"/"4h"
+    Direction   string            `json:"direction"`    // "long_only"/"short_only"/"both"
+    
+    // 入场条件：组内 AND，组间 OR
+    EntryConditions []ConditionGroup `json:"entry_conditions"`
+    
+    // 加仓条件（可选）
+    AddPositionConditions []ConditionGroup `json:"add_position_conditions,omitempty"`
+    
+    // 离场条件（可选，优先级高于止盈止损）
+    ExitConditions []ConditionGroup `json:"exit_conditions,omitempty"`
+    
+    // 止盈止损
+    ExitRules ExitRules `json:"exit_rules"`
+    
+    // 风控
+    Risk RiskConfig `json:"risk"`
+}
+
+type ConditionGroup []Condition
+
+type Condition struct {
+    Indicator string  `json:"indicator"` // "MACD"/"RSI7"/"EMA20"/"RSI14"/...
+    Operator  string  `json:"operator"`  // ">" / "<" / "cross_above" / "cross_below" / ">=" / "<="
+    Value     float64 `json:"value"`
+    Timeframe string  `json:"timeframe,omitempty"` // 多时间框架支持
+}
+
+type ExitRules struct {
+    TakeProfitPct    float64 `json:"take_profit_pct"`
+    StopLossPct      float64 `json:"stop_loss_pct"`
+    TrailingStop     bool    `json:"trailing_stop"`
+    TrailingDistPct  float64 `json:"trailing_dist_pct,omitempty"`
+    TimeStop         string  `json:"time_stop,omitempty"` // "4h" 持仓超时平仓
+}
+
+type RiskConfig struct {
+    MaxPositions   int     `json:"max_positions"`
+    Leverage       int     `json:"leverage"`
+    RiskPerTrade   float64 `json:"risk_per_trade"`   // 单笔风险占账户比例
+    MaxDrawdownPct float64 `json:"max_drawdown_pct"` // 最大回撤后暂停策略
+}
+```
+
+### 5.2 信号生成流程
+
+```
+每个 tick（K线闭合时）:
+  
+  1. 拉取最新 K 线
+     market.GetKlines(symbol, timeframe, 200)
+  
+  2. 提取策略需要的指标列表
+     indicators := extractIndicators(strategy.EntryConditions)
+     indicators += extractIndicators(strategy.ExitConditions)
+  
+  3. 批量计算指标
+     results := computeIndicators(klines, indicators)
+  
+  4. 条件树评估
+     signal := evaluator.Evaluate(strategy.EntryConditions, results)
+     // 组间 OR: 任一组全部满足 → 触发
+     // 组内 AND: 组内所有条件同时满足 → 该组满足
+  
+  5. 信号类型
+     signal = BUY  → 检查是否已有持仓 + 风控限制
+     signal = SELL → 检查是否正确方向
+     signal = HOLD → 记录日志，不执行
+  
+  6. 直接下单（自动执行）
+     executor.Execute(signal, strategy)
+```
+
+### 5.3 自动下单执行器
+
+```go
+// strategy/executor.go
+
+func (e *Executor) Execute(signal Signal, cfg StrategyConfig) error {
+    // 1. 风控预检
+    if err := e.riskCheck(cfg); err != nil {
+        return err
+    }
+    
+    // 2. 计算下单量（基于账户余额和风险比例）
+    qty := e.calculatePositionSize(cfg)
+    
+    // 3. 执行下单
+    result, err := e.trader.OpenLong(cfg.Symbol, qty, cfg.Risk.Leverage)
+    if err != nil {
+        return err
+    }
+    
+    // 4. 设置止盈止损
+    if tpPrice := e.calcTakeProfit(cfg, result.EntryPrice); tpPrice > 0 {
+        e.trader.SetTakeProfit(cfg.Symbol, "LONG", qty, tpPrice)
+    }
+    if slPrice := e.calcStopLoss(cfg, result.EntryPrice); slPrice > 0 {
+        e.trader.SetStopLoss(cfg.Symbol, "LONG", qty, slPrice)
+    }
+    
+    // 5. 记录信号日志
+    e.logSignal(signal, cfg, result)
+    
+    return nil
+}
+```
+
+---
+
+## 6. 回测引擎设计
+
+### 6.1 核心能力
+
+| 功能 | 说明 |
+|---|---|
+| 数据加载 | Binance/OKX REST 拉历史K线，本地 SQLite 缓存 |
+| 模拟撮合 | 按收盘价成交，手续费 0.04%，滑点 0.02%（可配置） |
+| 账户模拟 | 初始资金/持仓/保证金/强平价 |
+| 指标计算 | 逐根 K 线递增计算，复用 indicator 库 |
+| 策略评估 | 每根 K 线调用 strategy.Evaluate() |
+| 风控模拟 | 止损/止盈/追踪止损在每根K线检查 |
+| 绩效指标 | Sharpe / MDD / WinRate / ProfitFactor / Count |
+
+### 6.2 回测结果模型
+
+```go
+type BacktestResult struct {
+    StrategyName      string              `json:"strategy_name"`
+    Symbol            string              `json:"symbol"`
+    Timeframe         string              `json:"timeframe"`
+    StartTime         time.Time           `json:"start_time"`
+    EndTime           time.Time           `json:"end_time"`
+    InitialCapital    float64             `json:"initial_capital"`
+    FinalEquity       float64             `json:"final_equity"`
+    
+    Metrics           BacktestMetrics     `json:"metrics"`
+    EquityCurve       []EquityPoint       `json:"equity_curve"`
+    Trades            []TradeRecord       `json:"trades"`
+}
+
+type BacktestMetrics struct {
+    TotalReturnPct        float64 `json:"total_return_pct"`
+    AnnualizedReturnPct   float64 `json:"annualized_return_pct"`
+    MaxDrawdownPct        float64 `json:"max_drawdown_pct"`
+    SharpeRatio           float64 `json:"sharpe_ratio"`
+    WinRatePct            float64 `json:"win_rate_pct"`
+    ProfitFactor          float64 `json:"profit_factor"`
+    AvgWinPct             float64 `json:"avg_win_pct"`
+    AvgLossPct            float64 `json:"avg_loss_pct"`
+    MaxConsecutiveLosses  int     `json:"max_consecutive_losses"`
+    TotalTrades           int     `json:"total_trades"`
+}
+```
+
+---
+
+## 7. API 设计
+
+### 7.1 指标相关
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/gateway/indicators/list` | 列出所有可用指标及参数 |
+| POST | `/api/gateway/indicators/compute` | 批量计算指定指标 |
+| POST | `/api/gateway/indicators/compare` | 多币种指标比较 |
+
+### 7.2 策略管理
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/gateway/strategies` | 列出我的策略 |
+| POST | `/api/gateway/strategies` | 创建策略 |
+| GET | `/api/gateway/strategies/:id` | 策略详情 |
+| PUT | `/api/gateway/strategies/:id` | 更新策略 |
+| DELETE | `/api/gateway/strategies/:id` | 删除策略 |
+| POST | `/api/gateway/strategies/:id/validate` | 在当前行情验证信号 |
+| POST | `/api/gateway/strategies/:id/activate` | 激活策略（开始自动交易） |
+| POST | `/api/gateway/strategies/:id/pause` | 暂停策略 |
+| POST | `/api/gateway/strategies/:id/backtest` | 启动回测 |
+
+### 7.3 回测
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/gateway/backtests` | 回测历史列表 |
+| GET | `/api/gateway/backtests/:id` | 回测结果详情 |
+
+### 7.4 信号日志
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/gateway/strategies/:id/signals` | 策略信号历史 |
+
+---
+
+## 8. MCP Server 扩展
+
+### 8.1 新增工具清单（11 个）
+
+#### 指标类（3个）
+
+| 工具名 | 说明 |
+|---|---|
+| `gateway_indicators_list` | 列出所有可用指标及参数说明 |
+| `gateway_indicators_compute` | 对指定 symbol 计算一组指标 |
+| `gateway_indicators_compare` | 比较多个 symbol 的指标 |
+
+#### 策略管理类（7个）
+
+| 工具名 | 说明 |
+|---|---|
+| `gateway_strategy_list` | 列出我的策略 |
+| `gateway_strategy_get` | 获取策略详情 |
+| `gateway_strategy_create` | 创建策略 |
+| `gateway_strategy_update` | 更新策略 |
+| `gateway_strategy_delete` | 删除策略 |
+| `gateway_strategy_validate` | 在行情中验证策略信号 |
+| `gateway_strategy_activate` | 激活策略开始自动交易 |
+
+#### 回测类（1个）
+
+| 工具名 | 说明 |
+|---|---|
+| `gateway_backtest_run` | 启动一次回测 |
+| `gateway_backtest_get` | 获取回测结果 |
+
+---
+
+## 9. 前端设计
+
+### 9.1 新增页面
+
+| 路由 | 页面 | 核心组件 |
+|---|---|---|
+| `/strategies` | 策略列表页 | 策略卡片列表 + 创建按钮 |
+| `/strategies/new` | 新建/编辑策略 | 可视化条件编辑器 + 指标选择器 |
+| `/strategies/:id` | 策略详情 | 信号历史 + K线图（叠加交易标记和指标曲线） + 回测入口 |
+| `/strategies/:id/backtest` | 回测结果 | 权益曲线图 + 绩效面板 + 交易明细表 |
+
+### 9.2 关键前端组件
+
+| 组件 | 说明 |
+|---|---|
+| `ConditionBuilder` | 拖拽式/表单式条件编辑器 |
+| `IndicatorChart` | K线图 + 多指标叠加（EMA/MACD/RSI/Bollinger） |
+| `EquityCurveChart` | 回测权益曲线 |
+| `StrategyStatusBadge` | 策略状态：草稿/运行中/暂停 |
+| `TradeMarkerOverlay` | K线图上标注买卖点 |
+
+---
+
+## 10. 实施计划
+
+### Phase 1: 指标库（1-2 天）
+
+**目标**: 独立可测试的指标计算库
+
+| 任务 | 文件 | 说明 |
+|---|---|---|
+| 抽离现有指标 | `indicator/ema.go`, `macd.go`, `rsi.go`, `atr.go` | 从 `market/data.go` 提取 |
+| 新增指标 | `indicator/sma.go`, `bollinger.go`, `stochastic.go` | SMA/布林带/随机 |
+| 新增指标 | `indicator/obv.go`, `vwap.go`, `adx.go` | 量价/趋势 |
+| 新增指标 | `indicator/ichimoku.go`, `mfi.go` | 综合/资金流 |
+| 统一类型 | `indicator/types.go` | Kline/IndicatorResult 等 |
+| 单元测试 | `indicator/*_test.go` | 覆盖所有指标 |
+
+**验证标准**: `go test ./indicator/...` 全部通过
+
+---
+
+### Phase 2: 策略引擎（2-3 天）
+
+**目标**: 条件评估 + 信号生成 + 自动下单
+
+| 任务 | 文件 | 说明 |
+|---|---|---|
+| 策略模型 | `strategy/types.go` | StrategyConfig/Condition/Signal |
+| 条件评估器 | `strategy/engine.go` | Evaluate() 核心逻辑 |
+| 自动执行器 | `strategy/executor.go` | 下单+止盈止损设置 |
+| 内置模板 | `strategy/builtins.go` | 预设策略 |
+| DB 操作 | `config/database.go` | strategies 表 CRUD |
+| API handler | `api/strategy_handler.go` | 策略 CRUD + activate/pause |
+| Web 路由 | `api/server.go` | 注册新路由组 |
+| 单元测试 | `strategy/*_test.go` | 条件树评估测试 |
+
+**验证标准**: 创建策略 → 信号正确生成 → 自动下单成功
+
+---
+
+### Phase 3: 回测引擎（3-4 天）
+
+**目标**: 历史数据回测 + 绩效报告
+
+| 任务 | 文件 | 说明 |
+|---|---|---|
+| 数据加载器 | `backtest/dataloader.go` | REST拉取+SQLite缓存 |
+| 回测引擎 | `backtest/engine.go` | 模拟撮合+账户跟踪 |
+| 绩效指标 | `backtest/metrics.go` | 夏普/MDD/胜率等 |
+| 报告生成 | `backtest/report.go` | Markdown/JSON 报告 |
+| DB 操作 | `config/database.go` | backtests 表 CRUD |
+| API handler | `api/backtest_handler.go` | 回测 API |
+| 后台执行 | `api/strategy_handler.go` | 异步回测 + 状态轮询 |
+| 单元测试 | `backtest/*_test.go` | 回测逻辑验证 |
+
+**验证标准**: 回测结果与 Binance 历史成交记录误差 < 1%
+
+---
+
+### Phase 4: MCP集成 + 前端 + 联调部署（2-3 天）
+
+**目标**: 完整可用的端到端产品
+
+| 任务 | 文件 | 说明 |
+|---|---|---|
+| MCP 工具 | `gateway-mcp-server/src/index.ts` | 新增 11 个工具定义 + handler |
+| 策略列表页 | `web/src/pages/StrategiesPage.tsx` | 策略卡片 + 状态 |
+| 策略编辑器 | `web/src/pages/StrategyEditPage.tsx` | 条件表单 |
+| 回测结果页 | `web/src/pages/BacktestPage.tsx` | 图表+统计 |
+| 指标图组件 | `web/src/features/strategy/IndicatorChart.tsx` | K线+指标叠加 |
+| 前端路由 | `web/src/routes/index.tsx` | 新增路由 |
+| 联调测试 | - | 端到端功能验证 |
+| 部署 | PM2 | 编译+重启 |
+
+**验证标准**: 通过 MCP 创建策略 → 自动下单 → 前端查看信号和结果
+
+---
+
+## 11. 风险与注意事项
+
+| 风险点 | 应对措施 |
+|---|---|
+| 自动下单误触发 | 策略激活前强制要求回测验证 + 设置最大回撤限制 + 信号日志完整记录 |
+| 历史K线数据不全 | 优先缓存已有数据，缺失的时间段标记；不使用过少的数据做回测 |
+| 指标计算性能 | 增量计算 + 结果缓存，每根新 K 线只算一次 |
+| 多策略冲突 | 同一 symbol 多策略时的仓位管理 + 互斥锁 |
+| 交易所限频 | 下单间隔控制，避免短时间内密集触发 |
+
+---
+
+## 12. 验收标准
+
+- [ ] 12 个指标全部可通过 API 和 MCP 计算
+- [ ] 策略可创建、编辑、激活、暂停
+- [ ] 回测结果含所有绩效指标（夏普/MDD/胜率/盈亏比）
+- [ ] 激活的策略自动下单，信号日志完整
+- [ ] 前端可查看策略信号 + K 线图（叠加指标+交易标记）
+- [ ] 回测结果页面含权益曲线图和完整交易明细
+- [ ] 所有 MCP 工具可被 Hermes Agent 调用
+- [ ] 现有 AI 交易功能不受影响

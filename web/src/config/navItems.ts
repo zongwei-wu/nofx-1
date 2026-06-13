@@ -46,6 +46,12 @@ export const LOGGED_IN_NAV_ITEMS: NavItem[] = [
     feature: FEATURES.symbols,
     label: '币种管理',
   },
+  {
+    key: 'strategies',
+    path: '/strategies',
+    feature: FEATURES.strategy,
+    label: '策略',
+  },
   { key: 'faq', path: '/faq', feature: null, labelKey: 'faqNav' },
   {
     key: 'access-keys',

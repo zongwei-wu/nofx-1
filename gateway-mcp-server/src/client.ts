@@ -47,6 +47,27 @@ export class GatewayClient {
     if (!res.ok) throw new Error((body as any)?.error || body?.detail || res.statusText)
     return body as T
   }
+
+  async put<T>(path: string, data: unknown): Promise<T> {
+    const res = await fetch(`${apiBase()}${path}`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify(data),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error((body as any)?.error || body?.detail || res.statusText)
+    return body as T
+  }
+
+  async delete<T>(path: string): Promise<T> {
+    const res = await fetch(`${apiBase()}${path}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error((body as any)?.error || body?.detail || res.statusText)
+    return body as T
+  }
 }
 
 export const gatewayClient = new GatewayClient()

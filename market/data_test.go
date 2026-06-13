@@ -2,6 +2,7 @@ package market
 
 import (
 	"math"
+	"nofx/indicator"
 	"testing"
 )
 
@@ -234,7 +235,7 @@ func TestCalculateATR(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			atr := calculateATR(tt.klines, tt.period)
+			atr := indicator.ATR(toIndicatorKlines(tt.klines), tt.period).Current
 
 			if tt.expectZero {
 				if atr != 0 {
@@ -260,7 +261,7 @@ func TestCalculateATR_TrueRange(t *testing.T) {
 		{High: 54.0, Low: 52.0, Close: 53.0}, // TR = 2.0
 	}
 
-	atr := calculateATR(klines, 3)
+	atr := indicator.ATR(toIndicatorKlines(klines), 3).Current
 
 	// 期望的计算：
 	// TR[1] = max(51-49, |51-49|, |49-49|) = 2.0
