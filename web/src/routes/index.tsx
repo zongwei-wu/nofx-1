@@ -1,45 +1,89 @@
+import { lazy, Suspense, type ReactNode } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import MainLayout from '../layouts/MainLayout'
 import AuthLayout from '../layouts/AuthLayout'
 import { LandingPage } from '../pages/LandingPage'
 import { FAQPage } from '../pages/FAQPage'
-import { LoginPage } from '../components/LoginPage'
-import { RegisterPage } from '../components/RegisterPage'
-import { ResetPasswordPage } from '../components/ResetPasswordPage'
-import { CompetitionPage } from '../components/CompetitionPage'
-import { AITradersPage } from '../pages/AITradersPage'
-import TraderDashboard from '../pages/TraderDashboard'
-import { CopyTradingPage } from '../pages/CopyTradingPage'
-import { CopyTradeDashboard } from '../pages/CopyTradeDashboard'
-import { SymbolManagementPage } from '../pages/SymbolManagementPage'
-import ApiKeysPage from '../pages/ApiKeysPage'
 import { FeatureRoute } from '../components/FeatureRoute'
 import { FEATURES } from '../config/features'
+import { t } from '../i18n/translations'
+
+const LoginPage = lazy(() =>
+  import('../pages/LoginPage').then((m) => ({ default: m.LoginPage }))
+)
+const RegisterPage = lazy(() =>
+  import('../pages/RegisterPage').then((m) => ({ default: m.RegisterPage }))
+)
+const ResetPasswordPage = lazy(() =>
+  import('../pages/ResetPasswordPage').then((m) => ({
+    default: m.ResetPasswordPage,
+  }))
+)
+const CompetitionPage = lazy(() =>
+  import('../pages/CompetitionPage').then((m) => ({
+    default: m.CompetitionPage,
+  }))
+)
+const AITradersPage = lazy(() =>
+  import('../pages/AITradersPage').then((m) => ({ default: m.AITradersPage }))
+)
+const TraderDashboard = lazy(() => import('../pages/TraderDashboard'))
+const CopyTradingPage = lazy(() =>
+  import('../pages/CopyTradingPage').then((m) => ({
+    default: m.CopyTradingPage,
+  }))
+)
+const CopyTradeDashboard = lazy(() =>
+  import('../pages/CopyTradeDashboard').then((m) => ({
+    default: m.CopyTradeDashboard,
+  }))
+)
+const SymbolManagementPage = lazy(() =>
+  import('../pages/SymbolManagementPage').then((m) => ({
+    default: m.SymbolManagementPage,
+  }))
+)
+const ApiKeysPage = lazy(() => import('../pages/ApiKeysPage'))
+
+function RouteFallback() {
+  const lang =
+    (localStorage.getItem('language') as 'en' | 'zh' | null) ?? 'en'
+  return (
+    <div
+      className="min-h-[40vh] flex items-center justify-center"
+      style={{ color: 'var(--text-secondary)' }}
+    >
+      {t('loading', lang)}
+    </div>
+  )
+}
+
+function withSuspense(node: ReactNode) {
+  return <Suspense fallback={<RouteFallback />}>{node}</Suspense>
+}
 
 export const router = createBrowserRouter([
   {
     path: '/',
     element: <LandingPage />,
   },
-  // Auth routes - using AuthLayout
   {
     element: <AuthLayout />,
     children: [
       {
         path: '/login',
-        element: <LoginPage />,
+        element: withSuspense(<LoginPage />),
       },
       {
         path: '/register',
-        element: <RegisterPage />,
+        element: withSuspense(<RegisterPage />),
       },
       {
         path: '/reset-password',
-        element: <ResetPasswordPage />,
+        element: withSuspense(<ResetPasswordPage />),
       },
     ],
   },
-  // Main app routes - using MainLayout with nested routes
   {
     element: <MainLayout />,
     children: [
@@ -49,11 +93,11 @@ export const router = createBrowserRouter([
       },
       {
         path: '/competition',
-        element: <CompetitionPage />,
+        element: withSuspense(<CompetitionPage />),
       },
       {
         path: '/traders',
-        element: (
+        element: withSuspense(
           <FeatureRoute feature={FEATURES.ai_trader}>
             <AITradersPage />
           </FeatureRoute>
@@ -61,7 +105,7 @@ export const router = createBrowserRouter([
       },
       {
         path: '/dashboard',
-        element: (
+        element: withSuspense(
           <FeatureRoute feature={FEATURES.ai_trader}>
             <TraderDashboard />
           </FeatureRoute>
@@ -69,7 +113,7 @@ export const router = createBrowserRouter([
       },
       {
         path: '/copy-trading',
-        element: (
+        element: withSuspense(
           <FeatureRoute feature={FEATURES.leaderboard}>
             <CopyTradingPage />
           </FeatureRoute>
@@ -77,7 +121,7 @@ export const router = createBrowserRouter([
       },
       {
         path: '/copy-trade',
-        element: (
+        element: withSuspense(
           <FeatureRoute feature={FEATURES.copy_trade}>
             <CopyTradeDashboard />
           </FeatureRoute>
@@ -85,7 +129,7 @@ export const router = createBrowserRouter([
       },
       {
         path: '/symbols',
-        element: (
+        element: withSuspense(
           <FeatureRoute feature={FEATURES.symbols}>
             <SymbolManagementPage />
           </FeatureRoute>
@@ -93,7 +137,7 @@ export const router = createBrowserRouter([
       },
       {
         path: '/access-keys',
-        element: <ApiKeysPage />,
+        element: withSuspense(<ApiKeysPage />),
       },
     ],
   },

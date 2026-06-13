@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react'
-import { httpClient } from '../../lib/httpClient'
+import { copyTradeApi } from '../../lib/api/copyTrade'
 import type { LeaderboardTrader } from './copyTradeLeaderboardUtils'
 
 export interface CopyConfig {
@@ -19,14 +19,6 @@ export interface CopyTradeLeaderCardProps {
   cfg?: CopyConfig
   onToggle: (trader: LeaderboardTrader) => void
   onConfigUpdated: () => void | Promise<void>
-}
-
-function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem('auth_token')
-  return {
-    'Content-Type': 'application/json',
-    Authorization: token ? `Bearer ${token}` : '',
-  }
 }
 
 export function CopyTradeLeaderCard({
@@ -55,20 +47,16 @@ export function CopyTradeLeaderCard({
     if (!cfg || saving) return
     setSaving(true)
     try {
-      await httpClient.post(
-        '/api/copy-trade/configs',
-        {
-          id: cfg.id,
-          portfolio_id: cfg.portfolio_id,
-          nickname: cfg.nickname,
-          enabled: cfg.enabled,
-          auto_follow: patch.auto_follow ?? cfg.auto_follow,
-          max_copy_size: patch.max_copy_size ?? cfg.max_copy_size,
-          size_multiplier: patch.size_multiplier ?? cfg.size_multiplier,
-          copy_open_only: patch.copy_open_only ?? cfg.copy_open_only,
-        },
-        authHeaders()
-      )
+      await copyTradeApi.upsertConfig({
+        id: cfg.id,
+        portfolio_id: cfg.portfolio_id,
+        nickname: cfg.nickname,
+        enabled: cfg.enabled,
+        auto_follow: patch.auto_follow ?? cfg.auto_follow,
+        max_copy_size: patch.max_copy_size ?? cfg.max_copy_size,
+        size_multiplier: patch.size_multiplier ?? cfg.size_multiplier,
+        copy_open_only: patch.copy_open_only ?? cfg.copy_open_only,
+      })
       await onConfigUpdated()
     } finally {
       setSaving(false)

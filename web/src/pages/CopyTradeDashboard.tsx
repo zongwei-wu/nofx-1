@@ -2,8 +2,13 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLanguage } from '../contexts/LanguageContext'
 import { useSymbolPreferences } from '../contexts/SymbolPreferencesContext'
-import { httpClient } from '../lib/httpClient'
 import { api } from '../lib/api'
+import {
+  copyTradeApi,
+  type CopyConfig,
+  type CopyRecord,
+  type CopyTradeSettings,
+} from '../lib/api/copyTrade'
 import type { Position, TraderInfo } from '../types'
 import { CopyTradeMonitorTab } from '../components/copy-trade/CopyTradeMonitorTab'
 import { CopyTradeCoinPnLChart } from '../components/copy-trade/CopyTradeCoinPnLChart'
@@ -21,46 +26,7 @@ import {
   type LeaderboardTrader,
 } from '../components/copy-trade/copyTradeLeaderboardUtils'
 
-interface CopyConfig {
-  id: number
-  portfolio_id: string
-  nickname: string
-  enabled: boolean
-  auto_follow: boolean
-  max_copy_size: number
-  size_multiplier: number
-  copy_open_only: boolean
-  last_order_time: number
-}
-
-interface CopyRecord {
-  id: number
-  portfolio_id: string
-  nickname: string
-  order_id?: string
-  symbol: string
-  side: string
-  position_side: string
-  executed_qty: number
-  avg_price: number
-  close_price?: number
-  total_pnl: number
-  status: string
-  error_message?: string
-  lead_order_time: number
-  copy_time?: string
-  close_time?: string
-}
-
 type RecordsStatusTab = 'OPEN' | 'CLOSED' | 'FAILED'
-
-interface CopyTradeSettings {
-  ai_trader_id: string
-  execution_exchange_id?: string
-  ai_trader_name?: string
-  ai_model_name?: string
-  fallback_used?: boolean
-}
 
 export function CopyTradeDashboard() {
   void useLanguage()
@@ -91,58 +57,23 @@ export function CopyTradeDashboard() {
 
   const loadData = async () => {
     try {
-      const token = localStorage.getItem('auth_token')
-      const headers = { Authorization: token ? `Bearer ${token}` : '' }
-
-      // Load copy configs
-      const configRes = await httpClient.get('/api/copy-trade/configs', headers)
-      if (configRes.ok) {
-        const configData = await configRes.json()
-        setConfigs(Array.isArray(configData) ? configData : [])
-      }
-
-      // Load records
-      const recordsRes = await httpClient.get('/api/copy-trade/records', headers)
-      if (recordsRes.ok) {
-        const recordsData = await recordsRes.json()
-        setRecords(Array.isArray(recordsData) ? recordsData : [])
-      }
-
-      // Load leaderboard for available traders
-      const lbRes = await httpClient.get('/api/copy-trading/leaderboard', headers)
-      if (lbRes.ok) {
-        const lbData = await lbRes.json()
-        if (lbData.code === '000000' && lbData.data) {
-          const all = [...(lbData.data.highestPnlLeads || []), ...(lbData.data.highestRoiLeads || [])]
-          const unique = new Map<string, LeaderboardTrader>()
-          all.forEach((raw: LeaderboardTrader) => {
-            if (!raw?.leadPortfolioId) return
-            unique.set(raw.leadPortfolioId, {
-              ...raw,
-              leadPortfolioId: raw.leadPortfolioId,
-              nickname: raw.nickname || '',
-              pnl: Number(raw.pnl) || 0,
-              roi: Number(raw.roi) || 0,
-            })
-          })
-          setLeaderboard(Array.from(unique.values()))
-        }
-      }
-
-      const [settingsRes, tradersList, positionsRes] = await Promise.all([
-        httpClient.get('/api/copy-trade/settings', headers),
-        api.getTraders().catch(() => [] as TraderInfo[]),
-        httpClient.get('/api/copy-trade/exchange-positions', headers).catch(() => null),
-      ])
-      if (positionsRes?.ok) {
-        const posData = await positionsRes.json()
-        setExchangePositions(Array.isArray(posData) ? posData : [])
-      } else {
-        setExchangePositions([])
-      }
-      if (settingsRes.ok) {
-        setCopyTradeSettings(await settingsRes.json())
-      }
+      const [configsData, recordsData, lbData, settings, tradersList, positions] =
+        await Promise.all([
+          copyTradeApi.getConfigs(),
+          copyTradeApi.getRecords(),
+          copyTradeApi.getLeaderboard(),
+          copyTradeApi.getCopyTradeSettings().catch(() => ({
+            ai_trader_id: '',
+            execution_exchange_id: '',
+          })),
+          api.getTraders().catch(() => [] as TraderInfo[]),
+          copyTradeApi.getExchangePositions(),
+        ])
+      setConfigs(configsData)
+      setRecords(recordsData)
+      setLeaderboard(lbData)
+      setCopyTradeSettings(settings)
+      setExchangePositions(positions)
       setAiTraders(tradersList)
     } catch (e) {
       console.error(e)
@@ -152,16 +83,12 @@ export function CopyTradeDashboard() {
   }
 
   const toggleTrader = async (trader: LeaderboardTrader) => {
-    const existing = (configs ?? []).find(c => c.portfolio_id === trader.leadPortfolioId)
-    const token = localStorage.getItem('auth_token')
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      Authorization: token ? `Bearer ${token}` : '',
-    }
+    const existing = (configs ?? []).find(
+      (c) => c.portfolio_id === trader.leadPortfolioId
+    )
 
     if (existing) {
-      // Toggle enabled/disabled
-      await httpClient.post('/api/copy-trade/configs', {
+      await copyTradeApi.upsertConfig({
         id: existing.id,
         portfolio_id: existing.portfolio_id,
         nickname: existing.nickname,
@@ -170,10 +97,9 @@ export function CopyTradeDashboard() {
         max_copy_size: existing.max_copy_size,
         size_multiplier: existing.size_multiplier,
         copy_open_only: existing.copy_open_only,
-      }, headers)
+      })
     } else {
-      // Add new config
-      await httpClient.post('/api/copy-trade/configs', {
+      await copyTradeApi.upsertConfig({
         portfolio_id: trader.leadPortfolioId,
         nickname: trader.nickname,
         enabled: true,
@@ -181,7 +107,7 @@ export function CopyTradeDashboard() {
         max_copy_size: 1000,
         size_multiplier: 0.1,
         copy_open_only: false,
-      }, headers)
+      })
     }
     await loadData()
   }
@@ -190,15 +116,12 @@ export function CopyTradeDashboard() {
     setSyncing(true)
     setMessage('')
     try {
-      const token = localStorage.getItem('auth_token')
-      const res = await httpClient.post('/api/copy-trade/sync', undefined, {
-        Authorization: token ? `Bearer ${token}` : '',
-      })
-      const data = await res.json()
+      const data = await copyTradeApi.sync()
       setMessage(`同步完成，复制了 ${data.copied || 0} 条操作`)
       await loadData()
-    } catch (e: any) {
-      setMessage('同步失败: ' + (e.message || '未知错误'))
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '未知错误'
+      setMessage('同步失败: ' + msg)
     } finally {
       setSyncing(false)
     }
@@ -208,19 +131,12 @@ export function CopyTradeDashboard() {
     setRefreshingPnl(true)
     setMessage('')
     try {
-      const token = localStorage.getItem('auth_token')
-      const res = await httpClient.post('/api/copy-trade/refresh-pnl', undefined, {
-        Authorization: token ? `Bearer ${token}` : '',
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setMessage('刷新盈亏失败: ' + (data.error || '未知错误'))
-        return
-      }
+      const data = await copyTradeApi.refreshPnl()
       setMessage(`盈亏已刷新，更新 ${data.updated || 0} 条记录`)
       await loadData()
-    } catch (e: any) {
-      setMessage('刷新盈亏失败: ' + (e.message || '未知错误'))
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '未知错误'
+      setMessage('刷新盈亏失败: ' + msg)
     } finally {
       setRefreshingPnl(false)
     }

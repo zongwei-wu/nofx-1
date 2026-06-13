@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { httpClient } from '../../lib/httpClient'
+import { copyTradeApi } from '../../lib/api/copyTrade'
 
 const ACTION_LABELS: Record<string, string> = {
   lead_open: '带单开仓',
@@ -147,20 +147,17 @@ export function CopyTradeMonitorTab() {
 
   const load = useCallback(async () => {
     try {
-      const token = localStorage.getItem('auth_token')
-      const headers = { Authorization: token ? `Bearer ${token}` : '' }
-      const [res, settingsRes] = await Promise.all([
-        httpClient.get('/api/copy-trade/monitor', headers),
-        httpClient.get('/api/copy-trade/settings', headers),
+      const [monitorData, settingsData] = await Promise.all([
+        copyTradeApi.getMonitor().catch(async (e) => {
+          setError(e instanceof Error ? e.message : '加载失败')
+          return null
+        }),
+        copyTradeApi.getCopyTradeSettings().catch(() => null),
       ])
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        setError((err as { error?: string }).error || '加载失败')
-        return
-      }
-      setData(await res.json())
-      if (settingsRes.ok) {
-        setSettings(await settingsRes.json())
+      if (!monitorData) return
+      setData(monitorData as MonitorData)
+      if (settingsData) {
+        setSettings(settingsData)
       }
       setError('')
     } catch (e) {

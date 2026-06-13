@@ -50,17 +50,13 @@ export default function AboutSection({ language }: AboutSectionProps) {
               className="text-lg leading-relaxed"
               style={{ color: 'var(--text-secondary)' }}
             >
-              {t('nofxNotAnotherBot', language)}{' '}
-              {t('nofxDescription1', language)}{' '}
-              {t('nofxDescription2', language)}
+              {t('productAbout1', language)}
             </p>
             <p
               className="text-lg leading-relaxed"
               style={{ color: 'var(--text-secondary)' }}
             >
-              {t('nofxDescription3', language)}{' '}
-              {t('nofxDescription4', language)}{' '}
-              {t('nofxDescription5', language)}
+              {t('productAbout2', language)}
             </p>
             <motion.div
               className="flex items-center gap-3 pt-4"
@@ -102,13 +98,11 @@ export default function AboutSection({ language }: AboutSectionProps) {
             >
               <Typewriter
                 lines={[
-                  '$ git clone https://github.com/tinkle-community/nofx.git',
-                  '$ cd nofx',
-                  '$ chmod +x start.sh',
-                  '$ ./start.sh start --build',
-                  t('startupMessages1', language),
-                  t('startupMessages2', language),
-                  t('startupMessages3', language),
+                  t('workflowDemo1', language),
+                  t('workflowDemo2', language),
+                  t('workflowDemo3', language),
+                  t('workflowDemo4', language),
+                  t('workflowDemo5', language),
                 ]}
                 typingSpeed={70}
                 lineDelay={900}

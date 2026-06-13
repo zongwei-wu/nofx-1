@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Menu, X, ChevronDown } from 'lucide-react'
 import { t, type Language } from '../i18n/translations'
 import { Container } from './Container'
 import { useSystemConfig } from '../hooks/useSystemConfig'
 import { useAuth } from '../contexts/AuthContext'
-import { LOGGED_IN_NAV_ITEMS } from '../config/navItems'
+import { HomeNavLinks } from './layout/HomeNavLinks'
+import { LanguageToggle } from './layout/LanguageToggle'
+import { AppNavMenu } from './layout/AppNavMenu'
 
 interface HeaderBarProps {
   onLoginClick?: () => void
@@ -28,38 +30,29 @@ export default function HeaderBar({
   onLanguageChange,
   user,
   onLogout,
-  onPageChange,
 }: HeaderBarProps) {
-  const navigate = useNavigate()
   const { hasFeature } = useAuth()
 
-  /** 无对应 feature 权限时不显示菜单项 */
   const canShow = (feature: string | null) => {
     if (!feature) return true
     return hasFeature(feature)
   }
 
-  const showNav = (key: string) =>
-    LOGGED_IN_NAV_ITEMS.some(
-      (item) => item.key === key && canShow(item.feature)
-    )
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false)
   const [userDropdownOpen, setUserDropdownOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
   const userDropdownRef = useRef<HTMLDivElement>(null)
   const { config: systemConfig } = useSystemConfig()
   const registrationEnabled = systemConfig?.registration_enabled !== false
 
-  // Close dropdown when clicking outside
+  const closeMobileMenu = () => setMobileMenuOpen(false)
+
+  const handleLanguageChange = (lang: Language) => {
+    onLanguageChange?.(lang)
+    closeMobileMenu()
+  }
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setLanguageDropdownOpen(false)
-      }
       if (
         userDropdownRef.current &&
         !userDropdownRef.current.contains(event.target as Node)
@@ -77,7 +70,6 @@ export default function HeaderBar({
   return (
     <nav className="fixed top-0 w-full z-50 header-bar">
       <Container className="flex items-center justify-between h-16">
-        {/* Logo */}
         <Link
           to="/"
           className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
@@ -97,444 +89,29 @@ export default function HeaderBar({
           </span>
         </Link>
 
-        {/* Desktop Menu */}
         <div className="hidden md:flex items-center justify-between flex-1 ml-8">
-          {/* Left Side - Navigation Tabs */}
           <div className="flex items-center gap-4">
-            {isLoggedIn ? (
-              // Main app navigation when logged in
-              <>
-                {showNav('competition') && (
-                <button
-                  onClick={() => {
-                    navigate('/competition')
-                  }}
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
-                  style={{
-                    color:
-                      currentPage === 'competition'
-                        ? 'var(--brand-yellow)'
-                        : 'var(--brand-light-gray)',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentPage !== 'competition') {
-                      e.currentTarget.style.color = 'var(--brand-yellow)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentPage !== 'competition') {
-                      e.currentTarget.style.color = 'var(--brand-light-gray)'
-                    }
-                  }}
-                >
-                  {/* Background for selected state */}
-                  {currentPage === 'competition' && (
-                    <span
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        background: 'rgba(240, 185, 11, 0.15)',
-                        zIndex: -1,
-                      }}
-                    />
-                  )}
-
-                  {t('realtimeNav', language)}
-                </button>
-                )}
-
-                {showNav('traders') && (
-                <button
-                  onClick={() => {
-                    navigate('/traders')
-                  }}
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
-                  style={{
-                    color:
-                      currentPage === 'traders'
-                        ? 'var(--brand-yellow)'
-                        : 'var(--brand-light-gray)',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentPage !== 'traders') {
-                      e.currentTarget.style.color = 'var(--brand-yellow)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentPage !== 'traders') {
-                      e.currentTarget.style.color = 'var(--brand-light-gray)'
-                    }
-                  }}
-                >
-                  {/* Background for selected state */}
-                  {currentPage === 'traders' && (
-                    <span
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        background: 'rgba(240, 185, 11, 0.15)',
-                        zIndex: -1,
-                      }}
-                    />
-                  )}
-
-                  {t('configNav', language)}
-                </button>
-                )}
-
-                {showNav('trader') && (
-                <button
-                  onClick={() => {
-                    navigate('/dashboard')
-                  }}
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
-                  style={{
-                    color:
-                      currentPage === 'trader'
-                        ? 'var(--brand-yellow)'
-                        : 'var(--brand-light-gray)',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentPage !== 'trader') {
-                      e.currentTarget.style.color = 'var(--brand-yellow)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentPage !== 'trader') {
-                      e.currentTarget.style.color = 'var(--brand-light-gray)'
-                    }
-                  }}
-                >
-                  {/* Background for selected state */}
-                  {currentPage === 'trader' && (
-                    <span
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        background: 'rgba(240, 185, 11, 0.15)',
-                        zIndex: -1,
-                      }}
-                    />
-                  )}
-
-                  {t('dashboardNav', language)}
-                </button>
-                )}
-
-                {showNav('copy-trading') && (
-                <button
-                  onClick={() => navigate('/copy-trading')}
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
-                  style={{
-                    color:
-                      currentPage === 'copy-trading'
-                        ? 'var(--brand-yellow)'
-                        : 'var(--brand-light-gray)',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentPage !== 'copy-trading') {
-                      e.currentTarget.style.color = 'var(--brand-yellow)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentPage !== 'copy-trading') {
-                      e.currentTarget.style.color = 'var(--brand-light-gray)'
-                    }
-                  }}
-                >
-                  {currentPage === 'copy-trading' && (
-                    <span
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        background: 'rgba(240, 185, 11, 0.15)',
-                        zIndex: -1,
-                      }}
-                    />
-                  )}
-                  排行榜
-                </button>
-                )}
-
-                {showNav('copy-trade') && (
-                <button
-                  onClick={() => navigate('/copy-trade')}
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
-                  style={{
-                    color:
-                      currentPage === 'copy-trade'
-                        ? 'var(--brand-yellow)'
-                        : 'var(--brand-light-gray)',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentPage !== 'copy-trade') {
-                      e.currentTarget.style.color = 'var(--brand-yellow)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentPage !== 'copy-trade') {
-                      e.currentTarget.style.color = 'var(--brand-light-gray)'
-                    }
-                  }}
-                >
-                  {currentPage === 'copy-trade' && (
-                    <span
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        background: 'rgba(240, 185, 11, 0.15)',
-                        zIndex: -1,
-                      }}
-                    />
-                  )}
-                  跟单管理
-                </button>
-                )}
-
-                {showNav('symbols') && (
-                <button
-                  onClick={() => navigate('/symbols')}
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
-                  style={{
-                    color:
-                      currentPage === 'symbols'
-                        ? 'var(--brand-yellow)'
-                        : 'var(--brand-light-gray)',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentPage !== 'symbols') {
-                      e.currentTarget.style.color = 'var(--brand-yellow)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentPage !== 'symbols') {
-                      e.currentTarget.style.color = 'var(--brand-light-gray)'
-                    }
-                  }}
-                >
-                  {currentPage === 'symbols' && (
-                    <span
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        background: 'rgba(240, 185, 11, 0.15)',
-                        zIndex: -1,
-                      }}
-                    />
-                  )}
-                  币种管理
-                </button>
-                )}
-
-                {showNav('access-keys') && (
-                <button
-                  onClick={() => navigate('/access-keys')}
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
-                  style={{
-                    color:
-                      currentPage === 'access-keys'
-                        ? 'var(--brand-yellow)'
-                        : 'var(--brand-light-gray)',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentPage !== 'access-keys') {
-                      e.currentTarget.style.color = 'var(--brand-yellow)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentPage !== 'access-keys') {
-                      e.currentTarget.style.color = 'var(--brand-light-gray)'
-                    }
-                  }}
-                >
-                  {currentPage === 'access-keys' && (
-                    <span
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        background: 'rgba(240, 185, 11, 0.15)',
-                        zIndex: -1,
-                      }}
-                    />
-                  )}
-                  API Keys
-                </button>
-                )}
-
-                <button
-                  onClick={() => navigate('/faq')}
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
-                  style={{
-                    color:
-                      currentPage === 'faq'
-                        ? 'var(--brand-yellow)'
-                        : 'var(--brand-light-gray)',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentPage !== 'faq') {
-                      e.currentTarget.style.color = 'var(--brand-yellow)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentPage !== 'faq') {
-                      e.currentTarget.style.color = 'var(--brand-light-gray)'
-                    }
-                  }}
-                >
-                  {currentPage === 'faq' && (
-                    <span
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        background: 'rgba(240, 185, 11, 0.15)',
-                        zIndex: -1,
-                      }}
-                    />
-                  )}
-
-                  {t('faqNav', language)}
-                </button>
-              </>
-            ) : (
-              // Landing page navigation when not logged in
-              <>
-                <a
-                  href="/competition"
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
-                  style={{
-                    color:
-                      currentPage === 'competition'
-                        ? 'var(--brand-yellow)'
-                        : 'var(--brand-light-gray)',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentPage !== 'competition') {
-                      e.currentTarget.style.color = 'var(--brand-yellow)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentPage !== 'competition') {
-                      e.currentTarget.style.color = 'var(--brand-light-gray)'
-                    }
-                  }}
-                >
-                  {/* Background for selected state */}
-                  {currentPage === 'competition' && (
-                    <span
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        background: 'rgba(240, 185, 11, 0.15)',
-                        zIndex: -1,
-                      }}
-                    />
-                  )}
-
-                  {t('realtimeNav', language)}
-                </a>
-
-                <a
-                  href="/faq"
-                  className="text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
-                  style={{
-                    color:
-                      currentPage === 'faq'
-                        ? 'var(--brand-yellow)'
-                        : 'var(--brand-light-gray)',
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentPage !== 'faq') {
-                      e.currentTarget.style.color = 'var(--brand-yellow)'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentPage !== 'faq') {
-                      e.currentTarget.style.color = 'var(--brand-light-gray)'
-                    }
-                  }}
-                >
-                  {/* Background for selected state */}
-                  {currentPage === 'faq' && (
-                    <span
-                      className="absolute inset-0 rounded-lg"
-                      style={{
-                        background: 'rgba(240, 185, 11, 0.15)',
-                        zIndex: -1,
-                      }}
-                    />
-                  )}
-
-                  {t('faqNav', language)}
-                </a>
-              </>
-            )}
+            <AppNavMenu
+              language={language}
+              currentPage={currentPage}
+              isLoggedIn={isLoggedIn}
+              canShow={canShow}
+              variant="desktop"
+            />
           </div>
 
-          {/* Right Side - Original Navigation Items and Login */}
           <div className="flex items-center gap-6">
-            {/* Only show original navigation items on home page */}
-            {isHomePage &&
-              [
-                { key: 'features', label: t('features', language) },
-                { key: 'howItWorks', label: t('howItWorks', language) },
-                { key: 'GitHub', label: 'GitHub' },
-                { key: 'community', label: t('community', language) },
-              ].map((item) => (
-                <a
-                  key={item.key}
-                  href={
-                    item.key === 'GitHub'
-                      ? 'https://github.com/tinkle-community/nofx'
-                      : item.key === 'community'
-                        ? 'https://t.me/nofx_dev_community'
-                        : `#${item.key === 'features' ? 'features' : 'how-it-works'}`
-                  }
-                  target={
-                    item.key === 'GitHub' || item.key === 'community'
-                      ? '_blank'
-                      : undefined
-                  }
-                  rel={
-                    item.key === 'GitHub' || item.key === 'community'
-                      ? 'noopener noreferrer'
-                      : undefined
-                  }
-                  className="text-sm transition-colors relative group"
-                  style={{ color: 'var(--brand-light-gray)' }}
-                >
-                  {item.label}
-                  <span
-                    className="absolute -bottom-1 left-0 w-0 h-0.5 group-hover:w-full transition-all duration-300"
-                    style={{ background: 'var(--brand-yellow)' }}
-                  />
-                </a>
-              ))}
+            {isHomePage && (
+              <div className="flex items-center gap-6">
+                <HomeNavLinks
+                  language={language}
+                  linkClassName="text-sm transition-colors relative group"
+                />
+              </div>
+            )}
 
-            {/* User Info and Actions */}
             {isLoggedIn && user ? (
               <div className="flex items-center gap-3">
-                {/* User Info with Dropdown */}
                 <div className="relative" ref={userDropdownRef}>
                   <button
                     onClick={() => setUserDropdownOpen(!userDropdownOpen)}
@@ -617,7 +194,6 @@ export default function HeaderBar({
                 </div>
               </div>
             ) : (
-              /* Show login/register buttons when not logged in and not on login/register pages */
               currentPage !== 'login' &&
               currentPage !== 'register' && (
                 <div className="flex items-center gap-3">
@@ -644,79 +220,15 @@ export default function HeaderBar({
               )
             )}
 
-            {/* Language Toggle - Always at the rightmost */}
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
-                className="flex items-center gap-2 px-3 py-2 rounded transition-colors"
-                style={{ color: 'var(--brand-light-gray)' }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background =
-                    'rgba(255, 255, 255, 0.05)')
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = 'transparent')
-                }
-              >
-                <span className="text-lg">
-                  {language === 'zh' ? '🇨🇳' : '🇺🇸'}
-                </span>
-                <ChevronDown className="w-4 h-4" />
-              </button>
-
-              {languageDropdownOpen && (
-                <div
-                  className="absolute right-0 top-full mt-2 w-32 rounded-lg shadow-lg overflow-hidden z-50"
-                  style={{
-                    background: 'var(--brand-dark-gray)',
-                    border: '1px solid var(--panel-border)',
-                  }}
-                >
-                  <button
-                    onClick={() => {
-                      onLanguageChange?.('zh')
-                      setLanguageDropdownOpen(false)
-                    }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 transition-colors ${
-                      language === 'zh' ? '' : 'hover:opacity-80'
-                    }`}
-                    style={{
-                      color: 'var(--brand-light-gray)',
-                      background:
-                        language === 'zh'
-                          ? 'rgba(240, 185, 11, 0.1)'
-                          : 'transparent',
-                    }}
-                  >
-                    <span className="text-base">🇨🇳</span>
-                    <span className="text-sm">中文</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      onLanguageChange?.('en')
-                      setLanguageDropdownOpen(false)
-                    }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 transition-colors ${
-                      language === 'en' ? '' : 'hover:opacity-80'
-                    }`}
-                    style={{
-                      color: 'var(--brand-light-gray)',
-                      background:
-                        language === 'en'
-                          ? 'rgba(240, 185, 11, 0.1)'
-                          : 'transparent',
-                    }}
-                  >
-                    <span className="text-base">🇺🇸</span>
-                    <span className="text-sm">English</span>
-                  </button>
-                </div>
-              )}
-            </div>
+            {onLanguageChange && (
+              <LanguageToggle
+                language={language}
+                onLanguageChange={onLanguageChange}
+              />
+            )}
           </div>
         </div>
 
-        {/* Mobile Menu Button */}
         <motion.button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="md:hidden"
@@ -731,7 +243,6 @@ export default function HeaderBar({
         </motion.button>
       </Container>
 
-      {/* Mobile Menu */}
       <motion.div
         initial={false}
         animate={
@@ -747,364 +258,41 @@ export default function HeaderBar({
         }}
       >
         <div className="px-4 py-4 space-y-3">
-          {/* New Navigation Tabs */}
-          {isLoggedIn && showNav('competition') ? (
-            <button
-              onClick={() => {
-                navigate('/competition')
-                setMobileMenuOpen(false)
-              }}
-              className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
-              style={{
-                color:
-                  currentPage === 'competition'
-                    ? 'var(--brand-yellow)'
-                    : 'var(--brand-light-gray)',
-                padding: '12px 16px',
-                borderRadius: '8px',
-                position: 'relative',
-                width: '100%',
-                textAlign: 'left',
-              }}
-            >
-              {/* Background for selected state */}
-              {currentPage === 'competition' && (
-                <span
-                  className="absolute inset-0 rounded-lg"
-                  style={{
-                    background: 'rgba(240, 185, 11, 0.15)',
-                    zIndex: -1,
-                  }}
-                />
-              )}
+          <AppNavMenu
+            language={language}
+            currentPage={currentPage}
+            isLoggedIn={isLoggedIn}
+            canShow={canShow}
+            variant="mobile"
+            onNavigate={closeMobileMenu}
+          />
 
-              {t('realtimeNav', language)}
-            </button>
-          ) : (
-            <a
-              href="/competition"
-              className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500"
-              style={{
-                color:
-                  currentPage === 'competition'
-                    ? 'var(--brand-yellow)'
-                    : 'var(--brand-light-gray)',
-                padding: '12px 16px',
-                borderRadius: '8px',
-                position: 'relative',
-              }}
-            >
-              {/* Background for selected state */}
-              {currentPage === 'competition' && (
-                <span
-                  className="absolute inset-0 rounded-lg"
-                  style={{
-                    background: 'rgba(240, 185, 11, 0.15)',
-                    zIndex: -1,
-                  }}
-                />
-              )}
-
-              {t('realtimeNav', language)}
-            </a>
-          )}
-          {isLoggedIn && (
-            <>
-              {showNav('traders') && (
-              <button
-                onClick={() => {
-                  navigate('/traders')
-                  setMobileMenuOpen(false)
-                }}
-                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
-                style={{
-                  color:
-                    currentPage === 'traders'
-                      ? 'var(--brand-yellow)'
-                      : 'var(--brand-light-gray)',
-                  padding: '12px 16px',
-                  borderRadius: '8px',
-                  position: 'relative',
-                  width: '100%',
-                  textAlign: 'left',
-                }}
-              >
-                {/* Background for selected state */}
-                {currentPage === 'traders' && (
-                  <span
-                    className="absolute inset-0 rounded-lg"
-                    style={{
-                      background: 'rgba(240, 185, 11, 0.15)',
-                      zIndex: -1,
-                    }}
-                  />
-                )}
-
-                {t('configNav', language)}
-              </button>
-              )}
-              {showNav('trader') && (
-              <button
-                onClick={() => {
-                  navigate('/dashboard')
-                  setMobileMenuOpen(false)
-                }}
-                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
-                style={{
-                  color:
-                    currentPage === 'trader'
-                      ? 'var(--brand-yellow)'
-                      : 'var(--brand-light-gray)',
-                  padding: '12px 16px',
-                  borderRadius: '8px',
-                  position: 'relative',
-                  width: '100%',
-                  textAlign: 'left',
-                }}
-              >
-                {/* Background for selected state */}
-                {currentPage === 'trader' && (
-                  <span
-                    className="absolute inset-0 rounded-lg"
-                    style={{
-                      background: 'rgba(240, 185, 11, 0.15)',
-                      zIndex: -1,
-                    }}
-                  />
-                )}
-
-                {t('dashboardNav', language)}
-              </button>
-              )}
-              {showNav('copy-trading') && (
-              <button
-                onClick={() => {
-                  navigate('/copy-trading')
-                  setMobileMenuOpen(false)
-                }}
-                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
-                style={{
-                  color:
-                    currentPage === 'copy-trading'
-                      ? 'var(--brand-yellow)'
-                      : 'var(--brand-light-gray)',
-                  padding: '12px 16px',
-                  borderRadius: '8px',
-                  position: 'relative',
-                  width: '100%',
-                  textAlign: 'left',
-                }}
-              >
-                {currentPage === 'copy-trading' && (
-                  <span
-                    className="absolute inset-0 rounded-lg"
-                    style={{
-                      background: 'rgba(240, 185, 11, 0.15)',
-                      zIndex: -1,
-                    }}
-                  />
-                )}
-                排行榜
-              </button>
-              )}
-              {showNav('copy-trade') && (
-              <button
-                onClick={() => {
-                  navigate('/copy-trade')
-                  setMobileMenuOpen(false)
-                }}
-                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
-                style={{
-                  color:
-                    currentPage === 'copy-trade'
-                      ? 'var(--brand-yellow)'
-                      : 'var(--brand-light-gray)',
-                  padding: '12px 16px',
-                  borderRadius: '8px',
-                  position: 'relative',
-                  width: '100%',
-                  textAlign: 'left',
-                }}
-              >
-                {currentPage === 'copy-trade' && (
-                  <span
-                    className="absolute inset-0 rounded-lg"
-                    style={{
-                      background: 'rgba(240, 185, 11, 0.15)',
-                      zIndex: -1,
-                    }}
-                  />
-                )}
-                跟单管理
-              </button>
-              )}
-              {showNav('symbols') && (
-              <button
-                onClick={() => {
-                  navigate('/symbols')
-                  setMobileMenuOpen(false)
-                }}
-                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
-                style={{
-                  color:
-                    currentPage === 'symbols'
-                      ? 'var(--brand-yellow)'
-                      : 'var(--brand-light-gray)',
-                  padding: '12px 16px',
-                  borderRadius: '8px',
-                  position: 'relative',
-                  width: '100%',
-                  textAlign: 'left',
-                }}
-              >
-                {currentPage === 'symbols' && (
-                  <span
-                    className="absolute inset-0 rounded-lg"
-                    style={{
-                      background: 'rgba(240, 185, 11, 0.15)',
-                      zIndex: -1,
-                    }}
-                  />
-                )}
-                币种管理
-              </button>
-              )}
-              {showNav('access-keys') && (
-              <button
-                onClick={() => {
-                  navigate('/access-keys')
-                  setMobileMenuOpen(false)
-                }}
-                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
-                style={{
-                  color:
-                    currentPage === 'access-keys'
-                      ? 'var(--brand-yellow)'
-                      : 'var(--brand-light-gray)',
-                  padding: '12px 16px',
-                  borderRadius: '8px',
-                  position: 'relative',
-                  width: '100%',
-                  textAlign: 'left',
-                }}
-              >
-                {currentPage === 'access-keys' && (
-                  <span className="absolute inset-0 rounded-lg" style={{ background: 'rgba(240, 185, 11, 0.15)', zIndex: -1 }} />
-                )}
-                API Keys
-              </button>
-              )}
-              <button
-                onClick={() => {
-                  navigate('/faq')
-                  setMobileMenuOpen(false)
-                }}
-                className="block text-sm font-bold transition-all duration-300 relative focus:outline-2 focus:outline-yellow-500 hover:text-yellow-500"
-                style={{
-                  color:
-                    currentPage === 'faq'
-                      ? 'var(--brand-yellow)'
-                      : 'var(--brand-light-gray)',
-                  padding: '12px 16px',
-                  borderRadius: '8px',
-                  position: 'relative',
-                  width: '100%',
-                  textAlign: 'left',
-                }}
-              >
-                {/* Background for selected state */}
-                {currentPage === 'faq' && (
-                  <span
-                    className="absolute inset-0 rounded-lg"
-                    style={{
-                      background: 'rgba(240, 185, 11, 0.15)',
-                      zIndex: -1,
-                    }}
-                  />
-                )}
-
-                {t('faqNav', language)}
-              </button>
-            </>
+          {isHomePage && (
+            <HomeNavLinks
+              language={language}
+              linkClassName="block text-sm py-2"
+              onClick={closeMobileMenu}
+            />
           )}
 
-          {/* Original Navigation Items - Only on home page */}
-          {isHomePage &&
-            [
-              { key: 'features', label: t('features', language) },
-              { key: 'howItWorks', label: t('howItWorks', language) },
-              { key: 'GitHub', label: 'GitHub' },
-              { key: 'community', label: t('community', language) },
-            ].map((item) => (
-              <a
-                key={item.key}
-                href={
-                  item.key === 'GitHub'
-                    ? 'https://github.com/tinkle-community/nofx'
-                    : item.key === 'community'
-                      ? 'https://t.me/nofx_dev_community'
-                      : `#${item.key === 'features' ? 'features' : 'how-it-works'}`
-                }
-                target={
-                  item.key === 'GitHub' || item.key === 'community'
-                    ? '_blank'
-                    : undefined
-                }
-                rel={
-                  item.key === 'GitHub' || item.key === 'community'
-                    ? 'noopener noreferrer'
-                    : undefined
-                }
-                className="block text-sm py-2"
-                style={{ color: 'var(--brand-light-gray)' }}
-              >
-                {item.label}
-              </a>
-            ))}
-
-          {/* Language Toggle */}
-          <div className="py-2">
-            <div className="flex items-center gap-2 mb-2">
-              <span
-                className="text-xs"
-                style={{ color: 'var(--brand-light-gray)' }}
-              >
-                {t('language', language)}:
-              </span>
+          {onLanguageChange && (
+            <div className="py-2">
+              <div className="flex items-center gap-2 mb-2">
+                <span
+                  className="text-xs"
+                  style={{ color: 'var(--brand-light-gray)' }}
+                >
+                  {t('language', language)}:
+                </span>
+              </div>
+              <LanguageToggle
+                language={language}
+                onLanguageChange={handleLanguageChange}
+                variant="inline"
+              />
             </div>
-            <div className="space-y-1">
-              <button
-                onClick={() => {
-                  onLanguageChange?.('zh')
-                  setMobileMenuOpen(false)
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded transition-colors ${
-                  language === 'zh'
-                    ? 'bg-yellow-500 text-black'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                <span className="text-lg">🇨🇳</span>
-                <span className="text-sm">中文</span>
-              </button>
-              <button
-                onClick={() => {
-                  onLanguageChange?.('en')
-                  setMobileMenuOpen(false)
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded transition-colors ${
-                  language === 'en'
-                    ? 'bg-yellow-500 text-black'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                <span className="text-lg">🇺🇸</span>
-                <span className="text-sm">English</span>
-              </button>
-            </div>
-          </div>
+          )}
 
-          {/* User info and logout for mobile when logged in */}
           {isLoggedIn && user && (
             <div
               className="mt-4 pt-4"
@@ -1142,7 +330,7 @@ export default function HeaderBar({
                 <button
                   onClick={() => {
                     onLogout()
-                    setMobileMenuOpen(false)
+                    closeMobileMenu()
                   }}
                   className="w-full px-4 py-2 rounded text-sm font-semibold transition-colors text-center"
                   style={{
@@ -1156,7 +344,6 @@ export default function HeaderBar({
             </div>
           )}
 
-          {/* Show login/register buttons when not logged in and not on login/register pages */}
           {!isLoggedIn &&
             currentPage !== 'login' &&
             currentPage !== 'register' && (
@@ -1168,7 +355,7 @@ export default function HeaderBar({
                     color: 'var(--brand-light-gray)',
                     border: '1px solid var(--brand-light-gray)',
                   }}
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={closeMobileMenu}
                 >
                   {t('signIn', language)}
                 </a>
@@ -1180,7 +367,7 @@ export default function HeaderBar({
                       background: 'var(--brand-yellow)',
                       color: 'var(--brand-black)',
                     }}
-                    onClick={() => setMobileMenuOpen(false)}
+                    onClick={closeMobileMenu}
                   >
                     {t('signUp', language)}
                   </a>

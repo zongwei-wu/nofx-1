@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import AnimatedSection from './AnimatedSection'
 import { CryptoFeatureCard } from '../CryptoFeatureCard'
-import { Code, Cpu, Lock, Rocket } from 'lucide-react'
+import { BarChart3, Cpu, Lock, Rocket } from 'lucide-react'
 import { t, Language } from '../../i18n/translations'
 
 interface FeaturesSectionProps {
@@ -44,20 +44,20 @@ export default function FeaturesSection({ language }: FeaturesSectionProps) {
             {t('whyChooseNofx', language)}
           </h2>
           <p className="text-lg" style={{ color: 'var(--text-secondary)' }}>
-            {t('openCommunityDriven', language)}
+            {t('productFeaturesSubtitle', language)}
           </p>
         </motion.div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
           <CryptoFeatureCard
-            icon={<Code className="w-8 h-8" />}
-            title={t('openSourceSelfHosted', language)}
-            description={t('openSourceDesc', language)}
+            icon={<BarChart3 className="w-8 h-8" />}
+            title={t('multiExchangeTitle', language)}
+            description={t('multiExchangeDesc', language)}
             features={[
-              t('openSourceFeatures1', language),
-              t('openSourceFeatures2', language),
-              t('openSourceFeatures3', language),
-              t('openSourceFeatures4', language),
+              t('multiExchangeFeatures1', language),
+              t('multiExchangeFeatures2', language),
+              t('multiExchangeFeatures3', language),
+              t('multiExchangeFeatures4', language),
             ]}
             delay={0}
           />
