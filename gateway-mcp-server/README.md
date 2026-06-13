@@ -81,6 +81,18 @@ gateway:
 | `gateway_place_order` | 下单（需 confirmed: true） |
 | `gateway_set_stop_loss` | 设置止损 |
 | `gateway_set_take_profit` | 设置止盈 |
+| `gateway_indicators_list` | 列出所有可用指标 |
+| `gateway_indicators_compute` | 计算指定交易对指标 |
+| `gateway_indicators_compare` | 多币种指标比较 |
+| `gateway_strategy_list` | 列出我的策略 |
+| `gateway_strategy_get` | 获取策略详情 |
+| `gateway_strategy_create` | 创建策略 |
+| `gateway_strategy_update` | 更新策略 |
+| `gateway_strategy_delete` | 删除策略 |
+| `gateway_strategy_validate` | 验证策略信号 |
+| `gateway_strategy_activate` | 激活策略 |
+| `gateway_backtest_run` | 启动回测 |
+| `gateway_backtest_get` | 获取回测结果 |
 
 ## 安全
 

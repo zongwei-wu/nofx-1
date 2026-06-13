@@ -66,6 +66,7 @@ func (s *Server) handleGatewayCapabilities(c *gin.Context) {
 		"features": []string{
 			"exchanges", "klines", "balance", "positions", "market-price",
 			"trade", "leverage", "stop-loss", "take-profit",
+			"indicators", "strategies", "backtests",
 		},
 		"klines_exchanges": []string{"binance", "okx"},
 	})

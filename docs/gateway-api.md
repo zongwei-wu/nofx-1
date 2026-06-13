@@ -72,6 +72,36 @@ Authorization: ApiKey nfx_sk_...
 | POST | `/api/gateway/stop-loss` | 止损 |
 | POST | `/api/gateway/take-profit` | 止盈 |
 
+### 指标
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/gateway/indicators/list` | 列出所有可用指标 |
+| POST | `/api/gateway/indicators/compute` | 批量计算指标 |
+| POST | `/api/gateway/indicators/compare` | 多币种指标比较 |
+
+### 策略管理
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/gateway/strategies` | 列出我的策略 |
+| POST | `/api/gateway/strategies` | 创建策略 |
+| GET | `/api/gateway/strategies/:id` | 策略详情 |
+| PUT | `/api/gateway/strategies/:id` | 更新策略 |
+| DELETE | `/api/gateway/strategies/:id` | 删除策略 |
+| POST | `/api/gateway/strategies/:id/validate` | 验证当前信号 |
+| POST | `/api/gateway/strategies/:id/activate` | 激活策略 |
+| POST | `/api/gateway/strategies/:id/pause` | 暂停策略 |
+| GET | `/api/gateway/strategies/:id/signals` | 信号历史 |
+| POST | `/api/gateway/strategies/:id/backtest` | 启动回测 |
+
+### 回测
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/gateway/backtests` | 回测历史列表 |
+| GET | `/api/gateway/backtests/:id` | 回测结果详情 |
+
 完整 Swagger 定义见 [`docs/swagger.json`](swagger.json)。
 
 ## 交易 action

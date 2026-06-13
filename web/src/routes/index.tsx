@@ -9,18 +9,18 @@ import { FEATURES } from '../config/features'
 import { t } from '../i18n/translations'
 
 const LoginPage = lazy(() =>
-  import('../pages/LoginPage').then((m) => ({ default: m.LoginPage }))
+  import('../components/LoginPage').then((m) => ({ default: m.LoginPage }))
 )
 const RegisterPage = lazy(() =>
-  import('../pages/RegisterPage').then((m) => ({ default: m.RegisterPage }))
+  import('../components/RegisterPage').then((m) => ({ default: m.RegisterPage }))
 )
 const ResetPasswordPage = lazy(() =>
-  import('../pages/ResetPasswordPage').then((m) => ({
+  import('../components/ResetPasswordPage').then((m) => ({
     default: m.ResetPasswordPage,
   }))
 )
 const CompetitionPage = lazy(() =>
-  import('../pages/CompetitionPage').then((m) => ({
+  import('../components/CompetitionPage').then((m) => ({
     default: m.CompetitionPage,
   }))
 )
@@ -44,6 +44,15 @@ const SymbolManagementPage = lazy(() =>
   }))
 )
 const ApiKeysPage = lazy(() => import('../pages/ApiKeysPage'))
+const StrategiesPage = lazy(() =>
+  import('../pages/StrategiesPage').then((m) => ({ default: m.StrategiesPage }))
+)
+const StrategyDetailPage = lazy(() =>
+  import('../pages/StrategyDetailPage').then((m) => ({ default: m.StrategyDetailPage }))
+)
+const BacktestPage = lazy(() =>
+  import('../pages/BacktestPage').then((m) => ({ default: m.BacktestPage }))
+)
 
 function RouteFallback() {
   const lang =
@@ -132,6 +141,30 @@ export const router = createBrowserRouter([
         element: withSuspense(
           <FeatureRoute feature={FEATURES.symbols}>
             <SymbolManagementPage />
+          </FeatureRoute>
+        ),
+      },
+      {
+        path: '/strategies/:id/backtest/:backtestId',
+        element: withSuspense(
+          <FeatureRoute feature={FEATURES.strategy}>
+            <BacktestPage />
+          </FeatureRoute>
+        ),
+      },
+      {
+        path: '/strategies/:id',
+        element: withSuspense(
+          <FeatureRoute feature={FEATURES.strategy}>
+            <StrategyDetailPage />
+          </FeatureRoute>
+        ),
+      },
+      {
+        path: '/strategies',
+        element: withSuspense(
+          <FeatureRoute feature={FEATURES.strategy}>
+            <StrategiesPage />
           </FeatureRoute>
         ),
       },

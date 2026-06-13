@@ -6,6 +6,7 @@ export const FEATURES = {
   leaderboard: 'leaderboard',
   copy_trade: 'copy_trade',
   symbols: 'symbols',
+  strategy: 'strategy',
 } as const
 
 export type FeatureKey = (typeof FEATURES)[keyof typeof FEATURES]

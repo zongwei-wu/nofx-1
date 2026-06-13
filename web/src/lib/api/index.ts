@@ -7,6 +7,7 @@ import { userApi } from './user'
 import { copyTradeApi } from './copyTrade'
 import { systemApi } from './system'
 import { apiKeysApi } from './apiKeys'
+import { strategiesApi } from './strategies'
 
 /** Unified API facade — domain modules composed for backward compatibility */
 export const api = {
@@ -19,6 +20,7 @@ export const api = {
   ...copyTradeApi,
   ...systemApi,
   ...apiKeysApi,
+  ...strategiesApi,
 }
 
 export { authApi } from './auth'

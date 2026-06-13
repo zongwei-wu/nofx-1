@@ -25,6 +25,41 @@ type StopOrderRequest struct {
 	StopPrice    float64 `json:"stop_price"`
 }
 
+// StrategyConfigRequest 策略配置请求
+type StrategyConfigRequest struct {
+	Name                  string                   `json:"name"`
+	ExchangeID            string                   `json:"exchange_id"`
+	Symbol                string                   `json:"symbol"`
+	Timeframe             string                   `json:"timeframe"`
+	Direction             string                   `json:"direction"`
+	EntryConditions       []map[string]interface{} `json:"entry_conditions"`
+	ExitConditions        []map[string]interface{} `json:"exit_conditions,omitempty"`
+	ExitRules             map[string]interface{}   `json:"exit_rules"`
+	Risk                  map[string]interface{}   `json:"risk"`
+}
+
+// ComputeIndicatorsRequest 指标计算请求
+type ComputeIndicatorsRequest struct {
+	Symbol     string   `json:"symbol"`
+	Interval   string   `json:"interval"`
+	Limit      int      `json:"limit"`
+	Indicators []string `json:"indicators"`
+}
+
+// CompareIndicatorsRequest 多币种指标比较
+type CompareIndicatorsRequest struct {
+	Symbols    []string `json:"symbols"`
+	Interval   string   `json:"interval"`
+	Indicators []string `json:"indicators"`
+}
+
+// BacktestRequest 回测请求
+type BacktestRequest struct {
+	Symbol         string  `json:"symbol"`
+	Timeframe      string  `json:"timeframe"`
+	InitialCapital float64 `json:"initial_capital"`
+}
+
 // Capabilities Gateway 能力清单
 type Capabilities struct {
 	Version         string   `json:"version"`

@@ -27,12 +27,13 @@ import (
 
 // Server HTTP API服务器
 type Server struct {
-	router        *gin.Engine
-	httpServer    *http.Server
-	traderManager *manager.TraderManager
-	database      *config.Database
-	cryptoHandler *CryptoHandler
-	port          int
+	router          *gin.Engine
+	httpServer      *http.Server
+	traderManager   *manager.TraderManager
+	strategyManager *manager.StrategyManager
+	database        *config.Database
+	cryptoHandler   *CryptoHandler
+	port            int
 }
 
 // NewServer 创建API服务器
@@ -54,6 +55,13 @@ func NewServer(traderManager *manager.TraderManager, database *config.Database, 
 		database:      database,
 		cryptoHandler: cryptoHandler,
 		port:          port,
+	}
+	s.strategyManager = manager.NewStrategyManager(database, func(userID, exchangeID string) (trader.Trader, error) {
+		t, _, err := s.getGatewayTrader(userID, exchangeID)
+		return t, err
+	})
+	if err := s.strategyManager.LoadStrategiesFromDatabase(); err != nil {
+		log.Printf("⚠️ 加载策略失败: %v", err)
 	}
 
 	// 设置路由
@@ -200,6 +208,31 @@ func (s *Server) setupRoutes() {
 				symbols.GET("/symbol-values", s.handleGetSymbolValues)
 			}
 
+			// 策略管理（需 strategy 权限）
+			strategies := protected.Group("/", s.requireFeature(config.FeatureStrategy))
+			{
+				strategies.GET("/strategies", s.handleListStrategies)
+				strategies.POST("/strategies", s.handleCreateStrategy)
+				strategies.GET("/strategies/:id", s.handleGetStrategy)
+				strategies.PUT("/strategies/:id", s.handleUpdateStrategy)
+				strategies.DELETE("/strategies/:id", s.handleDeleteStrategy)
+				strategies.POST("/strategies/:id/validate", s.handleValidateStrategy)
+				strategies.POST("/strategies/:id/activate", s.handleActivateStrategy)
+				strategies.POST("/strategies/:id/pause", s.handlePauseStrategy)
+				strategies.GET("/strategies/:id/signals", s.handleStrategySignals)
+				strategies.POST("/strategies/:id/backtest", s.handleStartBacktest)
+			}
+
+			// 指标与回测（需 strategy 权限）
+			strategyTools := protected.Group("/", s.requireFeature(config.FeatureStrategy))
+			{
+				strategyTools.GET("/indicators/list", s.handleIndicatorsList)
+				strategyTools.POST("/indicators/compute", s.handleIndicatorsCompute)
+				strategyTools.POST("/indicators/compare", s.handleIndicatorsCompare)
+				strategyTools.GET("/backtests", s.handleListBacktests)
+				strategyTools.GET("/backtests/:id", s.handleGetBacktest)
+			}
+
 			// 管理端 API（需 admin 角色）
 			admin := protected.Group("/admin", s.adminMiddleware())
 			{
@@ -243,6 +276,25 @@ func (s *Server) setupRoutes() {
 			gatewayAPI.POST("/gateway/leverage", s.handleGatewayLeverage)
 			gatewayAPI.POST("/gateway/stop-loss", s.handleGatewayStopLoss)
 			gatewayAPI.POST("/gateway/take-profit", s.handleGatewayTakeProfit)
+
+			// 策略管理
+			gatewayAPI.GET("/gateway/strategies", s.handleGatewayListStrategies)
+			gatewayAPI.POST("/gateway/strategies", s.handleGatewayCreateStrategy)
+			gatewayAPI.GET("/gateway/strategies/:id", s.handleGatewayGetStrategy)
+			gatewayAPI.PUT("/gateway/strategies/:id", s.handleGatewayUpdateStrategy)
+			gatewayAPI.DELETE("/gateway/strategies/:id", s.handleGatewayDeleteStrategy)
+			gatewayAPI.POST("/gateway/strategies/:id/validate", s.handleGatewayValidateStrategy)
+			gatewayAPI.POST("/gateway/strategies/:id/activate", s.handleGatewayActivateStrategy)
+			gatewayAPI.POST("/gateway/strategies/:id/pause", s.handleGatewayPauseStrategy)
+			gatewayAPI.GET("/gateway/strategies/:id/signals", s.handleGatewayStrategySignals)
+			gatewayAPI.POST("/gateway/strategies/:id/backtest", s.handleGatewayStartBacktest)
+
+			gatewayAPI.GET("/gateway/indicators/list", s.handleGatewayIndicatorsList)
+			gatewayAPI.POST("/gateway/indicators/compute", s.handleGatewayIndicatorsCompute)
+			gatewayAPI.POST("/gateway/indicators/compare", s.handleGatewayIndicatorsCompare)
+
+			gatewayAPI.GET("/gateway/backtests", s.handleGatewayListBacktests)
+			gatewayAPI.GET("/gateway/backtests/:id", s.handleGatewayGetBacktest)
 		}
 	}
 }
